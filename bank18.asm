@@ -534,7 +534,7 @@ code_189014:
   LDA #$20                                  ; $189020 |
   LDX #$24                                  ; $189022 |
   LDY #$00                                  ; $189024 |
-  JSR code_1EC59D                           ; $189026 |
+  JSR fill_nametable                           ; $189026 |
   JSR code_1EC53B                           ; $189029 |
   LDY #$1F                                  ; $18902C |
 code_18902E:
@@ -701,7 +701,7 @@ stage_select_init:
   LDA #$20                                  ; $189149 |
   LDX #$24                                  ; $18914B |
   LDY #$00                                  ; $18914D |
-  JSR code_1EC59D                           ; $18914F |
+  JSR fill_nametable                           ; $18914F |
   JSR code_1EC53B                           ; $189152 |
 code_189155:
   LDA #$F8                                  ; $189155 |

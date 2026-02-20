@@ -25,7 +25,7 @@ org $8000
   LDA #$20                                  ; $0C8031 |
   LDX #$00                                  ; $0C8033 |
   LDY #$00                                  ; $0C8035 |
-  JSR code_1EC59D                           ; $0C8037 |
+  JSR fill_nametable                           ; $0C8037 |
   JSR code_1EC53B                           ; $0C803A |
   LDY #$1F                                  ; $0C803D |
 code_0C803F:
@@ -566,7 +566,7 @@ code_0C849E:
   LDA #$24                                  ; $0C84AF |
   LDX #$24                                  ; $0C84B1 |
   LDY #$00                                  ; $0C84B3 |
-  JSR code_1EC59D                           ; $0C84B5 |
+  JSR fill_nametable                           ; $0C84B5 |
   JSR code_1EC53B                           ; $0C84B8 |
   JSR task_yield                           ; $0C84BB |
   LDY #$05                                  ; $0C84BE |

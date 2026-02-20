@@ -1157,100 +1157,131 @@ code_1EC53B:
   STA $2001                                 ; $1EC541 |
   RTS                                       ; $1EC544 |
 
-code_1EC545:
-  LDX #$01                                  ; $1EC545 |
-  STX $4016                                 ; $1EC547 |
-  DEX                                       ; $1EC54A |
-  STX $4016                                 ; $1EC54B |
-  LDX #$08                                  ; $1EC54E |
-code_1EC550:
-  LDA $4016                                 ; $1EC550 |
-  LSR                                       ; $1EC553 |
-  ROL $14                                   ; $1EC554 |
-  LSR                                       ; $1EC556 |
-  ROL $00                                   ; $1EC557 |
-  LDA $4017                                 ; $1EC559 |
-  LSR                                       ; $1EC55C |
-  ROL $15                                   ; $1EC55D |
-  LSR                                       ; $1EC55F |
-  ROL $01                                   ; $1EC560 |
+; ===========================================================================
+; read_controllers — read both joypads with DPCM-glitch mitigation
+; ===========================================================================
+; Standard NES controller read using the double-read technique: reads each
+; controller via both bit 0 and bit 1 of $4016/$4017, then ORs results to
+; compensate for DPCM channel interference on bit 0.
+;
+; After return:
+;   $14 = player 1 new presses (edges only, not held)
+;   $15 = player 2 new presses
+;   $16 = player 1 held (raw state this frame)
+;   $17 = player 2 held
+;
+; Simultaneous Up+Down or Left+Right are cancelled (D-pad bits cleared).
+; Called by scheduler on task slot 0 resume (main game task gets input).
+; ---------------------------------------------------------------------------
+read_controllers:
+  LDX #$01                                  ; $1EC545 |\ strobe controllers
+  STX $4016                                 ; $1EC547 | | (write 1 then 0 to latch)
+  DEX                                       ; $1EC54A | |
+  STX $4016                                 ; $1EC54B |/
+  LDX #$08                                  ; $1EC54E | 8 bits per controller
+.read_loop:
+  LDA $4016                                 ; $1EC550 |\ player 1: bit 0 → $14
+  LSR                                       ; $1EC553 | |          bit 1 → $00 (DPCM-safe)
+  ROL $14                                   ; $1EC554 | |
+  LSR                                       ; $1EC556 | |
+  ROL $00                                   ; $1EC557 |/
+  LDA $4017                                 ; $1EC559 |\ player 2: bit 0 → $15
+  LSR                                       ; $1EC55C | |          bit 1 → $01 (DPCM-safe)
+  ROL $15                                   ; $1EC55D | |
+  LSR                                       ; $1EC55F | |
+  ROL $01                                   ; $1EC560 |/
   DEX                                       ; $1EC562 |
-  BNE code_1EC550                           ; $1EC563 |
-  LDA $00                                   ; $1EC565 |
-  ORA $14                                   ; $1EC567 |
-  STA $14                                   ; $1EC569 |
-  LDA $01                                   ; $1EC56B |
-  ORA $15                                   ; $1EC56D |
-  STA $15                                   ; $1EC56F |
-  LDX #$01                                  ; $1EC571 |
-code_1EC573:
-  LDA $14,x                                 ; $1EC573 |
-  TAY                                       ; $1EC575 |
-  EOR $16,x                                 ; $1EC576 |
-  AND $14,x                                 ; $1EC578 |
-  STA $14,x                                 ; $1EC57A |
-  STY $16,x                                 ; $1EC57C |
+  BNE .read_loop                            ; $1EC563 |
+  LDA $00                                   ; $1EC565 |\ OR both reads together
+  ORA $14                                   ; $1EC567 | | to compensate for DPCM
+  STA $14                                   ; $1EC569 | | bit-0 corruption
+  LDA $01                                   ; $1EC56B | |
+  ORA $15                                   ; $1EC56D | |
+  STA $15                                   ; $1EC56F |/
+; --- edge detection: new presses = (current XOR previous) AND current ---
+  LDX #$01                                  ; $1EC571 | X=1 (P2), then X=0 (P1)
+.edge_detect:
+  LDA $14,x                                 ; $1EC573 |\ Y = raw buttons this frame
+  TAY                                       ; $1EC575 |/
+  EOR $16,x                                 ; $1EC576 |\ bits that changed from last frame
+  AND $14,x                                 ; $1EC578 | | AND current = newly pressed only
+  STA $14,x                                 ; $1EC57A |/ $14/$15 = new presses
+  STY $16,x                                 ; $1EC57C | $16/$17 = held (raw) for next frame
   DEX                                       ; $1EC57E |
-  BPL code_1EC573                           ; $1EC57F |
-  LDX #$03                                  ; $1EC581 |
-code_1EC583:
-  LDA $14,x                                 ; $1EC583 |
-  AND #$0C                                  ; $1EC585 |
-  CMP #$0C                                  ; $1EC587 |
-  BEQ code_1EC593                           ; $1EC589 |
-  LDA $14,x                                 ; $1EC58B |
-  AND #$03                                  ; $1EC58D |
-  CMP #$03                                  ; $1EC58F |
-  BNE code_1EC599                           ; $1EC591 |
-code_1EC593:
-  LDA $14,x                                 ; $1EC593 |
-  AND #$F0                                  ; $1EC595 |
-  STA $14,x                                 ; $1EC597 |
-code_1EC599:
+  BPL .edge_detect                          ; $1EC57F |
+; --- cancel simultaneous opposite directions ---
+  LDX #$03                                  ; $1EC581 | check $14,$15,$16,$17
+.cancel_opposites:
+  LDA $14,x                                 ; $1EC583 |\ Up+Down both pressed? ($0C)
+  AND #$0C                                  ; $1EC585 | |
+  CMP #$0C                                  ; $1EC587 | |
+  BEQ .clear_dpad                           ; $1EC589 |/
+  LDA $14,x                                 ; $1EC58B |\ Left+Right both pressed? ($03)
+  AND #$03                                  ; $1EC58D | |
+  CMP #$03                                  ; $1EC58F | |
+  BNE .next_reg                             ; $1EC591 |/
+.clear_dpad:
+  LDA $14,x                                 ; $1EC593 |\ clear all D-pad bits,
+  AND #$F0                                  ; $1EC595 | | keep A/B/Select/Start
+  STA $14,x                                 ; $1EC597 |/
+.next_reg:
   DEX                                       ; $1EC599 |
-  BPL code_1EC583                           ; $1EC59A |
+  BPL .cancel_opposites                     ; $1EC59A |
   RTS                                       ; $1EC59C |
 
-code_1EC59D:
-  STA $00                                   ; $1EC59D |
-  STX $01                                   ; $1EC59F |
-  STY $02                                   ; $1EC5A1 |
-  LDA $2002                                 ; $1EC5A3 |
-  LDA $FF                                   ; $1EC5A6 |
-  AND #$FE                                  ; $1EC5A8 |
-  STA $2000                                 ; $1EC5AA |
-  LDA $00                                   ; $1EC5AD |
-  STA $2006                                 ; $1EC5AF |
-  LDY #$00                                  ; $1EC5B2 |
-  STY $2006                                 ; $1EC5B4 |
-  LDX #$04                                  ; $1EC5B7 |
-  CMP #$20                                  ; $1EC5B9 |
-  BCS code_1EC5BF                           ; $1EC5BB |
-  LDX $02                                   ; $1EC5BD |
-code_1EC5BF:
-  LDY #$00                                  ; $1EC5BF |
-  LDA $01                                   ; $1EC5C1 |
-code_1EC5C3:
-  STA $2007                                 ; $1EC5C3 |
-  DEY                                       ; $1EC5C6 |
-  BNE code_1EC5C3                           ; $1EC5C7 |
-  DEX                                       ; $1EC5C9 |
-  BNE code_1EC5C3                           ; $1EC5CA |
-  LDY $02                                   ; $1EC5CC |
-  LDA $00                                   ; $1EC5CE |
-  CMP #$20                                  ; $1EC5D0 |
-  BCC code_1EC5E6                           ; $1EC5D2 |
-  ADC #$02                                  ; $1EC5D4 |
-  STA $2006                                 ; $1EC5D6 |
-  LDA #$C0                                  ; $1EC5D9 |
-  STA $2006                                 ; $1EC5DB |
-  LDX #$40                                  ; $1EC5DE |
-code_1EC5E0:
-  STY $2007                                 ; $1EC5E0 |
-  DEX                                       ; $1EC5E3 |
-  BNE code_1EC5E0                           ; $1EC5E4 |
-code_1EC5E6:
-  LDX $01                                   ; $1EC5E6 |
+; ===========================================================================
+; fill_nametable — fill a PPU nametable (or CHR range) with a single byte
+; ===========================================================================
+; Fills PPU memory starting at address A:$00 with value X.
+; If A >= $20 (nametable range): writes 1024 bytes (full nametable), then
+; fills 64-byte attribute table at (A+3):$C0 with value Y.
+; If A < $20 (pattern table): writes Y × 256 bytes (Y pages).
+;
+; Input:  A = PPU address high byte ($20/$24 for nametables, $00-$1F for CHR)
+;         X = fill byte (tile index for nametable, pattern data for CHR)
+;         Y = attribute fill byte (nametable mode) or page count (CHR mode)
+; Called from: RESET (clear both nametables), level transitions
+; ---------------------------------------------------------------------------
+fill_nametable:
+  STA $00                                   ; $1EC59D |\ save parameters
+  STX $01                                   ; $1EC59F | | $00=addr_hi, $01=fill, $02=attr
+  STY $02                                   ; $1EC5A1 |/
+  LDA $2002                                 ; $1EC5A3 | reset PPU latch
+  LDA $FF                                   ; $1EC5A6 |\ PPUCTRL: clear bit 0
+  AND #$FE                                  ; $1EC5A8 | | (horizontal increment mode)
+  STA $2000                                 ; $1EC5AA |/
+  LDA $00                                   ; $1EC5AD |\ PPUADDR = addr_hi : $00
+  STA $2006                                 ; $1EC5AF | |
+  LDY #$00                                  ; $1EC5B2 | |
+  STY $2006                                 ; $1EC5B4 |/
+  LDX #$04                                  ; $1EC5B7 |\ nametable? 4 pages (1024 bytes)
+  CMP #$20                                  ; $1EC5B9 | | CHR? Y pages (from parameter)
+  BCS .fill                                 ; $1EC5BB | |
+  LDX $02                                   ; $1EC5BD |/
+.fill:
+  LDY #$00                                  ; $1EC5BF | 256 iterations per page
+  LDA $01                                   ; $1EC5C1 | A = fill byte
+.fill_byte:
+  STA $2007                                 ; $1EC5C3 |\ write fill byte
+  DEY                                       ; $1EC5C6 | | inner: 256 bytes
+  BNE .fill_byte                            ; $1EC5C7 | |
+  DEX                                       ; $1EC5C9 | | outer: X pages
+  BNE .fill_byte                            ; $1EC5CA |/
+  LDY $02                                   ; $1EC5CC | Y = attribute byte
+  LDA $00                                   ; $1EC5CE |\ if addr < $20, skip attributes
+  CMP #$20                                  ; $1EC5D0 | |
+  BCC .done                                 ; $1EC5D2 |/
+  ADC #$02                                  ; $1EC5D4 |\ PPUADDR = (addr_hi+3):$C0
+  STA $2006                                 ; $1EC5D6 | | ($20→$23C0, $24→$27C0)
+  LDA #$C0                                  ; $1EC5D9 | | (carry set from CMP above)
+  STA $2006                                 ; $1EC5DB |/
+  LDX #$40                                  ; $1EC5DE | 64 attribute bytes
+.fill_attr:
+  STY $2007                                 ; $1EC5E0 |\ write attribute byte
+  DEX                                       ; $1EC5E3 | |
+  BNE .fill_attr                            ; $1EC5E4 |/
+.done:
+  LDX $01                                   ; $1EC5E6 | restore X = fill byte
   RTS                                       ; $1EC5E8 |
 
 code_1EC5E9:
@@ -9223,11 +9254,11 @@ RESET:
   LDA #$20                                  ; $1FFE87 |\ clear nametable 0 ($2000)
   LDX #$00                                  ; $1FFE89 | | A=addr hi, X=fill, Y=attr fill
   LDY #$00                                  ; $1FFE8B | |
-  JSR code_1EC59D                           ; $1FFE8D |/
+  JSR fill_nametable                           ; $1FFE8D |/
   LDA #$24                                  ; $1FFE90 |\ clear nametable 1 ($2400)
   LDX #$00                                  ; $1FFE92 | |
   LDY #$00                                  ; $1FFE94 | |
-  JSR code_1EC59D                           ; $1FFE96 |/
+  JSR fill_nametable                           ; $1FFE96 |/
 ; --- register main game task (slot 0, address $C8D0) ---
   LDA #$C8                                  ; $1FFE99 |\ $93/$94 = $C8D0 (main game entry)
   STA $94                                   ; $1FFE9B | | (in bank $1C, always-mapped range)
@@ -9254,7 +9285,7 @@ RESET:
 ;   state $04: restore stack pointer from byte 2 and RTS (resume coroutine)
 ;
 ; NMI decrements sleeping tasks' countdowns and sets state $04 when done.
-; Task slot 0 gets controller input read on resume (code_1EC545).
+; Task slot 0 gets controller input read on resume (read_controllers).
 ;
 ; $90 = NMI-occurred flag (set $FF by NMI, forces rescan)
 ; $91 = current task slot index (0-3)
@@ -9302,7 +9333,7 @@ task_scheduler:
   TXS                                       ; $1FFEE5 |/
   LDA $91                                   ; $1FFEE6 |\ slot 0? read controllers first
   BNE .restore_regs                         ; $1FFEE8 |/ (only main game task gets input)
-  JSR code_1EC545                           ; $1FFEEA | read_controllers
+  JSR read_controllers                           ; $1FFEEA | read_controllers
 .restore_regs:
   PLA                                       ; $1FFEED |\ restore Y and X from stack
   TAY                                       ; $1FFEEE | | (saved by task_yield)
