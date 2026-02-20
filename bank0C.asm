@@ -5,11 +5,11 @@ org $8000
   STA $EE                                   ; $0C8002 |
   LDX #$B4                                  ; $0C8004 |
   JSR task_yield_x                           ; $0C8006 |
-  JSR code_1EC752                           ; $0C8009 |
+  JSR fade_palette_in                           ; $0C8009 |
   LDA #$04                                  ; $0C800C |
   STA $97                                   ; $0C800E |
-  JSR code_1EC5E9                           ; $0C8010 |
-  JSR code_1EC628                           ; $0C8013 |
+  JSR prepare_oam_buffer                           ; $0C8010 |
+  JSR clear_entity_table                           ; $0C8013 |
   JSR task_yield                           ; $0C8016 |
   LDA #$F0                                  ; $0C8019 |
   JSR submit_sound_ID_D9                    ; $0C801B |
@@ -21,12 +21,12 @@ org $8000
   STA $FD                                   ; $0C8028 |
   STA $FC                                   ; $0C802A |
   STA $F8                                   ; $0C802C |
-  JSR code_1EC531                           ; $0C802E |
+  JSR rendering_off                           ; $0C802E |
   LDA #$20                                  ; $0C8031 |
   LDX #$00                                  ; $0C8033 |
   LDY #$00                                  ; $0C8035 |
   JSR fill_nametable                           ; $0C8037 |
-  JSR code_1EC53B                           ; $0C803A |
+  JSR rendering_on                           ; $0C803A |
   LDY #$1F                                  ; $0C803D |
 code_0C803F:
   LDA $863E,y                               ; $0C803F |
@@ -51,10 +51,10 @@ code_0C804A:
   STA $10                                   ; $0C8068 |
   JSR code_0C85F3                           ; $0C806A |
   JSR task_yield                           ; $0C806D |
-  JSR code_1EC74C                           ; $0C8070 |
+  JSR fade_palette_out                           ; $0C8070 |
   LDX #$F0                                  ; $0C8073 |
   JSR task_yield_x                           ; $0C8075 |
-  JSR code_1EC752                           ; $0C8078 |
+  JSR fade_palette_in                           ; $0C8078 |
   LDA #$16                                  ; $0C807B |
   STA $22                                   ; $0C807D |
   LDA #$02                                  ; $0C807F |
@@ -101,7 +101,7 @@ code_0C80D0:
   LDA #$C0                                  ; $0C80DD |
   STA $5E                                   ; $0C80DF |
   JSR task_yield                           ; $0C80E1 |
-  JSR code_1EC74C                           ; $0C80E4 |
+  JSR fade_palette_out                           ; $0C80E4 |
   LDA #$00                                  ; $0C80E7 |
   STA $0104                                 ; $0C80E9 |
   STA $0520                                 ; $0C80EC |
@@ -225,11 +225,11 @@ code_0C81D7:
 code_0C81E1:
   LDA #$00                                  ; $0C81E1 |
   STA $EE                                   ; $0C81E3 |
-  JSR code_1EC752                           ; $0C81E5 |
+  JSR fade_palette_in                           ; $0C81E5 |
   LDA #$04                                  ; $0C81E8 |
   STA $97                                   ; $0C81EA |
-  JSR code_1EC5E9                           ; $0C81EC |
-  JSR code_1EC628                           ; $0C81EF |
+  JSR prepare_oam_buffer                           ; $0C81EC |
+  JSR clear_entity_table                           ; $0C81EF |
   JSR task_yield                           ; $0C81F2 |
   LDA #$00                                  ; $0C81F5 |
   STA $A000                                 ; $0C81F7 |
@@ -315,7 +315,7 @@ code_0C8236:
   STA $0540                                 ; $0C82AA |
   STA $0560                                 ; $0C82AD |
   JSR task_yield                           ; $0C82B0 |
-  JSR code_1EC74C                           ; $0C82B3 |
+  JSR fade_palette_out                           ; $0C82B3 |
 code_0C82B6:
   LDA $0360                                 ; $0C82B6 |
   CMP #$80                                  ; $0C82B9 |
@@ -536,11 +536,11 @@ code_0C8466:
   JSR task_yield_x                           ; $0C8468 |
   LDA #$00                                  ; $0C846B |
   STA $EE                                   ; $0C846D |
-  JSR code_1EC752                           ; $0C846F |
+  JSR fade_palette_in                           ; $0C846F |
   LDA #$04                                  ; $0C8472 |
   STA $97                                   ; $0C8474 |
-  JSR code_1EC5E9                           ; $0C8476 |
-  JSR code_1EC628                           ; $0C8479 |
+  JSR prepare_oam_buffer                           ; $0C8476 |
+  JSR clear_entity_table                           ; $0C8479 |
   JSR task_yield                           ; $0C847C |
   LDA #$00                                  ; $0C847F |
   STA $A000                                 ; $0C8481 |
@@ -562,12 +562,12 @@ code_0C849E:
   JSR task_yield                           ; $0C84A5 |
   LDA $70                                   ; $0C84A8 |
   BNE code_0C849E                           ; $0C84AA |
-  JSR code_1EC531                           ; $0C84AC |
+  JSR rendering_off                           ; $0C84AC |
   LDA #$24                                  ; $0C84AF |
   LDX #$24                                  ; $0C84B1 |
   LDY #$00                                  ; $0C84B3 |
   JSR fill_nametable                           ; $0C84B5 |
-  JSR code_1EC53B                           ; $0C84B8 |
+  JSR rendering_on                           ; $0C84B8 |
   JSR task_yield                           ; $0C84BB |
   LDY #$05                                  ; $0C84BE |
 code_0C84C0:
@@ -592,7 +592,7 @@ code_0C84CE:
   LDX #$13                                  ; $0C84E6 |
   JSR code_0C85F3                           ; $0C84E8 |
   JSR task_yield                           ; $0C84EB |
-  JSR code_1EC74C                           ; $0C84EE |
+  JSR fade_palette_out                           ; $0C84EE |
   LDX #$B4                                  ; $0C84F1 |
   JSR task_yield_x                           ; $0C84F3 |
   LDA #$00                                  ; $0C84F6 |
@@ -675,7 +675,7 @@ code_0C8598:
   JSR update_CHR_banks                      ; $0C85A1 |
   LDA #$04                                  ; $0C85A4 |
   STA $97                                   ; $0C85A6 |
-  JSR code_1EC5E9                           ; $0C85A8 |
+  JSR prepare_oam_buffer                           ; $0C85A8 |
   LDA #$00                                  ; $0C85AB |
   STA $B8                                   ; $0C85AD |
   LDA #$01                                  ; $0C85AF |

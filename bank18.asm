@@ -521,9 +521,9 @@ org $9000
 
   JMP code_189ABE                           ; $189006 |
 
-  JSR code_1EC752                           ; $189009 |
+  JSR fade_palette_in                           ; $189009 |
   JSR task_yield                           ; $18900C |
-  JSR code_1EC531                           ; $18900F |
+  JSR rendering_off                           ; $18900F |
   LDY #$05                                  ; $189012 |
 code_189014:
   LDA $9BF7,y                               ; $189014 |
@@ -535,7 +535,7 @@ code_189014:
   LDX #$24                                  ; $189022 |
   LDY #$00                                  ; $189024 |
   JSR fill_nametable                           ; $189026 |
-  JSR code_1EC53B                           ; $189029 |
+  JSR rendering_on                           ; $189029 |
   LDY #$1F                                  ; $18902C |
 code_18902E:
   LDA $9C03,y                               ; $18902E |
@@ -550,12 +550,12 @@ code_18902E:
   LDX #$11                                  ; $189043 |
   JSR code_18939E                           ; $189045 |
   JSR task_yield                           ; $189048 |
-  JSR code_1EC74C                           ; $18904B |
+  JSR fade_palette_out                           ; $18904B |
   LDX #$B4                                  ; $18904E |
   JSR task_yield_x                           ; $189050 |
-  JSR code_1EC752                           ; $189053 |
+  JSR fade_palette_in                           ; $189053 |
   JSR task_yield                           ; $189056 |
-  JSR code_1EC531                           ; $189059 |
+  JSR rendering_off                           ; $189059 |
   LDY #$05                                  ; $18905C |
 code_18905E:
   LDA $9BF7,y                               ; $18905E |
@@ -572,7 +572,7 @@ code_189075:
   LDY #$00                                  ; $189075 |
   STY $10                                   ; $189077 |
   JSR queue_metatile_update                           ; $189079 |
-  JSR code_1EC4F8                           ; $18907C |
+  JSR drain_ppu_buffer                           ; $18907C |
   JSR task_yield                           ; $18907F |
   INC $28                                   ; $189082 |
   LDA $28                                   ; $189084 |
@@ -585,7 +585,7 @@ code_18908C:
   DEY                                       ; $189092 |
   BPL code_18908C                           ; $189093 |
   JSR task_yield                           ; $189095 |
-  JSR code_1EC53B                           ; $189098 |
+  JSR rendering_on                           ; $189098 |
   LDX #$03                                  ; $18909B |
 code_18909D:
   LDA $9C69,x                               ; $18909D |
@@ -597,7 +597,7 @@ code_18909D:
   LDA #$13                                  ; $1890AA |
   STA $F5                                   ; $1890AC |
   JSR select_PRG_banks                      ; $1890AE |
-  JSR code_1EC74C                           ; $1890B1 |
+  JSR fade_palette_out                           ; $1890B1 |
 code_1890B4:
   LDA $14                                   ; $1890B4 |
   AND #$10                                  ; $1890B6 |
@@ -666,7 +666,7 @@ stage_select_init:
   JSR code_1FE8B4                           ; $189101 |
   LDA #$04                                  ; $189104 |
   STA $97                                   ; $189106 |
-  JSR code_1EC5E9                           ; $189108 | clear nametable/setup PPU
+  JSR prepare_oam_buffer                           ; $189108 | clear unused OAM sprites
 .wait_nmi:
   LDA #$04                                  ; $18910B |
   STA $10                                   ; $18910D |
@@ -686,7 +686,7 @@ stage_select_init:
   STA $10                                   ; $189129 |
   LDA $9C67,y                               ; $18912B |
   STA $11                                   ; $18912E |
-  JSR code_1EC531                           ; $189130 | enable PPU rendering
+  JSR rendering_off                           ; $189130 | enable PPU rendering
   LDX bg_palette_index,y                    ; $189133 | X = offset into bg_palette_data
   LDY #$00                                  ; $189136 |
 .load_bg_palette_loop:
@@ -702,7 +702,7 @@ stage_select_init:
   LDX #$24                                  ; $18914B |
   LDY #$00                                  ; $18914D |
   JSR fill_nametable                           ; $18914F |
-  JSR code_1EC53B                           ; $189152 |
+  JSR rendering_on                           ; $189152 |
 code_189155:
   LDA #$F8                                  ; $189155 |
   STA $0200                                 ; $189157 |
@@ -1019,7 +1019,7 @@ code_1892F2:
 ;   - Bottom strip (y=152-239): scrolls horizontally, sliding portraits away
 ; ---------------------------------------------------------------------------
 stage_select_confirm:
-  JSR code_1EC628                           ; $189300 | disable rendering
+  JSR clear_entity_table                           ; $189300 | clear all entity slots
   LDA $12                                   ; $189303 | $12 = cursor column (0-2)
   CLC                                       ; $189305 |
   ADC $13                                   ; $189306 | $13 = cursor row offset (0/3/6)
@@ -1058,7 +1058,7 @@ stage_select_confirm:
   JSR select_PRG_banks                      ; $189335 |/  at $AF00+, referenced by fill routine)
   LDA #$04                                  ; $189338 |\ set rendering mode
   STA $97                                   ; $18933A |/
-  JSR code_1EC5E9                           ; $18933C | configure PPU
+  JSR prepare_oam_buffer                           ; $18933C | clear unused OAM sprites
   LDA #$76                                  ; $18933F |\ set CHR bank $76
   STA $E9                                   ; $189341 | | (boss intro screen tileset)
   JSR update_CHR_banks                      ; $189343 |/
@@ -1250,10 +1250,10 @@ robot_master_intro:
 
 ; --- Robot Master intro animation ---
 .robot_master_stage:
-  JSR code_1EC752                           ; $189428 | disable sprites/rendering
+  JSR fade_palette_in                           ; $189428 | disable sprites/rendering
   LDA #$04                                  ; $18942B |\ set rendering mode
   STA $97                                   ; $18942D |/
-  JSR code_1EC5E9                           ; $18942F | configure PPU
+  JSR prepare_oam_buffer                           ; $18942F | configure PPU
   JSR task_yield                           ; $189432 | wait 1 frame
   LDA #$35                                  ; $189435 |\ play sound $35
   JSR submit_sound_ID_D9                    ; $189437 |/ (boss intro fanfare)
@@ -1326,7 +1326,7 @@ robot_master_intro:
   AND #$BF                                  ; $18949C | | (enable rendering?)
   STA $0580                                 ; $18949E |/
   JSR task_yield                           ; $1894A1 | wait 1 frame
-  JSR code_1EC74C                           ; $1894A4 | enable rendering
+  JSR fade_palette_out                           ; $1894A4 | enable rendering
 
 ; Boss drop loop: decrement Y from $E8 to $74 at 4px/frame.
 ; ($E8 - $74) / 4 = 29 frames for the boss to slide down.
@@ -1487,10 +1487,10 @@ code_189581:
   JMP code_18968C                           ; $189587 |
 
 code_18958A:
-  JSR code_1EC752                           ; $18958A |
+  JSR fade_palette_in                           ; $18958A |
   LDA #$04                                  ; $18958D |
   STA $97                                   ; $18958F |
-  JSR code_1EC5E9                           ; $189591 |
+  JSR prepare_oam_buffer                           ; $189591 |
   JSR task_yield                           ; $189594 |
   JSR code_189936                           ; $189597 |
   LDA #$10                                  ; $18959A |
@@ -1562,7 +1562,7 @@ code_18960F:
   LDA #$07                                  ; $189629 |
   STA $F8                                   ; $18962B |
   JSR task_yield                           ; $18962D |
-  JSR code_1EC74C                           ; $189630 |
+  JSR fade_palette_out                           ; $189630 |
   LDA $60                                   ; $189633 |
   BEQ code_18964D                           ; $189635 |
   LDA #$12                                  ; $189637 |
@@ -1608,10 +1608,10 @@ code_189681:
   JMP code_189258                           ; $189689 |
 
 code_18968C:
-  JSR code_1EC752                           ; $18968C |
+  JSR fade_palette_in                           ; $18968C |
   LDA #$04                                  ; $18968F |
   STA $97                                   ; $189691 |
-  JSR code_1EC5E9                           ; $189693 |
+  JSR prepare_oam_buffer                           ; $189693 |
   JSR task_yield                           ; $189696 |
   JSR code_189936                           ; $189699 |
   LDA #$13                                  ; $18969C |
@@ -1658,7 +1658,7 @@ code_1896DA:
   STA $F5                                   ; $1896F1 |
   JSR select_PRG_banks                      ; $1896F3 |
   JSR $A8DD                                 ; $1896F6 |
-  JSR code_1EC74C                           ; $1896F9 |
+  JSR fade_palette_out                           ; $1896F9 |
 code_1896FC:
   LDA $14                                   ; $1896FC |
   AND #$90                                  ; $1896FE |
@@ -1859,10 +1859,10 @@ code_18983E:
   RTS                                       ; $18985C |
 
 code_18985D:
-  JSR code_1EC752                           ; $18985D |
+  JSR fade_palette_in                           ; $18985D |
   LDA #$04                                  ; $189860 |
   STA $97                                   ; $189862 |
-  JSR code_1EC5E9                           ; $189864 |
+  JSR prepare_oam_buffer                           ; $189864 |
   JSR task_yield                           ; $189867 |
   LDA #$0E                                  ; $18986A |
   JSR submit_sound_ID_D9                    ; $18986C |
@@ -1915,7 +1915,7 @@ code_1898AD:
   JSR select_PRG_banks                      ; $1898CE |
   JSR $A8DD                                 ; $1898D1 |
   JSR task_yield                           ; $1898D4 |
-  JSR code_1EC74C                           ; $1898D7 |
+  JSR fade_palette_out                           ; $1898D7 |
   LDA #$78                                  ; $1898DA |
 code_1898DC:
   PHA                                       ; $1898DC |
@@ -2188,13 +2188,13 @@ code_189ABC:
   PLA                                       ; $189ABC |
   PLA                                       ; $189ABD |
 code_189ABE:
-  JSR code_1EC752                           ; $189ABE |
+  JSR fade_palette_in                           ; $189ABE |
   JSR code_189936                           ; $189AC1 |
   LDA #$04                                  ; $189AC4 |
   STA $97                                   ; $189AC6 |
-  JSR code_1EC5E9                           ; $189AC8 |
+  JSR prepare_oam_buffer                           ; $189AC8 |
   JSR task_yield                           ; $189ACB |
-  JSR code_1EC628                           ; $189ACE |
+  JSR clear_entity_table                           ; $189ACE |
   LDA #$01                                  ; $189AD1 |
   STA $A000                                 ; $189AD3 |
   LDA #$00                                  ; $189AD6 |
@@ -2293,7 +2293,7 @@ code_189B38:
   LDA #$0C                                  ; $189BA9 |
   JSR submit_sound_ID_D9                    ; $189BAB |
   JSR task_yield                           ; $189BAE |
-  JSR code_1EC74C                           ; $189BB1 |
+  JSR fade_palette_out                           ; $189BB1 |
   JMP code_1EC9B3                           ; $189BB4 |
 
   db $0F, $30, $30, $17, $0F, $07, $30, $17 ; $189BB7 |

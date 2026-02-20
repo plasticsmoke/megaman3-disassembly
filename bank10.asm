@@ -6,7 +6,7 @@ org $8000
   JMP code_1081F3                           ; $108003 |
 
 code_108006:
-  JSR code_1EC8A0                           ; $108006 |
+  JSR ensure_stage_bank                           ; $108006 |
   LDA #$00                                  ; $108009 |
   STA $95                                   ; $10800B |
   LDA $80D3,y                               ; $10800D |
@@ -133,7 +133,7 @@ code_1080CC:
   db $00, $00, $2F, $03, $00, $00, $00, $00 ; $1081EB |
 
 code_1081F3:
-  JSR code_1EC8A0                           ; $1081F3 |
+  JSR ensure_stage_bank                           ; $1081F3 |
   LDA $82B0,y                               ; $1081F6 |
   STA $0780                                 ; $1081F9 |
   STA $0784                                 ; $1081FC |

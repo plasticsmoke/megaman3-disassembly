@@ -245,7 +245,7 @@ code_02A18E:
   INC $50                                   ; $02A196 |
   LDA #$04                                  ; $02A198 |
   STA $97                                   ; $02A19A |
-  JSR code_1EC5E9                           ; $02A19C |
+  JSR prepare_oam_buffer                           ; $02A19C |
   PLA                                       ; $02A19F |
   STA $50                                   ; $02A1A0 |
   LDA $F8                                   ; $02A1A2 |
@@ -443,7 +443,7 @@ code_02A2F6:
   LDA $51                                   ; $02A2F6 |
 code_02A2F8:
   STA $7B                                   ; $02A2F8 |
-  JSR code_1EC5E9                           ; $02A2FA |
+  JSR prepare_oam_buffer                           ; $02A2FA |
   JSR code_02A30C                           ; $02A2FD |
   LDA #$00                                  ; $02A300 |
   STA $EE                                   ; $02A302 |

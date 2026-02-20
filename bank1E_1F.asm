@@ -1108,53 +1108,85 @@ wave_y_scroll_set:
 wave_y_scroll_advance:
   db $40, $70, $A0                          ; $1EC4F5 | Y scroll for advance: 64/112/160
 
-code_1EC4F8:
+; ===========================================================================
+; drain_ppu_buffer — write queued PPU updates from $0780 buffer
+; ===========================================================================
+; Called by NMI to flush pending nametable/attribute writes.
+; Buffer format: [addr_hi][addr_lo][count][tile × (count+1)]...[FF=end]
+; $19 is cleared (scroll dirty flag reset after PPU writes).
+; ---------------------------------------------------------------------------
+drain_ppu_buffer:
   LDX #$00                                  ; $1EC4F8 |
-  STX $19                                   ; $1EC4FA |
-code_1EC4FC:
-  LDA $0780,x                               ; $1EC4FC |
-  BMI code_1EC51C                           ; $1EC4FF |
-  STA $2006                                 ; $1EC501 |
+  STX $19                                   ; $1EC4FA | clear scroll-dirty flag
+.next_entry:
+  LDA $0780,x                               ; $1EC4FC | read PPU addr high byte
+  BMI .done                                 ; $1EC4FF | $FF terminator → exit
+  STA $2006                                 ; $1EC501 | PPUADDR high
   LDA $0781,x                               ; $1EC504 |
-  STA $2006                                 ; $1EC507 |
-  LDY $0782,x                               ; $1EC50A |
-code_1EC50D:
-  LDA $0783,x                               ; $1EC50D |
-  STA $2007                                 ; $1EC510 |
+  STA $2006                                 ; $1EC507 | PPUADDR low
+  LDY $0782,x                               ; $1EC50A | Y = byte count
+.write_byte:
+  LDA $0783,x                               ; $1EC50D | write tile data
+  STA $2007                                 ; $1EC510 | to PPUDATA
   INX                                       ; $1EC513 |
   DEY                                       ; $1EC514 |
-  BPL code_1EC50D                           ; $1EC515 |
-  INX                                       ; $1EC517 |
-  INX                                       ; $1EC518 |
-  INX                                       ; $1EC519 |
-  BNE code_1EC4FC                           ; $1EC51A |
-code_1EC51C:
+  BPL .write_byte                           ; $1EC515 | loop count+1 times
+  INX                                       ; $1EC517 | skip past addr_hi
+  INX                                       ; $1EC518 | addr_lo
+  INX                                       ; $1EC519 | count fields
+  BNE .next_entry                           ; $1EC51A | next buffer entry
+.done:
   RTS                                       ; $1EC51C |
 
+; ---------------------------------------------------------------------------
+; disable_nmi — clear NMI enable + sprite bits in PPUCTRL
+; ---------------------------------------------------------------------------
+; Masks $FF (PPUCTRL shadow) to $11 (keep sprite table select + increment),
+; clears NMI enable (bit 7) and sprite size (bit 5).
+; Referenced from bank16 dispatch table at $168A68.
+; ---------------------------------------------------------------------------
+disable_nmi:
   LDA $FF                                   ; $1EC51D |
-  AND #$11                                  ; $1EC51F |
-  STA $FF                                   ; $1EC521 |
-  STA $2000                                 ; $1EC523 |
+  AND #$11                                  ; $1EC51F | keep bits 4,0 only
+  STA $FF                                   ; $1EC521 | update shadow
+  STA $2000                                 ; $1EC523 | write PPUCTRL
   RTS                                       ; $1EC526 |
 
+; ---------------------------------------------------------------------------
+; enable_nmi — set NMI enable bit in PPUCTRL
+; ---------------------------------------------------------------------------
+enable_nmi:
   LDA $FF                                   ; $1EC527 |
-  ORA #$80                                  ; $1EC529 |
-  STA $FF                                   ; $1EC52B |
-  STA $2000                                 ; $1EC52D |
+  ORA #$80                                  ; $1EC529 | set bit 7 (NMI enable)
+  STA $FF                                   ; $1EC52B | update shadow
+  STA $2000                                 ; $1EC52D | write PPUCTRL
   RTS                                       ; $1EC530 |
 
-code_1EC531:
-  INC $EE                                   ; $1EC531 |
+; ---------------------------------------------------------------------------
+; rendering_off — blank screen and increment frame-lock counter
+; ---------------------------------------------------------------------------
+; Sets PPUMASK ($2001) to $00 (all rendering off).
+; $EE++ prevents task_yield from resuming entity processing.
+; $FE = PPUMASK shadow.
+; ---------------------------------------------------------------------------
+rendering_off:
+  INC $EE                                   ; $1EC531 | frame-lock counter++
   LDA #$00                                  ; $1EC533 |
-  STA $FE                                   ; $1EC535 |
-  STA $2001                                 ; $1EC537 |
+  STA $FE                                   ; $1EC535 | PPUMASK shadow = $00
+  STA $2001                                 ; $1EC537 | all rendering off
   RTS                                       ; $1EC53A |
 
-code_1EC53B:
-  DEC $EE                                   ; $1EC53B |
+; ---------------------------------------------------------------------------
+; rendering_on — restore screen rendering and decrement frame-lock
+; ---------------------------------------------------------------------------
+; Sets PPUMASK ($2001) to $18 (show background + show sprites).
+; $EE-- re-enables entity processing in task_yield.
+; ---------------------------------------------------------------------------
+rendering_on:
+  DEC $EE                                   ; $1EC53B | frame-lock counter--
   LDA #$18                                  ; $1EC53D |
-  STA $FE                                   ; $1EC53F |
-  STA $2001                                 ; $1EC541 |
+  STA $FE                                   ; $1EC53F | PPUMASK shadow = $18
+  STA $2001                                 ; $1EC541 | BG + sprites on
   RTS                                       ; $1EC544 |
 
 ; ===========================================================================
@@ -1284,300 +1316,384 @@ fill_nametable:
   LDX $01                                   ; $1EC5E6 | restore X = fill byte
   RTS                                       ; $1EC5E8 |
 
-code_1EC5E9:
-  LDA $30                                   ; $1EC5E9 |
-  CMP #$07                                  ; $1EC5EB |
-  BNE code_1EC5F5                           ; $1EC5ED |
-  LDX #$6C                                  ; $1EC5EF |
-  STX $97                                   ; $1EC5F1 |
-  BNE code_1EC60A                           ; $1EC5F3 |
-code_1EC5F5:
-  LDX $97                                   ; $1EC5F5 |
-  CPX #$04                                  ; $1EC5F7 |
-  BNE code_1EC600                           ; $1EC5F9 |
-  LDA #$F8                                  ; $1EC5FB |
-  STA $0200                                 ; $1EC5FD |
-code_1EC600:
-  LDA $50                                   ; $1EC600 |
-  BNE code_1EC60A                           ; $1EC602 |
-  LDA $72                                   ; $1EC604 |
-  BEQ code_1EC60A                           ; $1EC606 |
-  LDX #$30                                  ; $1EC608 |
-code_1EC60A:
-  LDA #$F8                                  ; $1EC60A |
-code_1EC60C:
-  STA $0200,x                               ; $1EC60C |
-  INX                                       ; $1EC60F |
-  INX                                       ; $1EC610 |
-  INX                                       ; $1EC611 |
-  INX                                       ; $1EC612 |
-  BNE code_1EC60C                           ; $1EC613 |
-  LDA $50                                   ; $1EC615 |
-  BNE code_1EC627                           ; $1EC617 |
-  LDA $71                                   ; $1EC619 |
-  BNE code_1EC63E                           ; $1EC61B |
-  LDA $72                                   ; $1EC61D |
-  BNE code_1EC669                           ; $1EC61F |
-  LDA $F8                                   ; $1EC621 |
-  CMP #$02                                  ; $1EC623 |
-  BEQ code_1EC696                           ; $1EC625 |
-code_1EC627:
+; ===========================================================================
+; prepare_oam_buffer — clear unused OAM sprites and draw overlays
+; ===========================================================================
+; Called each frame before update_entity_sprites. Hides all OAM entries from
+; the current write position ($97) to end of buffer by setting Y=$F8
+; (off-screen). Then dispatches to overlay sprite routines based on flags:
+;   $71 != 0 → load_overlay_sprites: copy sprite data from ROM, start scroll
+;   $72 != 0 → scroll_overlay_sprites: slide overlay sprites leftward
+;   $F8 == 2 → draw_scroll_sprites: draw camera-tracking sprites
+;
+; OAM layout:
+;   $0200-$022F (sprites 0-11) — reserved for overlays when $72 is active
+;   $0230+ (sprites 12+) — entity sprites, starting at $97
+;
+; $97 = OAM write index: $04 = with player, $0C = skip player, $30 = skip overlays
+; $50 = pause flag (nonzero = skip overlay dispatch)
+; $71 = overlay init trigger (set by palette_fade_tick when fade-in completes)
+; $72 = overlay scroll active (nonzero = overlays visible, preserve OAM 0-11)
+; 22 callers across banks $02, $0B, $0C, $18, $1E, $1F.
+; ---------------------------------------------------------------------------
+prepare_oam_buffer:
+  LDA $30                                   ; $1EC5E9 |\ state $07 = special_death:
+  CMP #$07                                  ; $1EC5EB | | force $97=$6C (keep 27 sprites,
+  BNE .not_special_death                    ; $1EC5ED | | clear rest)
+  LDX #$6C                                  ; $1EC5EF | |
+  STX $97                                   ; $1EC5F1 | |
+  BNE .clear_unused                         ; $1EC5F3 |/
+.not_special_death:
+  LDX $97                                   ; $1EC5F5 |\ if $97==$04 (player slot only):
+  CPX #$04                                  ; $1EC5F7 | | hide sprite 0 (NES sprite 0 hit
+  BNE .check_overlay                        ; $1EC5F9 | | detection — no longer needed)
+  LDA #$F8                                  ; $1EC5FB | |
+  STA $0200                                 ; $1EC5FD |/
+.check_overlay:
+  LDA $50                                   ; $1EC600 |\ if paused ($50): clear from $97
+  BNE .clear_unused                         ; $1EC602 |/
+  LDA $72                                   ; $1EC604 |\ if overlay active ($72): start
+  BEQ .clear_unused                         ; $1EC606 | | clearing at $30 (preserve
+  LDX #$30                                  ; $1EC608 |/ sprites 0-11 = overlay area)
+.clear_unused:
+  LDA #$F8                                  ; $1EC60A | Y=$F8 = off-screen (hide sprite)
+.clear_loop:
+  STA $0200,x                               ; $1EC60C |\ write $F8 to Y byte of each
+  INX                                       ; $1EC60F | | OAM entry (4-byte stride)
+  INX                                       ; $1EC610 | | from X to end of buffer
+  INX                                       ; $1EC611 | |
+  INX                                       ; $1EC612 | |
+  BNE .clear_loop                           ; $1EC613 |/
+  LDA $50                                   ; $1EC615 |\ if paused: skip overlay dispatch
+  BNE .done                                 ; $1EC617 |/
+  LDA $71                                   ; $1EC619 |\ $71: load overlay sprites from ROM
+  BNE load_overlay_sprites                  ; $1EC61B |/
+  LDA $72                                   ; $1EC61D |\ $72: scroll overlay sprites
+  BNE scroll_overlay_sprites                ; $1EC61F |/
+  LDA $F8                                   ; $1EC621 |\ $F8==2: draw camera-tracking sprites
+  CMP #$02                                  ; $1EC623 | |
+  BEQ draw_scroll_sprites                   ; $1EC625 |/
+.done:
   RTS                                       ; $1EC627 |
 
-code_1EC628:
-  LDX #$1F                                  ; $1EC628 |
-code_1EC62A:
-  LDA #$00                                  ; $1EC62A |
-  STA $0300,x                               ; $1EC62C |
-  LDA #$FF                                  ; $1EC62F |
-  STA $04C0,x                               ; $1EC631 |
-  DEX                                       ; $1EC634 |
-  BNE code_1EC62A                           ; $1EC635 |
-  LDA #$00                                  ; $1EC637 |
-  STA $71                                   ; $1EC639 |
-  STA $72                                   ; $1EC63B |
+; ===========================================================================
+; clear_entity_table — reset all non-player entity slots
+; ===========================================================================
+; Clears entity active/type byte ($0300,x) and palette-anim timer ($04C0,x)
+; for slots 1-31 (skips slot 0 = player). Also clears $71/$72 (overlay
+; sprite flags used by prepare_oam_buffer).
+; Called during stage transitions, scene loads, and init sequences.
+; 14 callers across banks $0B, $0C, $18, $1E.
+; ---------------------------------------------------------------------------
+clear_entity_table:
+  LDX #$1F                                  ; $1EC628 | start at slot 31
+.clear_loop:
+  LDA #$00                                  ; $1EC62A |\ clear entity type (deactivate slot)
+  STA $0300,x                               ; $1EC62C |/
+  LDA #$FF                                  ; $1EC62F |\ $FF = palette-anim inactive
+  STA $04C0,x                               ; $1EC631 |/
+  DEX                                       ; $1EC634 |\ loop slots 31 down to 1
+  BNE .clear_loop                           ; $1EC635 |/ (BNE: skips slot 0 = player)
+  LDA #$00                                  ; $1EC637 |\ clear overlay sprite flags
+  STA $71                                   ; $1EC639 | | $71 = load overlay trigger
+  STA $72                                   ; $1EC63B |/ $72 = overlay scroll active
   RTS                                       ; $1EC63D |
 
-code_1EC63E:
-  LDA #$00                                  ; $1EC63E |
-  STA $71                                   ; $1EC640 |
-  LDY #$2C                                  ; $1EC642 |
-code_1EC644:
-  LDA $C6D8,y                               ; $1EC644 |
-  STA $0200,y                               ; $1EC647 |
-  LDA $C6D9,y                               ; $1EC64A |
-  STA $0201,y                               ; $1EC64D |
-  LDA $C6DA,y                               ; $1EC650 |
-  STA $0202,y                               ; $1EC653 |
-  LDA $C6DB,y                               ; $1EC656 |
-  STA $0203,y                               ; $1EC659 |
-  DEY                                       ; $1EC65C |
-  DEY                                       ; $1EC65D |
-  DEY                                       ; $1EC65E |
-  DEY                                       ; $1EC65F |
-  BPL code_1EC644                           ; $1EC660 |
-  STY $72                                   ; $1EC662 |
-  LDA #$30                                  ; $1EC664 |
-  STA $97                                   ; $1EC666 |
+; --- load_overlay_sprites ---
+; Copies 12 OAM entries from overlay_sprite_data ($C6D8) to OAM $0200-$022F.
+; Tiles $F1/$F2, palette 2. Clears $71, sets $72 (activates scroll), $97=$30.
+load_overlay_sprites:
+  LDA #$00                                  ; $1EC63E |\ clear trigger flag (one-shot)
+  STA $71                                   ; $1EC640 |/
+  LDY #$2C                                  ; $1EC642 | Y = $2C: 12 entries (0-11)
+.copy_loop:
+  LDA $C6D8,y                               ; $1EC644 |\ copy 4 OAM bytes per sprite:
+  STA $0200,y                               ; $1EC647 | | Y position
+  LDA $C6D9,y                               ; $1EC64A | | tile index
+  STA $0201,y                               ; $1EC64D | | attribute
+  LDA $C6DA,y                               ; $1EC650 | | X position
+  STA $0202,y                               ; $1EC653 | |
+  LDA $C6DB,y                               ; $1EC656 | |
+  STA $0203,y                               ; $1EC659 |/
+  DEY                                       ; $1EC65C |\ next entry (Y -= 4)
+  DEY                                       ; $1EC65D | |
+  DEY                                       ; $1EC65E | |
+  DEY                                       ; $1EC65F | |
+  BPL .copy_loop                            ; $1EC660 |/ loop while Y >= 0
+  STY $72                                   ; $1EC662 | Y=$FC (nonzero) → overlay scroll active
+  LDA #$30                                  ; $1EC664 |\ $97=$30: entity sprites start at $0230
+  STA $97                                   ; $1EC666 |/ (12 overlay sprites reserved)
   RTS                                       ; $1EC668 |
 
-code_1EC669:
-  LDY #$14                                  ; $1EC669 |
-code_1EC66B:
-  LDA $0203,y                               ; $1EC66B |
-  SEC                                       ; $1EC66E |
-  SBC #$01                                  ; $1EC66F |
-  STA $0203,y                               ; $1EC671 |
-  DEY                                       ; $1EC674 |
-  DEY                                       ; $1EC675 |
-  DEY                                       ; $1EC676 |
-  DEY                                       ; $1EC677 |
-  BPL code_1EC66B                           ; $1EC678 |
-  LDA $95                                   ; $1EC67A |
-  AND #$01                                  ; $1EC67C |
-  BNE code_1EC691                           ; $1EC67E |
-  LDY #$14                                  ; $1EC680 |
-code_1EC682:
-  LDA $021B,y                               ; $1EC682 |
-  SEC                                       ; $1EC685 |
-  SBC #$01                                  ; $1EC686 |
-  STA $021B,y                               ; $1EC688 |
-  DEY                                       ; $1EC68B |
-  DEY                                       ; $1EC68C |
-  DEY                                       ; $1EC68D |
-  DEY                                       ; $1EC68E |
-  BPL code_1EC682                           ; $1EC68F |
-code_1EC691:
-  LDA #$30                                  ; $1EC691 |
-  STA $97                                   ; $1EC693 |
+; --- scroll_overlay_sprites ---
+; Slides overlay sprites leftward (X -= 1 per frame). Sprites 0-5 scroll
+; every frame; sprites 6-11 scroll every other frame ($95 bit 0 = frame parity).
+; This creates a parallax-like spread effect as the sprites fly across screen.
+scroll_overlay_sprites:
+  LDY #$14                                  ; $1EC669 | sprites 0-5: X byte offsets $03-$17
+.scroll_fast:
+  LDA $0203,y                               ; $1EC66B |\ X position -= 1
+  SEC                                       ; $1EC66E | |
+  SBC #$01                                  ; $1EC66F | |
+  STA $0203,y                               ; $1EC671 |/
+  DEY                                       ; $1EC674 |\ next sprite (Y -= 4)
+  DEY                                       ; $1EC675 | |
+  DEY                                       ; $1EC676 | |
+  DEY                                       ; $1EC677 | |
+  BPL .scroll_fast                          ; $1EC678 |/ loop sprites 5 → 0
+  LDA $95                                   ; $1EC67A |\ skip slow set on odd frames
+  AND #$01                                  ; $1EC67C | | ($95 = global frame counter)
+  BNE .scroll_done                          ; $1EC67E |/
+  LDY #$14                                  ; $1EC680 | sprites 6-11: X byte offsets $1B-$2F
+.scroll_slow:
+  LDA $021B,y                               ; $1EC682 |\ X position -= 1 (half speed)
+  SEC                                       ; $1EC685 | |
+  SBC #$01                                  ; $1EC686 | |
+  STA $021B,y                               ; $1EC688 |/
+  DEY                                       ; $1EC68B |\ next sprite (Y -= 4)
+  DEY                                       ; $1EC68C | |
+  DEY                                       ; $1EC68D | |
+  DEY                                       ; $1EC68E | |
+  BPL .scroll_slow                          ; $1EC68F |/ loop sprites 11 → 6
+.scroll_done:
+  LDA #$30                                  ; $1EC691 |\ $97=$30: entity sprites at $0230
+  STA $97                                   ; $1EC693 |/
   RTS                                       ; $1EC695 |
 
-code_1EC696:
-  LDA $FC                                   ; $1EC696 |
-  STA $00                                   ; $1EC698 |
-  LDA $F9                                   ; $1EC69A |
-  LSR                                       ; $1EC69C |
-  ROR $00                                   ; $1EC69D |
-  LSR                                       ; $1EC69F |
-  ROR $00                                   ; $1EC6A0 |
-  LDA $95                                   ; $1EC6A2 |
-  AND #$01                                  ; $1EC6A4 |
-  ASL                                       ; $1EC6A6 |
-  ASL                                       ; $1EC6A7 |
-  ASL                                       ; $1EC6A8 |
-  ASL                                       ; $1EC6A9 |
-  ASL                                       ; $1EC6AA |
-  TAY                                       ; $1EC6AB |
-  LDX #$1C                                  ; $1EC6AC |
-code_1EC6AE:
-  LDA $C708,y                               ; $1EC6AE |
-  STA $0200,x                               ; $1EC6B1 |
-  LDA $C709,y                               ; $1EC6B4 |
-  STA $0201,x                               ; $1EC6B7 |
-  LDA $C70A,y                               ; $1EC6BA |
-  STA $0202,x                               ; $1EC6BD |
-  LDA $C70B,y                               ; $1EC6C0 |
-  SEC                                       ; $1EC6C3 |
-  SBC $00                                   ; $1EC6C4 |
-  STA $0203,x                               ; $1EC6C6 |
-  INY                                       ; $1EC6C9 |
-  INY                                       ; $1EC6CA |
-  INY                                       ; $1EC6CB |
-  INY                                       ; $1EC6CC |
-  DEX                                       ; $1EC6CD |
-  DEX                                       ; $1EC6CE |
-  DEX                                       ; $1EC6CF |
-  DEX                                       ; $1EC6D0 |
-  BPL code_1EC6AE                           ; $1EC6D1 |
-  LDA #$20                                  ; $1EC6D3 |
-  STA $97                                   ; $1EC6D5 |
+; --- draw_scroll_sprites ---
+; Draws 8 camera-tracking sprites when $F8==2 (screen scroll mode).
+; X positions are adjusted by camera scroll offset ($F9:$FC >> 2).
+; Alternates between two 8-sprite sets based on frame parity ($95 bit 0):
+;   even frames: scroll_sprite_data+$00 (Y offset 0)
+;   odd frames:  scroll_sprite_data+$20 (Y offset 32)
+; Tile $E4 (solid fill), palette 3. Sprites written to OAM $0200-$021F.
+draw_scroll_sprites:
+  LDA $FC                                   ; $1EC696 |\ compute camera X offset >> 2:
+  STA $00                                   ; $1EC698 | | $00 = ($F9:$FC) >> 2
+  LDA $F9                                   ; $1EC69A | | (coarse scroll position / 4)
+  LSR                                       ; $1EC69C | |
+  ROR $00                                   ; $1EC69D | |
+  LSR                                       ; $1EC69F | |
+  ROR $00                                   ; $1EC6A0 |/
+  LDA $95                                   ; $1EC6A2 |\ Y = ($95 AND 1) << 5
+  AND #$01                                  ; $1EC6A4 | | even frames: Y=0, odd: Y=$20
+  ASL                                       ; $1EC6A6 | | selects between two sprite sets
+  ASL                                       ; $1EC6A7 | |
+  ASL                                       ; $1EC6A8 | |
+  ASL                                       ; $1EC6A9 | |
+  ASL                                       ; $1EC6AA | |
+  TAY                                       ; $1EC6AB |/
+  LDX #$1C                                  ; $1EC6AC | 8 sprites (OAM $00-$1C, 4 bytes each)
+.copy_sprite:
+  LDA $C708,y                               ; $1EC6AE |\ Y position (from ROM table)
+  STA $0200,x                               ; $1EC6B1 |/
+  LDA $C709,y                               ; $1EC6B4 |\ tile index
+  STA $0201,x                               ; $1EC6B7 |/
+  LDA $C70A,y                               ; $1EC6BA |\ attribute byte
+  STA $0202,x                               ; $1EC6BD |/
+  LDA $C70B,y                               ; $1EC6C0 |\ X position = ROM value - scroll offset
+  SEC                                       ; $1EC6C3 | | (sprites track camera movement)
+  SBC $00                                   ; $1EC6C4 | |
+  STA $0203,x                               ; $1EC6C6 |/
+  INY                                       ; $1EC6C9 |\ advance source (Y += 4)
+  INY                                       ; $1EC6CA | |
+  INY                                       ; $1EC6CB | |
+  INY                                       ; $1EC6CC |/
+  DEX                                       ; $1EC6CD |\ advance dest (X -= 4)
+  DEX                                       ; $1EC6CE | |
+  DEX                                       ; $1EC6CF | |
+  DEX                                       ; $1EC6D0 | |
+  BPL .copy_sprite                          ; $1EC6D1 |/ loop 8 sprites
+  LDA #$20                                  ; $1EC6D3 |\ $97=$20: entity sprites at $0220
+  STA $97                                   ; $1EC6D5 |/ (8 scroll sprites reserved)
   RTS                                       ; $1EC6D7 |
 
-  db $58, $F1, $02, $28, $E0, $F1, $02, $28 ; $1EC6D8 |
-  db $B8, $F1, $02, $70, $20, $F1, $02, $A0 ; $1EC6E0 |
-  db $68, $F1, $02, $D0, $D8, $F1, $02, $D0 ; $1EC6E8 |
-  db $90, $F2, $02, $10, $40, $F2, $02, $58 ; $1EC6F0 |
-  db $D0, $F2, $02, $58, $78, $F2, $02, $80 ; $1EC6F8 |
-  db $28, $F2, $02, $D8, $A8, $F2, $02, $D8 ; $1EC700 |
-  db $90, $E4, $03, $18, $28, $E4, $03, $20 ; $1EC708 |
-  db $68, $E4, $03, $30, $58, $E4, $03, $60 ; $1EC710 |
-  db $80, $E4, $03, $70, $10, $E4, $03, $98 ; $1EC718 |
-  db $58, $E4, $03, $C0, $80, $E4, $03, $D0 ; $1EC720 |
-  db $18, $E4, $03, $10, $A0, $E4, $03, $48 ; $1EC728 |
-  db $28, $E4, $03, $58, $40, $E4, $03, $90 ; $1EC730 |
-  db $98, $E4, $03, $A0, $78, $E4, $03, $D8 ; $1EC738 |
-  db $30, $E4, $03, $E0, $A0, $E4, $03, $E8 ; $1EC740 |
-  db $00, $00, $00, $00                     ; $1EC748 |
+; overlay_sprite_data: 12 OAM entries for load_overlay_sprites
+; Format: Y, tile, attr, X (4 bytes per sprite)
+; Sprites 0-5: tiles $F1, palette 2 — scroll fast (every frame)
+; Sprites 6-11: tiles $F2, palette 2 — scroll slow (every other frame)
+overlay_sprite_data:
+  db $58, $F1, $02, $28, $E0, $F1, $02, $28 ; $1EC6D8 | sprites 0-1
+  db $B8, $F1, $02, $70, $20, $F1, $02, $A0 ; $1EC6E0 | sprites 2-3
+  db $68, $F1, $02, $D0, $D8, $F1, $02, $D0 ; $1EC6E8 | sprites 4-5
+  db $90, $F2, $02, $10, $40, $F2, $02, $58 ; $1EC6F0 | sprites 6-7
+  db $D0, $F2, $02, $58, $78, $F2, $02, $80 ; $1EC6F8 | sprites 8-9
+  db $28, $F2, $02, $D8, $A8, $F2, $02, $D8 ; $1EC700 | sprites 10-11
+; scroll_sprite_data: 16 OAM entries for draw_scroll_sprites (two 8-sprite sets)
+; Format: Y, tile, attr, X (4 bytes per sprite), tile $E4, palette 3
+; Set 0 (even frames): entries 0-7, set 1 (odd frames): entries 8-15
+scroll_sprite_data:
+  db $90, $E4, $03, $18, $28, $E4, $03, $20 ; $1EC708 | set 0, sprites 0-1
+  db $68, $E4, $03, $30, $58, $E4, $03, $60 ; $1EC710 | set 0, sprites 2-3
+  db $80, $E4, $03, $70, $10, $E4, $03, $98 ; $1EC718 | set 0, sprites 4-5
+  db $58, $E4, $03, $C0, $80, $E4, $03, $D0 ; $1EC720 | set 0, sprites 6-7
+  db $18, $E4, $03, $10, $A0, $E4, $03, $48 ; $1EC728 | set 1, sprites 0-1
+  db $28, $E4, $03, $58, $40, $E4, $03, $90 ; $1EC730 | set 1, sprites 2-3
+  db $98, $E4, $03, $A0, $78, $E4, $03, $D8 ; $1EC738 | set 1, sprites 4-5
+  db $30, $E4, $03, $E0, $A0, $E4, $03, $E8 ; $1EC740 | set 1, sprites 6-7
+  db $00, $00, $00, $00                     ; $1EC748 | (padding)
 
-code_1EC74C:
-  LDA #$30                                  ; $1EC74C |
-  LDX #$F0                                  ; $1EC74E |
-  BNE code_1EC755                           ; $1EC750 |
-code_1EC752:
-  LDA #$10                                  ; $1EC752 |
-  TAX                                       ; $1EC754 |
-code_1EC755:
-  STA $0F                                   ; $1EC755 |
-  STX $0D                                   ; $1EC757 |
+; ===========================================================================
+; fade_palette_out / fade_palette_in — blocking palette fade
+; ===========================================================================
+; fade_palette_out: starts at subtract=$30, step=$F0 (decreasing by $10/pass)
+; fade_palette_in:  starts at subtract=$10, step=$10 (increasing by $10/pass)
+; Both copy $0620 (target palette) → $0600 (active palette), subtract $0F
+; per color channel, clamp to $0F (NES black). Yields 4 frames per step.
+; Runs until subtract reaches $50 or wraps negative. $18 = palette-dirty flag.
+; ---------------------------------------------------------------------------
+fade_palette_out:
+  LDA #$30                                  ; $1EC74C | start dark (subtract $30)
+  LDX #$F0                                  ; $1EC74E | step = -$10 (brighten each pass)
+  BNE .fade_start                           ; $1EC750 |
+fade_palette_in:
+  LDA #$10                                  ; $1EC752 | start bright (subtract $10)
+  TAX                                       ; $1EC754 | step = +$10 (darken each pass)
+.fade_start:
+  STA $0F                                   ; $1EC755 | $0F = current subtract amount
+  STX $0D                                   ; $1EC757 | $0D = step delta per pass
   LDY #$04                                  ; $1EC759 |
-  STY $0E                                   ; $1EC75B |
-code_1EC75D:
+  STY $0E                                   ; $1EC75B | $0E = frames to yield per step
+.fade_step:
   LDY #$1F                                  ; $1EC75D |
-code_1EC75F:
-  LDA $0620,y                               ; $1EC75F |
+.copy_target:
+  LDA $0620,y                               ; $1EC75F | copy target → active palette
   STA $0600,y                               ; $1EC762 |
   DEY                                       ; $1EC765 |
-  BPL code_1EC75F                           ; $1EC766 |
+  BPL .copy_target                          ; $1EC766 |
   LDY #$1F                                  ; $1EC768 |
-code_1EC76A:
-  LDA $0600,y                               ; $1EC76A |
+.darken:
+  LDA $0600,y                               ; $1EC76A | subtract from each color
   SEC                                       ; $1EC76D |
   SBC $0F                                   ; $1EC76E |
-  BPL code_1EC774                           ; $1EC770 |
-  LDA #$0F                                  ; $1EC772 |
-code_1EC774:
+  BPL .clamp_ok                             ; $1EC770 |
+  LDA #$0F                                  ; $1EC772 | clamp to $0F (NES black)
+.clamp_ok:
   STA $0600,y                               ; $1EC774 |
   DEY                                       ; $1EC777 |
-  BPL code_1EC76A                           ; $1EC778 |
-  STY $18                                   ; $1EC77A |
-  LDA $0E                                   ; $1EC77C |
-code_1EC77E:
+  BPL .darken                               ; $1EC778 |
+  STY $18                                   ; $1EC77A | $18 = palette dirty ($FF)
+  LDA $0E                                   ; $1EC77C | yield $0E frames
+.yield_loop:
   PHA                                       ; $1EC77E |
   JSR task_yield                           ; $1EC77F |
   PLA                                       ; $1EC782 |
   SEC                                       ; $1EC783 |
   SBC #$01                                  ; $1EC784 |
-  BNE code_1EC77E                           ; $1EC786 |
-  LDA $0F                                   ; $1EC788 |
+  BNE .yield_loop                           ; $1EC786 |
+  LDA $0F                                   ; $1EC788 | advance subtract by step
   CLC                                       ; $1EC78A |
   ADC $0D                                   ; $1EC78B |
   STA $0F                                   ; $1EC78D |
-  CMP #$50                                  ; $1EC78F |
-  BEQ code_1EC797                           ; $1EC791 |
+  CMP #$50                                  ; $1EC78F | done when subtract reaches $50
+  BEQ .fade_done                            ; $1EC791 |
   LDA $0F                                   ; $1EC793 |
-  BPL code_1EC75D                           ; $1EC795 |
-code_1EC797:
+  BPL .fade_step                            ; $1EC795 | or wraps negative
+.fade_done:
   RTS                                       ; $1EC797 |
 
-code_1EC798:
-  LDA $1C                                   ; $1EC798 |
-  BEQ code_1EC7DC                           ; $1EC79A |
-  LDA $95                                   ; $1EC79C |
-  AND #$03                                  ; $1EC79E |
-  BNE code_1EC7DC                           ; $1EC7A0 |
+; ---------------------------------------------------------------------------
+; palette_fade_tick — per-frame incremental palette fade
+; ---------------------------------------------------------------------------
+; Called each frame from the game loop. When $1C (fade-active flag) is set,
+; copies $0620 → $0600 and subtracts $1D from BG palette entries ($0600-$060F)
+; every 4th frame. $1E = step delta added to $1D each tick.
+; When $1D reaches $F0: sets $72=0 (fade-out complete, rendering halted).
+; When $1D reaches $50: sets $71++ (fade-in complete, gameplay resumes).
+; $1C cleared when done.
+; ---------------------------------------------------------------------------
+palette_fade_tick:
+  LDA $1C                                   ; $1EC798 | fade active?
+  BEQ .tick_done                            ; $1EC79A | no → skip
+  LDA $95                                   ; $1EC79C | frame counter
+  AND #$03                                  ; $1EC79E | every 4th frame
+  BNE .tick_done                            ; $1EC7A0 |
   LDY #$1F                                  ; $1EC7A2 |
-code_1EC7A4:
-  LDA $0620,y                               ; $1EC7A4 |
+.tick_copy:
+  LDA $0620,y                               ; $1EC7A4 | copy target → active
   STA $0600,y                               ; $1EC7A7 |
   DEY                                       ; $1EC7AA |
-  BPL code_1EC7A4                           ; $1EC7AB |
-  LDY #$0F                                  ; $1EC7AD |
-code_1EC7AF:
+  BPL .tick_copy                            ; $1EC7AB |
+  LDY #$0F                                  ; $1EC7AD | BG palette only ($0600-$060F)
+.tick_darken:
   LDA $0600,y                               ; $1EC7AF |
   SEC                                       ; $1EC7B2 |
-  SBC $1D                                   ; $1EC7B3 |
-  BPL code_1EC7B9                           ; $1EC7B5 |
-  LDA #$0F                                  ; $1EC7B7 |
-code_1EC7B9:
+  SBC $1D                                   ; $1EC7B3 | subtract current fade amount
+  BPL .tick_clamp_ok                        ; $1EC7B5 |
+  LDA #$0F                                  ; $1EC7B7 | clamp to $0F
+.tick_clamp_ok:
   STA $0600,y                               ; $1EC7B9 |
   DEY                                       ; $1EC7BC |
-  BPL code_1EC7AF                           ; $1EC7BD |
-  STY $18                                   ; $1EC7BF |
-  LDA $1D                                   ; $1EC7C1 |
+  BPL .tick_darken                          ; $1EC7BD |
+  STY $18                                   ; $1EC7BF | palette dirty
+  LDA $1D                                   ; $1EC7C1 | advance fade amount
   CLC                                       ; $1EC7C3 |
-  ADC $1E                                   ; $1EC7C4 |
+  ADC $1E                                   ; $1EC7C4 | $1E = step delta
   STA $1D                                   ; $1EC7C6 |
   CMP #$F0                                  ; $1EC7C8 |
-  BEQ code_1EC7D4                           ; $1EC7CA |
+  BEQ .fade_out_done                        ; $1EC7CA | $F0 = fully black
   CMP #$50                                  ; $1EC7CC |
-  BNE code_1EC7DC                           ; $1EC7CE |
-  INC $71                                   ; $1EC7D0 |
-  BNE code_1EC7D8                           ; $1EC7D2 |
-code_1EC7D4:
+  BNE .tick_done                            ; $1EC7CE |
+  INC $71                                   ; $1EC7D0 | $50 = fully restored
+  BNE .clear_flag                           ; $1EC7D2 |
+.fade_out_done:
   LDA #$00                                  ; $1EC7D4 |
-  STA $72                                   ; $1EC7D6 |
-code_1EC7D8:
+  STA $72                                   ; $1EC7D6 | $72=0 signals halted
+.clear_flag:
   LDA #$00                                  ; $1EC7D8 |
-  STA $1C                                   ; $1EC7DA |
-code_1EC7DC:
+  STA $1C                                   ; $1EC7DA | deactivate fade
+.tick_done:
   RTS                                       ; $1EC7DC |
 
-  STX $0E                                   ; $1EC7DD |
+; ---------------------------------------------------------------------------
+; indirect_dispatch — jump through word table using A as index
+; ---------------------------------------------------------------------------
+; A = dispatch index. Reads return address from stack to find the table
+; base (word table immediately follows the JSR to this routine).
+; Computes table[A*2] and JMPs to that address. Preserves X, Y.
+; ---------------------------------------------------------------------------
+indirect_dispatch:
+  STX $0E                                   ; $1EC7DD | save X, Y
   STY $0F                                   ; $1EC7DF |
-  ASL                                       ; $1EC7E1 |
+  ASL                                       ; $1EC7E1 | A * 2 (word index)
   TAY                                       ; $1EC7E2 |
-  INY                                       ; $1EC7E3 |
-  PLA                                       ; $1EC7E4 |
+  INY                                       ; $1EC7E3 | +1 (return addr is 1 before table)
+  PLA                                       ; $1EC7E4 | pop return address low
   STA $0C                                   ; $1EC7E5 |
-  PLA                                       ; $1EC7E7 |
+  PLA                                       ; $1EC7E7 | pop return address high
   STA $0D                                   ; $1EC7E8 |
-  LDA ($0C),y                               ; $1EC7EA |
+  LDA ($0C),y                               ; $1EC7EA | read target addr low
   TAX                                       ; $1EC7EC |
   INY                                       ; $1EC7ED |
-  LDA ($0C),y                               ; $1EC7EE |
+  LDA ($0C),y                               ; $1EC7EE | read target addr high
   STA $0D                                   ; $1EC7F0 |
   STX $0C                                   ; $1EC7F2 |
-  LDX $0E                                   ; $1EC7F4 |
+  LDX $0E                                   ; $1EC7F4 | restore X, Y
   LDY $0F                                   ; $1EC7F6 |
-  JMP ($000C)                               ; $1EC7F8 |
+  JMP ($000C)                               ; $1EC7F8 | jump to target
 
-code_1EC7FB:
+; --- shift_register_tick ---
+; 32-bit LFSR (linear feedback shift register) on $E4-$E7.
+; Feedback: XOR of bit 1 of $E4 and bit 1 of $E5 → carry → ROR through
+; all 4 bytes ($E4→$E5→$E6→$E7). Called once per frame from game loop.
+; $E4 initialized to $88 in main_game_entry. Used for animation cycling.
+shift_register_tick:
   LDX #$00                                  ; $1EC7FB |
-  LDY #$04                                  ; $1EC7FD |
-  LDA $E4,x                                 ; $1EC7FF |
-  AND #$02                                  ; $1EC801 |
-  STA $00                                   ; $1EC803 |
-  LDA $E5,x                                 ; $1EC805 |
-  AND #$02                                  ; $1EC807 |
-  EOR $00                                   ; $1EC809 |
-  CLC                                       ; $1EC80B |
-  BEQ code_1EC80F                           ; $1EC80C |
-  SEC                                       ; $1EC80E |
-code_1EC80F:
-  ROR $E4,x                                 ; $1EC80F |
-  INX                                       ; $1EC811 |
-  DEY                                       ; $1EC812 |
-  BNE code_1EC80F                           ; $1EC813 |
+  LDY #$04                                  ; $1EC7FD | 4 bytes to rotate
+  LDA $E4,x                                 ; $1EC7FF |\ feedback = ($E4 bit 1) XOR ($E5 bit 1)
+  AND #$02                                  ; $1EC801 | | isolate bit 1 of $E4
+  STA $00                                   ; $1EC803 | |
+  LDA $E5,x                                 ; $1EC805 | | isolate bit 1 of $E5
+  AND #$02                                  ; $1EC807 | |
+  EOR $00                                   ; $1EC809 |/ XOR → nonzero if bits differ
+  CLC                                       ; $1EC80B |\ carry = 0 if bits match,
+  BEQ .rotate                               ; $1EC80C | | carry = 1 if bits differ
+  SEC                                       ; $1EC80E |/
+.rotate:
+  ROR $E4,x                                 ; $1EC80F |\ rotate carry → bit 7,
+  INX                                       ; $1EC811 | | old bit 0 → carry,
+  DEY                                       ; $1EC812 | | cascading through $E4-$E7
+  BNE .rotate                               ; $1EC813 |/
   RTS                                       ; $1EC815 |
 
 ; -----------------------------------------------
@@ -1661,21 +1777,30 @@ code_1EC83D:
   JSR $A000                                 ; $1EC892 |
   JMP update_CHR_banks                      ; $1EC895 |
 
+; default_sprite_palette: sprite palette 0-1 defaults (8 bytes)
+; SP0: $0F(black), $0F(black), $2C(sky blue), $11(blue)
+; SP1: $0F(black), $0F(black), $30(white), $37(orange)
   db $0F, $0F, $2C, $11, $0F, $0F, $30, $37 ; $1EC898 |
 
-code_1EC8A0:
+; ---------------------------------------------------------------------------
+; ensure_stage_bank — switch $F5 to current stage's PRG bank if needed
+; ---------------------------------------------------------------------------
+; Looks up stage_to_bank[$22] and switches $F5. No-op if $F5 is already $13
+; (bank $13 = fixed/shared). Preserves X and Y.
+; ---------------------------------------------------------------------------
+ensure_stage_bank:
   TXA                                       ; $1EC8A0 |
   PHA                                       ; $1EC8A1 |
   TYA                                       ; $1EC8A2 |
   PHA                                       ; $1EC8A3 |
-  LDA $F5                                   ; $1EC8A4 |
+  LDA $F5                                   ; $1EC8A4 | already on bank $13?
   CMP #$13                                  ; $1EC8A6 |
-  BEQ code_1EC8B4                           ; $1EC8A8 |
-  LDY $22                                   ; $1EC8AA |
-  LDA $C8B9,y                               ; $1EC8AC |
+  BEQ .done                                 ; $1EC8A8 | yes → skip
+  LDY $22                                   ; $1EC8AA | stage index
+  LDA $C8B9,y                               ; $1EC8AC | look up stage → bank
   STA $F5                                   ; $1EC8AF |
-  JSR select_PRG_banks                      ; $1EC8B1 |
-code_1EC8B4:
+  JSR select_PRG_banks                      ; $1EC8B1 | switch bank
+.done:
   PLA                                       ; $1EC8B4 |
   TAY                                       ; $1EC8B5 |
   PLA                                       ; $1EC8B6 |
@@ -1690,44 +1815,56 @@ code_1EC8B4:
   db $08, $09, $0A, $0B, $0C, $0D, $0D, $0F ; $1EC8C1 |
   db $0D, $11, $12, $13, $10, $1E, $0E      ; $1EC8C9 |
 
-  LDX #$BF                                  ; $1EC8D0 |
-  TXS                                       ; $1EC8D2 |
-  LDA $FF                                   ; $1EC8D3 |
-  STA $2000                                 ; $1EC8D5 |
-  JSR task_yield                           ; $1EC8D8 |
-  LDA #$88                                  ; $1EC8DB |
-  STA $E4                                   ; $1EC8DD |
-  CLI                                       ; $1EC8DF |
-  LDA #$01                                  ; $1EC8E0 |
-  STA $9B                                   ; $1EC8E2 |
-  LDA #$00                                  ; $1EC8E4 |
-  JSR submit_sound_ID_D9                    ; $1EC8E6 |
-  LDA #$40                                  ; $1EC8E9 |
-  STA $99                                   ; $1EC8EB |
-  LDA #$18                                  ; $1EC8ED |
-  STA $F4                                   ; $1EC8EF |
-  JSR select_PRG_banks                      ; $1EC8F1 |
-  JSR $9009                                 ; $1EC8F4 |
-  LDA #$9C                                  ; $1EC8F7 |
-  STA $A9                                   ; $1EC8F9 |
-  LDA #$02                                  ; $1EC8FB |
-  STA $AE                                   ; $1EC8FD |
+; ===========================================================================
+; main_game_entry — top-level game loop (registered as task 0 at $C8D0)
+; ===========================================================================
+; Called once from RESET via coroutine scheduler. Initializes system state,
+; runs title/stage select (bank $18 $9009), then enters the stage init path.
+; On game over or stage completion, control returns here for the next cycle.
+; Registered at $1FFE99: $93/$94 = $C8D0 (coroutine entry address).
+; ---------------------------------------------------------------------------
+main_game_entry:
+  LDX #$BF                                  ; $1EC8D0 |\ reset stack pointer to $01BF
+  TXS                                       ; $1EC8D2 |/
+  LDA $FF                                   ; $1EC8D3 |\ sync PPUCTRL from shadow
+  STA $2000                                 ; $1EC8D5 |/
+  JSR task_yield                           ; $1EC8D8 | yield 1 frame (let NMI run)
+  LDA #$88                                  ; $1EC8DB |\ $E4 = $88 (CHR bank base?)
+  STA $E4                                   ; $1EC8DD |/
+  CLI                                       ; $1EC8DF | enable IRQ
+  LDA #$01                                  ; $1EC8E0 |\ $9B = 1 (game active flag)
+  STA $9B                                   ; $1EC8E2 |/
+  LDA #$00                                  ; $1EC8E4 |\ silence all sound channels
+  JSR submit_sound_ID_D9                    ; $1EC8E6 |/
+  LDA #$40                                  ; $1EC8E9 |\ $99 = $40 (initial gravity,
+  STA $99                                   ; $1EC8EB |/ set to $55 once gameplay starts)
+  LDA #$18                                  ; $1EC8ED |\ map bank $18 to $8000-$9FFF
+  STA $F4                                   ; $1EC8EF | |
+  JSR select_PRG_banks                      ; $1EC8F1 |/
+  JSR $9009                                 ; $1EC8F4 | title screen / stage select (bank $18)
+  LDA #$9C                                  ; $1EC8F7 |\ $A9 = $9C = full Rush Coil ammo
+  STA $A9                                   ; $1EC8F9 |/
+  LDA #$02                                  ; $1EC8FB |\ $AE = 2 lives (display as 3)
+  STA $AE                                   ; $1EC8FD |/
+; --- stage_reinit: re-entry point after death/boss dispatch ---
+; Clears $0150-$016F (entity scratch buffer), then falls through to stage_init.
 code_1EC8FF:
-  LDA #$00                                  ; $1EC8FF |
-  LDY #$1F                                  ; $1EC901 |
-code_1EC903:
-  STA $0150,y                               ; $1EC903 |
-  DEY                                       ; $1EC906 |
-  BPL code_1EC903                           ; $1EC907 |
-code_1EC909:
-  LDA #$00                                  ; $1EC909 |
-  STA $EE                                   ; $1EC90B |
-  JSR code_1EC752                           ; $1EC90D |
+  LDA #$00                                  ; $1EC8FF |\ clear $0150-$016F (32 bytes)
+  LDY #$1F                                  ; $1EC901 | |
+.clear_scratch:
+  STA $0150,y                               ; $1EC903 | |
+  DEY                                       ; $1EC906 | |
+  BPL .clear_scratch                        ; $1EC907 |/
+; --- stage_init: set up a new stage ---
+stage_init:
+  LDA #$00                                  ; $1EC909 |\ $EE = 0: allow NMI rendering
+  STA $EE                                   ; $1EC90B |/
+  JSR fade_palette_in                           ; $1EC90D |
   LDA #$04                                  ; $1EC910 |
   STA $97                                   ; $1EC912 |
-  JSR code_1EC5E9                           ; $1EC914 |
+  JSR prepare_oam_buffer                           ; $1EC914 |
   JSR task_yield                           ; $1EC917 |
-  JSR code_1EC628                           ; $1EC91A |
+  JSR clear_entity_table                           ; $1EC91A |
   LDA #$01                                  ; $1EC91D |
   STA $A000                                 ; $1EC91F |
   LDA #$00                                  ; $1EC922 |
@@ -1796,7 +1933,7 @@ code_1EC991:
   LDA #$00                                  ; $1EC9A4 |
   STA $18                                   ; $1EC9A6 |
   JSR task_yield                           ; $1EC9A8 |
-  JSR code_1EC74C                           ; $1EC9AB |
+  JSR fade_palette_out                           ; $1EC9AB |
   LDA #$80                                  ; $1EC9AE |
   STA $0360                                 ; $1EC9B0 |
 code_1EC9B3:
@@ -1897,17 +2034,30 @@ code_1ECA15:
   STA $30                                   ; $1ECA6D |
   LDA #$80                                  ; $1ECA6F |
   STA $B2                                   ; $1ECA71 |
-code_1ECA73:
-  LDA $14                                   ; $1ECA73 |
-  AND #$10                                  ; $1ECA75 |
-  BEQ code_1ECAB5                           ; $1ECA77 |
-  LDA $30                                   ; $1ECA79 |
-  CMP #$04                                  ; $1ECA7B |
-  BEQ code_1ECAB5                           ; $1ECA7D |
-  CMP #$07                                  ; $1ECA7F |
-  BEQ code_1ECAB5                           ; $1ECA81 |
-  CMP #$09                                  ; $1ECA83 |
-  BCS code_1ECAB5                           ; $1ECA85 |
+; ===========================================================================
+; gameplay_frame_loop — main per-frame game loop
+; ===========================================================================
+; Runs once per frame during active gameplay. Each iteration:
+;   1. Check Start button for pause/weapon menu
+;   2. Run player state machine (dispatch by $30)
+;   3. Update camera scroll
+;   4. Process all entity AI (banks $1C/$1D)
+;   5. Spawn new enemies (bank $1A + stage bank)
+;   6. Run per-frame subsystems (bank $09: HUD, scroll, sound, etc.)
+;   7. Fade palette, build OAM, yield to NMI
+;   8. Check exit conditions ($59=boss done, $3C=death, $74=stage clear)
+; ---------------------------------------------------------------------------
+gameplay_frame_loop:
+  LDA $14                                   ; $1ECA73 |\ Start button pressed?
+  AND #$10                                  ; $1ECA75 | | ($14 = new button presses this frame)
+  BEQ gameplay_no_pause                             ; $1ECA77 |/
+  LDA $30                                   ; $1ECA79 |\ skip pause if player state is:
+  CMP #$04                                  ; $1ECA7B | | $04 = reappear
+  BEQ gameplay_no_pause                             ; $1ECA7D | | $07 = special_death
+  CMP #$07                                  ; $1ECA7F | | $09+ = boss_wait and above
+  BEQ gameplay_no_pause                             ; $1ECA81 | |
+  CMP #$09                                  ; $1ECA83 | |
+  BCS gameplay_no_pause                             ; $1ECA85 |/
   LDA $A0                                   ; $1ECA87 |
   SEC                                       ; $1ECA89 |
   SBC #$06                                  ; $1ECA8A |
@@ -1921,20 +2071,20 @@ code_1ECA99:
   LDA $0301                                 ; $1ECA99 |
   ORA $0302                                 ; $1ECA9C |
   ORA $0303                                 ; $1ECA9F |
-  BMI code_1ECAB5                           ; $1ECAA2 |
+  BMI gameplay_no_pause                           ; $1ECAA2 |
 code_1ECAA4:
   LDY $30                                   ; $1ECAA4 |
   LDA $CD1E,y                               ; $1ECAA6 |
-  BMI code_1ECAB5                           ; $1ECAA9 |
+  BMI gameplay_no_pause                           ; $1ECAA9 |
   LDA #$02                                  ; $1ECAAB |
   STA $F5                                   ; $1ECAAD |
   JSR select_PRG_banks                      ; $1ECAAF |
   JSR $A003                                 ; $1ECAB2 |
-code_1ECAB5:
-  LDA $22                                   ; $1ECAB5 |
-  STA $F5                                   ; $1ECAB7 |
-  JSR select_PRG_banks                      ; $1ECAB9 |
-  JSR code_1ECD34                           ; $1ECABC |
+gameplay_no_pause:
+  LDA $22                                   ; $1ECAB5 |\ switch to stage bank
+  STA $F5                                   ; $1ECAB7 | |
+  JSR select_PRG_banks                      ; $1ECAB9 |/
+  JSR code_1ECD34                           ; $1ECABC | player state dispatch + physics
   LDA $3D                                   ; $1ECABF |
   BEQ code_1ECAD7                           ; $1ECAC1 |
   STA $30                                   ; $1ECAC3 |
@@ -1948,132 +2098,137 @@ code_1ECAD3:
   LDA #$00                                  ; $1ECAD3 |
   STA $3D                                   ; $1ECAD5 |
 code_1ECAD7:
-  JSR code_1FE16A                           ; $1ECAD7 |
-  LDA $FC                                   ; $1ECADA |
-  STA $25                                   ; $1ECADC |
+  JSR code_1FE16A                           ; $1ECAD7 | scroll/camera update
+  LDA $FC                                   ; $1ECADA |\ $25 = camera X (coarse)
+  STA $25                                   ; $1ECADC |/
   STA $00                                   ; $1ECADE |
-  LDA $F8                                   ; $1ECAE0 |
-  CMP #$02                                  ; $1ECAE2 |
-  BNE code_1ECAF2                           ; $1ECAE4 |
+  LDA $F8                                   ; $1ECAE0 |\ if scroll mode ($F8==2):
+  CMP #$02                                  ; $1ECAE2 | | compute camera offset for
+  BNE .no_scroll_adjust                     ; $1ECAE4 |/ scroll sprites
   LDA $F9                                   ; $1ECAE6 |
   LSR                                       ; $1ECAE8 |
   ROR $00                                   ; $1ECAE9 |
   LSR                                       ; $1ECAEB |
   ROR $00                                   ; $1ECAEC |
   LDA $00                                   ; $1ECAEE |
-  STA $5F                                   ; $1ECAF0 |
-code_1ECAF2:
-  LDA $0380                                 ; $1ECAF2 |
-  CMP $6F                                   ; $1ECAF5 |
-  BCC code_1ECAFB                           ; $1ECAF7 |
-  STA $6F                                   ; $1ECAF9 |
-code_1ECAFB:
-  LDA $0360                                 ; $1ECAFB |
-  STA $27                                   ; $1ECAFE |
-  LDX #$1C                                  ; $1ECB00 |\
-  STX $F4                                   ; $1ECB02 | | select banks 1C & 1D
-  INX                                       ; $1ECB04 | | for $8000~$BFFF
-  STX $F5                                   ; $1ECB05 | | (sprite code banks)
+  STA $5F                                   ; $1ECAF0 | $5F = camera offset / 4
+.no_scroll_adjust:
+  LDA $0380                                 ; $1ECAF2 |\ track max screen progress
+  CMP $6F                                   ; $1ECAF5 | | ($6F = farthest screen reached)
+  BCC .track_done                           ; $1ECAF7 | |
+  STA $6F                                   ; $1ECAF9 |/
+.track_done:
+  LDA $0360                                 ; $1ECAFB |\ $27 = player Y position
+  STA $27                                   ; $1ECAFE |/
+  LDX #$1C                                  ; $1ECB00 |\ select banks $1C/$1D
+  STX $F4                                   ; $1ECB02 | | (entity processing code)
+  INX                                       ; $1ECB04 | |
+  STX $F5                                   ; $1ECB05 | |
   JSR select_PRG_banks                      ; $1ECB07 |/
-  JSR process_sprites_j                     ; $1ECB0A | process all sprites
+  JSR process_sprites_j                     ; $1ECB0A | process all entity AI
   LDA #$1A                                  ; $1ECB0D |
   STA $F4                                   ; $1ECB0F |
   LDA $22                                   ; $1ECB11 |
   STA $F5                                   ; $1ECB13 |
   JSR select_PRG_banks                      ; $1ECB15 |
-  JSR check_new_enemies                     ; $1ECB18 |
-  LDA #$09                                  ; $1ECB1B |
-  STA $F4                                   ; $1ECB1D |
-  JSR select_PRG_banks                      ; $1ECB1F |
-  JSR $8003                                 ; $1ECB22 |
-  JSR $8006                                 ; $1ECB25 |
-  JSR $800F                                 ; $1ECB28 |
-  JSR $8009                                 ; $1ECB2B |
-  JSR $800C                                 ; $1ECB2E |
-  JSR $8000                                 ; $1ECB31 |
-  JSR $8012                                 ; $1ECB34 |
-  JSR code_1EC798                           ; $1ECB37 |
-  JSR process_frame_yield_with_player                           ; $1ECB3A |
-  LDA $98                                   ; $1ECB3D |
-  AND #$02                                  ; $1ECB3F |
-  BEQ code_1ECB49                           ; $1ECB41 |
-  LDA #$01                                  ; $1ECB43 |
-  ORA $17                                   ; $1ECB45 |
-  STA $17                                   ; $1ECB47 |
-code_1ECB49:
-  JSR code_1EC7FB                           ; $1ECB49 |
-  LDA $59                                   ; $1ECB4C |
-  BNE code_1ECB5B                           ; $1ECB4E |
-  LDA $3C                                   ; $1ECB50 |
-  BNE code_1ECB78                           ; $1ECB52 |
-  LDA $74                                   ; $1ECB54 |
-  BNE code_1ECBCE                           ; $1ECB56 |
-  JMP code_1ECA73                           ; $1ECB58 |
+  JSR check_new_enemies                     ; $1ECB18 | spawn enemies for current screen
+  LDA #$09                                  ; $1ECB1B |\ select bank $09
+  STA $F4                                   ; $1ECB1D | | (per-frame subsystems)
+  JSR select_PRG_banks                      ; $1ECB1F |/
+  JSR $8003                                 ; $1ECB22 | bank $09 subsystems:
+  JSR $8006                                 ; $1ECB25 | screen scroll, HUD update,
+  JSR $800F                                 ; $1ECB28 | sound processing,
+  JSR $8009                                 ; $1ECB2B | background animation,
+  JSR $800C                                 ; $1ECB2E | item pickup,
+  JSR $8000                                 ; $1ECB31 | checkpoint tracking,
+  JSR $8012                                 ; $1ECB34 | etc.
+  JSR palette_fade_tick                           ; $1ECB37 | update palette fade animation
+  JSR process_frame_yield_with_player                           ; $1ECB3A | build OAM + yield 1 frame
+  LDA $98                                   ; $1ECB3D |\ if controller 2 bit 1 set:
+  AND #$02                                  ; $1ECB3F | | set $17 bit 0 (debug flag?)
+  BEQ .check_exit                           ; $1ECB41 | |
+  LDA #$01                                  ; $1ECB43 | |
+  ORA $17                                   ; $1ECB45 | |
+  STA $17                                   ; $1ECB47 |/
+.check_exit:
+  JSR shift_register_tick                           ; $1ECB49 | LFSR animation tick
+  LDA $59                                   ; $1ECB4C |\ $59 != 0: boss defeated
+  BNE code_1ECB5B                           ; $1ECB4E |/
+  LDA $3C                                   ; $1ECB50 |\ $3C != 0: player died
+  BNE death_handler                         ; $1ECB52 |/
+  LDA $74                                   ; $1ECB54 |\ $74 != 0: stage clear
+  BNE stage_clear_handler                   ; $1ECB56 |/
+  JMP gameplay_frame_loop                   ; $1ECB58 | loop back for next frame
 
+; --- boss_defeated_handler ($59 != 0) ---
 code_1ECB5B:
-  LDA #$00                                  ; $1ECB5B |
-  STA $EE                                   ; $1ECB5D |
-  STA $71                                   ; $1ECB5F |
-  STA $72                                   ; $1ECB61 |
-  STA $F8                                   ; $1ECB63 |
-  STA $5A                                   ; $1ECB65 |
-  LDA #$18                                  ; $1ECB67 |
-  STA $F4                                   ; $1ECB69 |
-  LDA #$10                                  ; $1ECB6B |
-  STA $F5                                   ; $1ECB6D |
-  JSR select_PRG_banks                      ; $1ECB6F |
-  JSR $9000                                 ; $1ECB72 |
-  JMP code_1EC8FF                           ; $1ECB75 |
+  LDA #$00                                  ; $1ECB5B |\ clear rendering/overlay/scroll state
+  STA $EE                                   ; $1ECB5D | |
+  STA $71                                   ; $1ECB5F | |
+  STA $72                                   ; $1ECB61 | |
+  STA $F8                                   ; $1ECB63 | |
+  STA $5A                                   ; $1ECB65 |/ clear boss-active flag
+  LDA #$18                                  ; $1ECB67 |\ select banks $18/$10
+  STA $F4                                   ; $1ECB69 | | ($10 = boss post-defeat routine)
+  LDA #$10                                  ; $1ECB6B | |
+  STA $F5                                   ; $1ECB6D | |
+  JSR select_PRG_banks                      ; $1ECB6F |/
+  JSR $9000                                 ; $1ECB72 | boss post-defeat (bank $10)
+  JMP code_1EC8FF                           ; $1ECB75 | → stage_reinit
 
-code_1ECB78:
-  LDA #$00                                  ; $1ECB78 |
-  STA $3C                                   ; $1ECB7A |
-  STA $5A                                   ; $1ECB7C |
-  LDA $AE                                   ; $1ECB7E |
-  SEC                                       ; $1ECB80 |
-  SBC #$01                                  ; $1ECB81 |
-  BCC code_1ECBB1                           ; $1ECB83 |
-  STA $AE                                   ; $1ECB85 |
-  AND #$0F                                  ; $1ECB87 |
-  CMP #$0F                                  ; $1ECB89 |
-  BNE code_1ECB94                           ; $1ECB8B |
-  LDA $AE                                   ; $1ECB8D |
-  SEC                                       ; $1ECB8F |
-  SBC #$06                                  ; $1ECB90 |
-  STA $AE                                   ; $1ECB92 |
-code_1ECB94:
-  LDA #$00                                  ; $1ECB94 |
-  STA $EE                                   ; $1ECB96 |
-  STA $71                                   ; $1ECB98 |
-  STA $72                                   ; $1ECB9A |
-  STA $F8                                   ; $1ECB9C |
-  LDA $60                                   ; $1ECB9E |
-  CMP #$12                                  ; $1ECBA0 |
-  BEQ code_1ECBA7                           ; $1ECBA2 |
-  JMP handle_checkpoint                     ; $1ECBA4 |
+; --- death_handler ($3C != 0) ---
+death_handler:
+  LDA #$00                                  ; $1ECB78 |\ clear death flag + boss state
+  STA $3C                                   ; $1ECB7A | |
+  STA $5A                                   ; $1ECB7C |/
+  LDA $AE                                   ; $1ECB7E |\ decrement lives (BCD format)
+  SEC                                       ; $1ECB80 | |
+  SBC #$01                                  ; $1ECB81 | |
+  BCC game_over                             ; $1ECB83 |/ underflow → game over
+  STA $AE                                   ; $1ECB85 |\ BCD correction: if low nibble
+  AND #$0F                                  ; $1ECB87 | | wraps to $0F, subtract 6
+  CMP #$0F                                  ; $1ECB89 | | ($10 - $01 = $0F → $09)
+  BNE .respawn                              ; $1ECB8B | |
+  LDA $AE                                   ; $1ECB8D | |
+  SEC                                       ; $1ECB8F | |
+  SBC #$06                                  ; $1ECB90 | |
+  STA $AE                                   ; $1ECB92 |/
+.respawn:
+  LDA #$00                                  ; $1ECB94 |\ clear rendering/overlay state
+  STA $EE                                   ; $1ECB96 | |
+  STA $71                                   ; $1ECB98 | |
+  STA $72                                   ; $1ECB9A | |
+  STA $F8                                   ; $1ECB9C |/
+  LDA $60                                   ; $1ECB9E |\ if $60 == $12 (Wily stage):
+  CMP #$12                                  ; $1ECBA0 | | special respawn path
+  BEQ code_1ECBA7                           ; $1ECBA2 |/
+  JMP handle_checkpoint                     ; $1ECBA4 | normal respawn at checkpoint
 
+; Wily stage death → bank $18 $9006 (Wily-specific respawn)
 code_1ECBA7:
-  LDA #$18                                  ; $1ECBA7 |
-  STA $F4                                   ; $1ECBA9 |
-  JSR select_PRG_banks                      ; $1ECBAB |
-  JMP $9006                                 ; $1ECBAE |
+  LDA #$18                                  ; $1ECBA7 |\ select bank $18
+  STA $F4                                   ; $1ECBA9 | |
+  JSR select_PRG_banks                      ; $1ECBAB |/
+  JMP $9006                                 ; $1ECBAE | Wily respawn (bank $18)
 
-code_1ECBB1:
-  LDA #$00                                  ; $1ECBB1 |
-  STA $EE                                   ; $1ECBB3 |
-  STA $5A                                   ; $1ECBB5 |
-  STA $71                                   ; $1ECBB7 |
-  STA $72                                   ; $1ECBB9 |
-  STA $F8                                   ; $1ECBBB |
-  LDA #$18                                  ; $1ECBBD |
-  STA $F4                                   ; $1ECBBF |
-  LDA #$13                                  ; $1ECBC1 |
-  STA $F5                                   ; $1ECBC3 |
-  JSR select_PRG_banks                      ; $1ECBC5 |
-  JSR $9003                                 ; $1ECBC8 |
-  JMP code_1EC8FF                           ; $1ECBCB |
+; --- game_over (lives underflowed) ---
+game_over:
+  LDA #$00                                  ; $1ECBB1 |\ clear all state
+  STA $EE                                   ; $1ECBB3 | |
+  STA $5A                                   ; $1ECBB5 | |
+  STA $71                                   ; $1ECBB7 | |
+  STA $72                                   ; $1ECBB9 | |
+  STA $F8                                   ; $1ECBBB |/
+  LDA #$18                                  ; $1ECBBD |\ select banks $18/$13
+  STA $F4                                   ; $1ECBBF | | (game over screen)
+  LDA #$13                                  ; $1ECBC1 | |
+  STA $F5                                   ; $1ECBC3 | |
+  JSR select_PRG_banks                      ; $1ECBC5 |/
+  JSR $9003                                 ; $1ECBC8 | game over sequence (bank $18)
+  JMP code_1EC8FF                           ; $1ECBCB | → stage_reinit (continue/retry)
 
-code_1ECBCE:
+; --- stage_clear_handler ($74 != 0) ---
+stage_clear_handler:
   PHA                                       ; $1ECBCE |
   LDA #$00                                  ; $1ECBCF |
   STA $5A                                   ; $1ECBD1 |
@@ -2132,12 +2287,12 @@ handle_checkpoint:
 .take_checkpoint:
   TYA                                       ; $1ECC31 |
   PHA                                       ; $1ECC32 |
-  JSR code_1EC752                           ; $1ECC33 |
+  JSR fade_palette_in                           ; $1ECC33 |
   LDA #$04                                  ; $1ECC36 |
   STA $97                                   ; $1ECC38 |
-  JSR code_1EC5E9                           ; $1ECC3A |
+  JSR prepare_oam_buffer                           ; $1ECC3A |
   JSR task_yield                           ; $1ECC3D |
-  JSR code_1EC628                           ; $1ECC40 |
+  JSR clear_entity_table                           ; $1ECC40 |
   LDA #$00                                  ; $1ECC43 |
   STA $F8                                   ; $1ECC45 |
   STA $FD                                   ; $1ECC47 |
@@ -2214,7 +2369,7 @@ code_1ECCBF:
   LDA #$00                                  ; $1ECCD3 |
   STA $18                                   ; $1ECCD5 |
   JSR task_yield                           ; $1ECCD7 |
-  JSR code_1EC74C                           ; $1ECCDA |
+  JSR fade_palette_out                           ; $1ECCDA |
   LDA #$80                                  ; $1ECCDD |
   STA $0360                                 ; $1ECCDF |
   JMP code_1EC9B3                           ; $1ECCE2 |
@@ -4516,12 +4671,12 @@ player_warp_init:
 code_1EDDC1:
   LDA #$00                                  ; $1EDDC1 |
   STA $EE                                   ; $1EDDC3 |
-  JSR code_1EC752                           ; $1EDDC5 |
+  JSR fade_palette_in                           ; $1EDDC5 |
   LDA #$04                                  ; $1EDDC8 |
   STA $97                                   ; $1EDDCA |
-  JSR code_1EC5E9                           ; $1EDDCC |
+  JSR prepare_oam_buffer                           ; $1EDDCC |
   JSR task_yield                           ; $1EDDCF |
-  JSR code_1EC628                           ; $1EDDD2 |
+  JSR clear_entity_table                           ; $1EDDD2 |
   LDA #$01                                  ; $1EDDD5 |
   STA $F5                                   ; $1EDDD7 |
   JSR select_PRG_banks                      ; $1EDDD9 |
@@ -4574,7 +4729,7 @@ code_1EDE1E:
   JSR submit_sound_ID_D9                    ; $1EDE3D |
 code_1EDE40:
   JSR task_yield                           ; $1EDE40 |
-  JSR code_1EC74C                           ; $1EDE43 |
+  JSR fade_palette_out                           ; $1EDE43 |
   LDX #$00                                  ; $1EDE46 |
   LDA #$13                                  ; $1EDE48 |
   JSR reset_sprite_anim                     ; $1EDE4A |
@@ -5596,7 +5751,7 @@ code_1FE5C1:
   db $33, $33, $00, $FF, $01, $1F           ; $1FE5CB |
 
 code_1FE5D1:
-  JSR code_1EC628                           ; $1FE5D1 |
+  JSR clear_entity_table                           ; $1FE5D1 |
 code_1FE5D4:
   LDA $FC                                   ; $1FE5D4 |
   CLC                                       ; $1FE5D6 |
@@ -5629,7 +5784,7 @@ code_1FE5DF:
   JMP code_1EC83D                           ; $1FE611 |
 
 code_1FE614:
-  JSR code_1EC628                           ; $1FE614 |
+  JSR clear_entity_table                           ; $1FE614 |
   LDA $23                                   ; $1FE617 |
   AND #$04                                  ; $1FE619 |
   LSR                                       ; $1FE61B |
@@ -5988,7 +6143,7 @@ breakable_block_override:
 ; each metatile = 4 CHR tile indices (2x2 pattern: TL, TR, BL, BR)
 ; metatile definitions at $B700 + (metatile_index * 4) in stage bank
 metatile_chr_ptr:
-  JSR code_1EC8A0                           ; $1FE882 |  ensure stage bank selected
+  JSR ensure_stage_bank                           ; $1FE882 |  ensure stage bank selected
   LDA #$00                                  ; $1FE885 |
   STA $01                                   ; $1FE887 |
   LDY $28                                   ; $1FE889 |
@@ -6149,7 +6304,7 @@ check_tile_horiz:
   LDA $BF00,y                               ; $1FE965 |\ get collision attribute for this tile
   AND #$F0                                  ; $1FE968 |/ upper nibble = collision type
   JSR breakable_block_collision              ; $1FE96A |  override if destroyed breakable block
-  JSR code_1FEB8A                           ; $1FE96D |  Proto Man wall override
+  JSR proto_man_wall_override                           ; $1FE96D |  Proto Man wall override
   LDY $02                                   ; $1FE970 |\ store result in $42+count
   STA $0042,y                               ; $1FE972 |/
   CMP $41                                   ; $1FE975 |\ update max tile type
@@ -6349,7 +6504,7 @@ check_tile_collision:
   LDA $BF00,y                               ; $1FEA97 |\ get collision attribute
   AND #$F0                                  ; $1FEA9A |/ upper nibble = collision type
   JSR breakable_block_collision              ; $1FEA9C |  override if destroyed breakable block
-  JSR code_1FEB8A                           ; $1FEA9F |  Proto Man wall override
+  JSR proto_man_wall_override                           ; $1FEA9F |  Proto Man wall override
   LDY $02                                   ; $1FEAA2 |\ store result in $42+count
   STA $0042,y                               ; $1FEAA4 |/
   CMP $41                                   ; $1FEAA7 |\ update max tile type
@@ -6529,46 +6684,54 @@ clear_destroyed_blocks:
 bitmask_table:                                  ;         | bit 7..0 test masks
   db $80, $40, $20, $10, $08, $04, $02, $01 ; $1FEB82 |
 
-; proto_man_wall_override: when $68 (cutscene-complete) is set,
-; checks if player is at a Proto Man breakable wall position.
-; if so, overrides tile type to $00 (passthrough) to open the path.
-; table at $EBC6 maps stage → wall position data.
-code_1FEB8A:
-  STA $05                                   ; $1FEB8A |
+; ---------------------------------------------------------------------------
+; proto_man_wall_override — open breakable walls after Proto Man cutscene
+; ---------------------------------------------------------------------------
+; When $68 (cutscene-complete flag) is set, checks if current tile position
+; matches a Proto Man breakable wall for this stage. If so, returns A=$00
+; (passthrough) instead of the original tile type, opening the path.
+; Table at $EBC6: per-stage index into wall position data at $EBCE+.
+;   $EBC6,y = data offset for stage $22 ($FF = no wall on this stage)
+;   $EBCE,x = scroll position ($F9) to match
+;   $EBCF,x = number of wall tile entries
+;   $EBD0+  = tile column positions to match against $28
+; ---------------------------------------------------------------------------
+proto_man_wall_override:
+  STA $05                                   ; $1FEB8A | save original tile type
   STX $06                                   ; $1FEB8C |
   STY $07                                   ; $1FEB8E |
   LDA $68                                   ; $1FEB90 |\ $68 = cutscene-complete flag
-  BEQ code_1FEBB9                           ; $1FEB92 |/ no cutscene → skip
-  LDY $22                                   ; $1FEB94 |
-  LDX $EBC6,y                               ; $1FEB96 |
-  BMI code_1FEBC0                           ; $1FEB99 |
-  LDA $EBCE,x                               ; $1FEB9B |
-  CMP $F9                                   ; $1FEB9E |
-  BNE code_1FEBC0                           ; $1FEBA0 |
-  LDA $EBCF,x                               ; $1FEBA2 |
+  BEQ .no_match                             ; $1FEB92 |/ no cutscene → return original
+  LDY $22                                   ; $1FEB94 | stage index
+  LDX $EBC6,y                               ; $1FEB96 | look up wall data offset
+  BMI .clear_flag                           ; $1FEB99 | $FF = no wall → clear $68
+  LDA $EBCE,x                               ; $1FEB9B | expected scroll position
+  CMP $F9                                   ; $1FEB9E | match current scroll?
+  BNE .clear_flag                           ; $1FEBA0 | no → clear $68 (wrong screen)
+  LDA $EBCF,x                               ; $1FEBA2 | number of wall tile entries
   STA $08                                   ; $1FEBA5 |
-  LDA $28                                   ; $1FEBA7 |
-code_1FEBA9:
-  CMP $EBD0,x                               ; $1FEBA9 |
-  BEQ code_1FEBB5                           ; $1FEBAC |
+  LDA $28                                   ; $1FEBA7 | current tile column
+.check_column:
+  CMP $EBD0,x                               ; $1FEBA9 | match wall column?
+  BEQ .wall_open                            ; $1FEBAC | yes → override to passthrough
   INX                                       ; $1FEBAE |
   DEC $08                                   ; $1FEBAF |
-  BPL code_1FEBA9                           ; $1FEBB1 |
-  BMI code_1FEBB9                           ; $1FEBB3 |
-code_1FEBB5:
-  LDA #$00                                  ; $1FEBB5 |
-  BEQ code_1FEBBB                           ; $1FEBB7 |
-code_1FEBB9:
-  LDA $05                                   ; $1FEBB9 |
-code_1FEBBB:
-  LDX $06                                   ; $1FEBBB |
+  BPL .check_column                         ; $1FEBB1 | try next entry
+  BMI .no_match                             ; $1FEBB3 | no match → return original
+.wall_open:
+  LDA #$00                                  ; $1FEBB5 | A = $00 (air/passthrough)
+  BEQ .restore                              ; $1FEBB7 |
+.no_match:
+  LDA $05                                   ; $1FEBB9 | A = original tile type
+.restore:
+  LDX $06                                   ; $1FEBBB | restore X, Y
   LDY $07                                   ; $1FEBBD |
   RTS                                       ; $1FEBBF |
 
-code_1FEBC0:
-  LDA #$00                                  ; $1FEBC0 |
-  STA $68                                   ; $1FEBC2 |
-  BEQ code_1FEBB9                           ; $1FEBC4 |
+.clear_flag:
+  LDA #$00                                  ; $1FEBC0 | wrong stage/screen
+  STA $68                                   ; $1FEBC2 | clear cutscene-complete flag
+  BEQ .no_match                             ; $1FEBC4 | return original tile type
 
   db $FF, $00, $11, $04, $FF, $FF, $FF, $0E ; $1FEBC6 |
   db $05, $01, $31, $39, $13, $07, $23, $24 ; $1FEBCE |
@@ -9252,7 +9415,7 @@ RESET:
   LDA #$0B                                  ; $1FFE7D | |
   STA $ED                                   ; $1FFE7F | |
   JSR update_CHR_banks                      ; $1FFE81 |/
-  JSR code_1EC5E9                           ; $1FFE84 | init OAM / sprite state
+  JSR prepare_oam_buffer                           ; $1FFE84 | init OAM / sprite state
   LDA #$20                                  ; $1FFE87 |\ clear nametable 0 ($2000)
   LDX #$00                                  ; $1FFE89 | | A=addr hi, X=fill, Y=attr fill
   LDY #$00                                  ; $1FFE8B | |
@@ -9463,7 +9626,7 @@ process_frame_yield_with_player:
   LDA #$04                                  ; $1FFF57 |\ $97 = $04: start OAM after sprite 0
   STA $97                                   ; $1FFF59 |/ (include player in sprite update)
 process_frame_and_yield:
-  JSR code_1EC5E9                           ; $1FFF5B | process entities (sprite state)
+  JSR prepare_oam_buffer                           ; $1FFF5B | process entities (sprite state)
   JSR update_entity_sprites                 ; $1FFF5E | build OAM buffer from entity data
   LDA #$00                                  ; $1FFF61 |\ $EE = 0: "waiting for NMI"
   STA $EE                                   ; $1FFF63 |/

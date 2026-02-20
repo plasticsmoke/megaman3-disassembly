@@ -7,11 +7,11 @@ org $8000
 
   LDA #$00                                  ; $0B8006 |
   STA $EE                                   ; $0B8008 |
-  JSR code_1EC752                           ; $0B800A |
+  JSR fade_palette_in                           ; $0B800A |
   LDA #$04                                  ; $0B800D |
   STA $97                                   ; $0B800F |
-  JSR code_1EC5E9                           ; $0B8011 |
-  JSR code_1EC628                           ; $0B8014 |
+  JSR prepare_oam_buffer                           ; $0B8011 |
+  JSR clear_entity_table                           ; $0B8014 |
   JSR task_yield                           ; $0B8017 |
   LDA #$F0                                  ; $0B801A |
   JSR submit_sound_ID_D9                    ; $0B801C |
@@ -85,7 +85,7 @@ code_0B80A6:
   LDA #$C0                                  ; $0B80B3 |
   STA $5E                                   ; $0B80B5 |
   JSR task_yield                           ; $0B80B7 |
-  JSR code_1EC74C                           ; $0B80BA |
+  JSR fade_palette_out                           ; $0B80BA |
   LDA #$08                                  ; $0B80BD |
   STA $0500                                 ; $0B80BF |
   LDA #$00                                  ; $0B80C2 |
@@ -206,11 +206,11 @@ code_0B81AD:
 code_0B81B0:
   LDA #$00                                  ; $0B81B0 |
   STA $EE                                   ; $0B81B2 |
-  JSR code_1EC752                           ; $0B81B4 |
+  JSR fade_palette_in                           ; $0B81B4 |
   LDA #$04                                  ; $0B81B7 |
   STA $97                                   ; $0B81B9 |
-  JSR code_1EC5E9                           ; $0B81BB |
-  JSR code_1EC628                           ; $0B81BE |
+  JSR prepare_oam_buffer                           ; $0B81BB |
+  JSR clear_entity_table                           ; $0B81BE |
   JSR task_yield                           ; $0B81C1 |
   LDA #$00                                  ; $0B81C4 |
   STA $70                                   ; $0B81C6 |
@@ -263,7 +263,7 @@ code_0B81F1:
   LDA #$04                                  ; $0B8232 |
   STA $0420                                 ; $0B8234 |
   JSR task_yield                           ; $0B8237 |
-  JSR code_1EC74C                           ; $0B823A |
+  JSR fade_palette_out                           ; $0B823A |
 code_0B823D:
   LDA $03E0                                 ; $0B823D |
   BNE code_0B8291                           ; $0B8240 |
@@ -310,7 +310,7 @@ code_0B8289:
 code_0B8291:
   LDA #$00                                  ; $0B8291 |
   STA $EE                                   ; $0B8293 |
-  JSR code_1EC752                           ; $0B8295 |
+  JSR fade_palette_in                           ; $0B8295 |
   LDA #$00                                  ; $0B8298 |
   STA $03E0                                 ; $0B829A |
   STA $0380                                 ; $0B829D |
@@ -506,13 +506,13 @@ code_0B8430:
 code_0B8439:
   LDA #$00                                  ; $0B8439 |
   STA $EE                                   ; $0B843B |
-  JSR code_1EC752                           ; $0B843D |
+  JSR fade_palette_in                           ; $0B843D |
   LDA #$36                                  ; $0B8440 |
   JSR submit_sound_ID_D9                    ; $0B8442 |
   LDA #$04                                  ; $0B8445 |
   STA $97                                   ; $0B8447 |
-  JSR code_1EC5E9                           ; $0B8449 |
-  JSR code_1EC628                           ; $0B844C |
+  JSR prepare_oam_buffer                           ; $0B8449 |
+  JSR clear_entity_table                           ; $0B844C |
   JSR task_yield                           ; $0B844F |
   LDA #$16                                  ; $0B8452 |
   STA $22                                   ; $0B8454 |
@@ -549,9 +549,9 @@ code_0B848F:
   STA $0200,y                               ; $0B8492 |
   DEY                                       ; $0B8495 |
   BPL code_0B848F                           ; $0B8496 |
-  JSR code_1EC628                           ; $0B8498 |
+  JSR clear_entity_table                           ; $0B8498 |
   JSR task_yield                           ; $0B849B |
-  JSR code_1EC74C                           ; $0B849E |
+  JSR fade_palette_out                           ; $0B849E |
   LDY #$13                                  ; $0B84A1 |
 code_0B84A3:
   LDA $8719,y                               ; $0B84A3 |
