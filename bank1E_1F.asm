@@ -1,3 +1,186 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANKS $1E-$1F — MAIN GAME LOGIC (FIXED BANK)
+; =============================================================================
+; This is the fixed code bank for Mega Man 3. Always mapped to $C000-$FFFF.
+; Contains:
+;   - NMI / interrupt handling
+;   - Player state machine (22 states via player_state_ptr_lo/hi)
+;   - Player movement physics (walk, jump, gravity, slide, ladder)
+;   - Weapon firing and initialization
+;   - Entity movement routines (shared by player and enemies)
+;   - Sprite animation control
+;   - Collision detection (player-entity, weapon-entity)
+;   - Sound submission
+;   - PRG/CHR bank switching
+;
+; NOTE: MM3 shares its engine with Mega Man 4 (MM4). Many routines here
+; are near-identical to MM4's bank38_3F.asm (the MM4 fixed bank).
+; MM4 cross-references (from plasticsmoke/megaman4-disassembly):
+;   process_sprites    ($1C800C) → code_3A8014 — entity processing loop
+;   check_player_hit   ($1C8097) → code_3A81CC — contact damage check
+;   check_weapon_hit   ($1C8102) → code_3FF95D — weapon-entity collision
+;   find_enemy_freeslot_x ($1FFC43) → code_3FFB5C — find empty entity slot (X)
+;   find_enemy_freeslot_y ($1FFC53) → code_3FFB6C — find empty entity slot (Y)
+;   move_sprite_right  ($1FF71D) → code_3FF22D — entity X += velocity
+;   move_sprite_left   ($1FF73B) → code_3FF24B — entity X -= velocity
+;   move_sprite_down   ($1FF759) → code_3FF269 — entity Y += velocity
+;   move_sprite_up     ($1FF779) → code_3FF289 — entity Y -= velocity
+;   reset_sprite_anim  ($1FF835) → (equivalent in bank38_3F)
+;   reset_gravity      ($1FF81B) → (equivalent in bank38_3F)
+;   face_player        ($1FF869) → (equivalent in bank38_3F)
+;   select_PRG_banks   ($1FFF6B) → code_3FFF37 — MMC3 bank switch
+;   NMI                ($1EC000) → NMI ($3EC000) — vblank interrupt
+;   RESET              ($1FFE00) → RESET ($3FFE00) — power-on entry
+;
+; Key differences from MM4: 32 entity slots (vs 24), $20 stride (vs $18),
+; direct routine-index dispatch (vs page-based AI state machine),
+; 16 weapon slots (vs 8), Top Spin mechanic, no 16-bit X coordinates.
+;
+; =============================================================================
+; KEY MEMORY MAP
+; =============================================================================
+;
+; Zero Page:
+;   $12     = player tile X coordinate (low nibble)
+;   $14     = controller 1 buttons (current frame, new presses)
+;   $16     = controller 1 buttons (held / continuous)
+;   $18     = palette update request flag
+;   $19     = nametable update request flag
+;   $1A     = nametable column update flag
+;   $22     = current stage bank number (for $A000-$BFFF)
+;   $30     = player state (index into player_state_ptr tables, 22 states)
+;   $31     = player facing direction (1=right, 2=left)
+;   $32     = walking flag (nonzero = player is walking)
+;   $35     = facing sub-state
+;   $39     = invincibility/damage-immunity flag (nonzero = immune)
+;   $3A     = jump/rush counter
+;   $43-$44 = tile types at player feet (for ground/ladder detection)
+;   $50     = scroll lock flag
+;   $5A     = special state flag (bit 7 = active)
+;   $5B-$5C = spark freeze slots (entity X indices frozen by Spark Shock)
+;   $5D     = sub-state / item interaction flag
+;   $5E-$5F = scroll position values
+;   $78     = screen mode
+;   $99     = sprite processing flag (set to $55 at start of process_sprites)
+;   $9E-$9F = enemy spawn tracking counters (left/right)
+;   $A2     = player HP (low 5 bits = health, AND #$1F to read)
+;   $EE     = NMI skip flag
+;   $EF     = current sprite slot counter (loop variable in process_sprites)
+;   $F0     = MMC3 bank select register shadow
+;   $F5     = current $A000-$BFFF PRG bank number
+;   $F8     = game mode / screen state
+;   $F9     = camera/scroll page
+;   $FA     = vertical scroll
+;   $FC-$FD = camera X position (low, high)
+;   $FE     = PPU mask ($2001) shadow
+;   $FF     = PPU control ($2000) shadow
+;
+; Entity Arrays (indexed by X, stride $20, 32 slots $00-$1F):
+;   $0300,x = entity active flag (bit 7 = active)
+;   $0320,x = main routine index (AI type, dispatched in process_sprites)
+;   $0340,x = X position sub-pixel
+;   $0360,x = X position pixel
+;   $0380,x = X position screen/page
+;   $03A0,x = Y position sub-pixel
+;   $03C0,x = Y position pixel
+;   $03E0,x = Y position screen/page
+;   $0400,x = X velocity sub-pixel
+;   $0420,x = X velocity pixel (signed: positive=right, negative=left)
+;   $0440,x = Y velocity sub-pixel
+;   $0460,x = Y velocity pixel (signed: negative=up/gravity, positive=down)
+;   $0480,x = entity shape/hitbox (bit 7 = causes player contact damage)
+;   $04A0,x = facing direction (1=right, 2=left)
+;   $04C0,x = stage enemy ID (spawn tracking, prevents duplicate spawns)
+;   $04E0,x = health / hit points
+;   $0500,x = AI timer / general purpose counter
+;   $0520,x = general purpose / wildcard 1
+;   $0540,x = general purpose / wildcard 2
+;   $0560,x = general purpose / wildcard 3
+;   $0580,x = entity flags (bit 7=active/collidable, bit 6=H-flip, bit 4=?)
+;   $05A0,x = animation state (0=reset, set by reset_sprite_anim)
+;   $05C0,x = current animation / OAM ID
+;   $05E0,x = animation frame counter (bit 7 preserved on anim reset)
+;
+; Entity Slot Ranges:
+;   Slot $00       = Mega Man (player)
+;   Slots $01-$0F  = weapons / projectiles (15 reserved slots)
+;   Slots $10-$1F  = enemies / items / bosses (searched by find_enemy_freeslot)
+;
+; MM3→MM4 Entity Address Cross-Reference:
+;   MM3 $0300,x → MM4 $0300,x  (entity active flag)
+;   MM3 $0320,x → MM4 n/a      (routine index; MM4 uses page-based dispatch)
+;   MM3 $0340,x → MM4 $0318,x  (X sub-pixel)
+;   MM3 $0360,x → MM4 $0330,x  (X pixel)
+;   MM3 $0380,x → MM4 $0348,x  (X screen/page)
+;   MM3 $03A0,x → MM4 $0360,x  (Y sub-pixel)
+;   MM3 $03C0,x → MM4 $0378,x  (Y pixel)
+;   MM3 $03E0,x → MM4 $0390,x  (Y screen/page)
+;   MM3 $0400,x → MM4 $03A8,x  (X velocity sub-pixel)
+;   MM3 $0420,x → MM4 $03C0,x  (X velocity pixel)
+;   MM3 $0440,x → MM4 $03D8,x  (Y velocity sub-pixel)
+;   MM3 $0460,x → MM4 $03F0,x  (Y velocity pixel)
+;   MM3 $0480,x → MM4 $0408,x  (shape/hitbox)
+;   MM3 $04A0,x → MM4 $0420,x  (facing/direction)
+;   MM3 $04E0,x → MM4 (TBD)    (health)
+;   MM3 $0500,x → MM4 $0468,x  (AI timer)
+;   MM3 $0580,x → MM4 $0528,x  (entity flags)
+;   MM3 $05C0,x → MM4 $0558,x  (animation/OAM ID)
+;   MM3 $05E0,x → MM4 $0540,x  (animation frame counter)
+;
+; Sound System:
+;   submit_sound_ID ($1FFA98) — submit a sound effect to the queue
+;
+; Palette RAM:
+;   $0600-$061F = palette buffer (32 bytes, uploaded to PPU $3F00 during NMI)
+;
+; Controller Button Masks (for $14 / $16):
+;   #$80 = A button (Jump)
+;   #$40 = B button (Fire)
+;   #$20 = Select
+;   #$10 = Start
+;   #$08 = Up
+;   #$04 = Down
+;   #$02 = Left
+;   #$01 = Right
+;
+; Fixed-Point Format: 8.8 (high byte = pixels, low byte = sub-pixel / 256)
+;   Example: $01.4C = 1 + 76/256 = 1.297 pixels/frame
+;
+; PHYSICS CONSTANTS (from reset_gravity and player movement code):
+;   Gravity (player):  $FFC0 as velocity = -0.25 px/frame² (upward bias)
+;   Gravity (enemies): $FFAB as velocity = -0.332 px/frame²
+;   Terminal velocity: $07.00 = 7.0 px/frame downward (clamped at $0460 >= $07)
+;   Walk speed:        $01.4C = 1.297 px/frame (same as MM4)
+;   Slide speed:       (TODO: verify from player slide state)
+;   Jump velocity:     (TODO: verify from player_on_ground.jump)
+;
+; PLAYER STATES (22 states, index in $30, dispatched via player_state_ptr tables):
+; Verified via Mesen 0.9.9 write breakpoint on $0030 during full playthrough.
+;   $00 = player_on_ground    ($CE36) — idle/walking on ground [confirmed]
+;   $01 = player_airborne     ($D007) — jumping/falling, variable jump [confirmed]
+;   $02 = player_slide        ($D3FD) — sliding on ground [confirmed]
+;   $03 = player_ladder       ($D4EB) — on ladder (climb, fire, jump off) [confirmed]
+;   $04 = player_reappear     ($D5BA) — respawn/reappear (death, unpause, stage start) [confirmed]
+;   $05 = player_entity_ride  ($D613) — riding entity at slot $34 (anim $62) [unconfirmed]
+;   $06 = player_damage       ($D6AB) — taking damage (contact or projectile) [confirmed]
+;   $07 = player_special_death($D831) — palette cycling kill (bank04 hazard) [unconfirmed]
+;   $08 = player_rush_marine  ($D858) — riding Rush Marine submarine [confirmed]
+;   $09 = player_boss_wait    ($D929) — frozen during boss intro (shutters/HP bar) [confirmed]
+;   $0A = player_top_spin     ($D991) — Top Spin recoil bounce (8 frames) [confirmed]
+;   $0B = player_weapon_recoil($D9BE) — Hard Knuckle fire freeze (16 frames) [confirmed]
+;   $0C = player_victory      ($D9D3) — boss defeated cutscene (jump, get weapon) [confirmed]
+;   $0D = player_teleport     ($DBE1) — teleport away, persists through menus [confirmed]
+;   $0E = player_death        ($D779) — dead, explosion on all sprites [confirmed]
+;   $0F = player_stunned      ($CDCC) — frozen by external force (slam/grab/cutscene) [confirmed]
+;   $10 = player_screen_scroll($DD14) — vertical scroll transition between sections [confirmed]
+;   $11 = player_warp_init    ($DDAA) — teleporter tube area initialization [confirmed]
+;   $12 = player_warp_anim    ($DE52) — wait for warp animation, return to $00 [confirmed]
+;   $13 = player_teleport_beam($DF33) — teleport beam landing w/ gravity [unconfirmed]
+;   $14 = player_auto_walk    ($DF8A) — scripted walk to X=$50 (post-Wily) [confirmed]
+;   $15 = player_auto_walk_2  ($E08C) — scripted walk to X=$68 (ending cutscene) [confirmed]
+;
+; =============================================================================
+
 bank $1E
 org $C000
 
@@ -1758,57 +1941,90 @@ code_1ECD8B:
   STA $01                                   ; $1ECD95 | |
   JMP ($0000)                               ; $1ECD97 |/
 
-; routine addresses for player state handling
+; =============================================================================
+; PLAYER STATE POINTER TABLES — 22 states, indexed by $30
+; =============================================================================
+; Dispatch at code_1ECD8B: LDY $30; LDA lo,y / LDA hi,y; JMP ($0000)
+;
+;   $00 = player_on_ground    ($CE36) — idle/walking on ground [confirmed]
+;   $01 = player_airborne     ($D007) — jumping/falling, variable jump [confirmed]
+;   $02 = player_slide        ($D3FD) — sliding on ground [confirmed]
+;   $03 = player_ladder       ($D4EB) — on ladder (climb, fire, jump off) [confirmed]
+;   $04 = player_reappear     ($D5BA) — respawn/reappear (death, unpause, stage start) [confirmed]
+;   $05 = player_entity_ride  ($D613) — riding entity at slot $34 (anim $62) [unconfirmed]
+;   $06 = player_damage       ($D6AB) — taking damage (contact or projectile) [confirmed]
+;   $07 = player_special_death($D831) — palette cycling kill (bank04 hazard) [unconfirmed]
+;   $08 = player_rush_marine  ($D858) — riding Rush Marine submarine [confirmed]
+;   $09 = player_boss_wait    ($D929) — frozen during boss intro (shutters/HP bar) [confirmed]
+;   $0A = player_top_spin     ($D991) — Top Spin recoil bounce (8 frames) [confirmed]
+;   $0B = player_weapon_recoil($D9BE) — Hard Knuckle fire freeze (16 frames) [confirmed]
+;   $0C = player_victory      ($D9D3) — boss defeated cutscene (jump, get weapon) [confirmed]
+;   $0D = player_teleport     ($DBE1) — teleport away, persists through menus [confirmed]
+;   $0E = player_death        ($D779) — dead, explosion on all sprites [confirmed]
+;   $0F = player_stunned      ($CDCC) — frozen by external force (slam/grab/cutscene) [confirmed]
+;   $10 = player_screen_scroll($DD14) — vertical scroll transition between sections [confirmed]
+;   $11 = player_warp_init    ($DDAA) — teleporter tube area initialization [confirmed]
+;   $12 = player_warp_anim    ($DE52) — wait for warp animation, return to $00 [confirmed]
+;   $13 = player_teleport_beam($DF33) — teleport beam landing w/ gravity [unconfirmed]
+;   $14 = player_auto_walk    ($DF8A) — scripted walk to X=$50 (post-Wily) [confirmed]
+;   $15 = player_auto_walk_2  ($E08C) — scripted walk to X=$68 (ending cutscene) [confirmed]
+;
+; MM4 comparison: 6 states (stand/walk/air/slide/hurt/ladder).
+; MM3's extra states cover Rush Marine, victory, teleport, death,
+; stage transitions, boss intros, weapon recoil, and scripted cutscenes.
+; =============================================================================
 player_state_ptr_lo:
-  db player_on_ground                       ; $1ECD98 |
-  db $07                                    ; $1ECD99 |
-  db $FD                                    ; $1ECD9A |
-  db $EB                                    ; $1ECD9B |
-  db $BA                                    ; $1ECD9C |
-  db $13                                    ; $1ECD9D |
-  db $AB                                    ; $1ECD9E |
-  db $31                                    ; $1ECD9F |
-  db $58                                    ; $1ECDA0 |
-  db $29                                    ; $1ECDA1 |
-  db $91                                    ; $1ECDA2 |
-  db $BE                                    ; $1ECDA3 |
-  db $D3                                    ; $1ECDA4 |
-  db $E1                                    ; $1ECDA5 |
-  db $79                                    ; $1ECDA6 |
-  db $CC                                    ; $1ECDA7 |
-  db $14                                    ; $1ECDA8 |
-  db $AA                                    ; $1ECDA9 |
-  db $52                                    ; $1ECDAA |
-  db $33                                    ; $1ECDAB |
-  db $8A                                    ; $1ECDAC |
-  db $8C                                    ; $1ECDAD |
+  db player_on_ground                       ; $1ECD98 | $00 player_on_ground
+  db $07                                    ; $1ECD99 | $01 player_airborne
+  db $FD                                    ; $1ECD9A | $02 player_slide
+  db $EB                                    ; $1ECD9B | $03 player_ladder
+  db $BA                                    ; $1ECD9C | $04 player_reappear
+  db $13                                    ; $1ECD9D | $05 player_entity_ride
+  db $AB                                    ; $1ECD9E | $06 player_damage
+  db $31                                    ; $1ECD9F | $07 player_special_death
+  db $58                                    ; $1ECDA0 | $08 player_rush_marine
+  db $29                                    ; $1ECDA1 | $09 player_boss_wait
+  db $91                                    ; $1ECDA2 | $0A player_top_spin
+  db $BE                                    ; $1ECDA3 | $0B player_weapon_recoil
+  db $D3                                    ; $1ECDA4 | $0C player_victory
+  db $E1                                    ; $1ECDA5 | $0D player_teleport
+  db $79                                    ; $1ECDA6 | $0E player_death
+  db $CC                                    ; $1ECDA7 | $0F player_stunned
+  db $14                                    ; $1ECDA8 | $10 player_screen_scroll
+  db $AA                                    ; $1ECDA9 | $11 player_warp_init
+  db $52                                    ; $1ECDAA | $12 player_warp_anim
+  db $33                                    ; $1ECDAB | $13 player_teleport_beam
+  db $8A                                    ; $1ECDAC | $14 player_auto_walk
+  db $8C                                    ; $1ECDAD | $15 player_auto_walk_2
 
 player_state_ptr_hi:
-  db player_on_ground>>8                    ; $1ECDAE |
-  db $D0                                    ; $1ECDAF |
-  db $D3                                    ; $1ECDB0 |
-  db $D4                                    ; $1ECDB1 |
-  db $D5                                    ; $1ECDB2 |
-  db $D6                                    ; $1ECDB3 |
-  db $D6                                    ; $1ECDB4 |
-  db $D8                                    ; $1ECDB5 |
-  db $D8                                    ; $1ECDB6 |
-  db $D9                                    ; $1ECDB7 |
-  db $D9                                    ; $1ECDB8 |
-  db $D9                                    ; $1ECDB9 |
-  db $D9                                    ; $1ECDBA |
-  db $DB                                    ; $1ECDBB |
-  db $D7                                    ; $1ECDBC |
-  db $CD                                    ; $1ECDBD |
-  db $DD                                    ; $1ECDBE |
-  db $DD                                    ; $1ECDBF |
-  db $DE                                    ; $1ECDC0 |
-  db $DF                                    ; $1ECDC1 |
-  db $DF                                    ; $1ECDC2 |
-  db $E0                                    ; $1ECDC3 |
+  db player_on_ground>>8                    ; $1ECDAE | $00
+  db $D0                                    ; $1ECDAF | $01
+  db $D3                                    ; $1ECDB0 | $02
+  db $D4                                    ; $1ECDB1 | $03
+  db $D5                                    ; $1ECDB2 | $04
+  db $D6                                    ; $1ECDB3 | $05
+  db $D6                                    ; $1ECDB4 | $06
+  db $D8                                    ; $1ECDB5 | $07
+  db $D8                                    ; $1ECDB6 | $08
+  db $D9                                    ; $1ECDB7 | $09
+  db $D9                                    ; $1ECDB8 | $0A
+  db $D9                                    ; $1ECDB9 | $0B
+  db $D9                                    ; $1ECDBA | $0C
+  db $DB                                    ; $1ECDBB | $0D
+  db $D7                                    ; $1ECDBC | $0E
+  db $CD                                    ; $1ECDBD | $0F
+  db $DD                                    ; $1ECDBE | $10
+  db $DD                                    ; $1ECDBF | $11
+  db $DE                                    ; $1ECDC0 | $12
+  db $DF                                    ; $1ECDC1 | $13
+  db $DF                                    ; $1ECDC2 | $14
+  db $E0                                    ; $1ECDC3 | $15
 
   db $66, $61, $E0, $CF, $CE, $CF           ; $1ECDC6 |
 
+; player state $0F: frozen by external force (slam/grab/cutscene) [confirmed]
+player_stunned:
   LDA $5A                                   ; $1ECDCC |
   BMI code_1ECDE6                           ; $1ECDCE |
   LDY #$00                                  ; $1ECDD0 |
@@ -1872,7 +2088,7 @@ code_1ECE35:
 
 ; player state $00 routine: on ground
 player_on_ground:
-  JSR code_1ED007                           ; $1ECE36 |
+  JSR player_airborne                           ; $1ECE36 |
   BCC code_1ECE35                           ; $1ECE39 |
   LDY $5D                                   ; $1ECE3B |
   CPY #$01                                  ; $1ECE3D |
@@ -1906,7 +2122,7 @@ player_on_ground:
   AND #$FE                                  ; $1ECE7D |
   STA $0581                                 ; $1ECE7F |
   JSR decrease_ammo.check_frames            ; $1ECE82 |
-  JMP code_1ED007                           ; $1ECE85 |
+  JMP player_airborne                           ; $1ECE85 |
 
 .check_slide_jump:
   LDA $05C0                                 ; $1ECE88 |\
@@ -1937,14 +2153,14 @@ player_on_ground:
   STA $0440,x                               ; $1ECEB5 | | jump speed
   LDA #$04                                  ; $1ECEB8 | | $04E5
   STA $0460,x                               ; $1ECEBA |/
-  JMP code_1ED007                           ; $1ECEBD |
+  JMP player_airborne                           ; $1ECEBD |
 
 .super_jump:
   LDA #$00                                  ; $1ECEC0 |\
   STA $0440                                 ; $1ECEC2 | | super jump speed
   LDA #$08                                  ; $1ECEC5 | | $0800
   STA $0460                                 ; $1ECEC7 |/
-  JMP code_1ED007                           ; $1ECECA |
+  JMP player_airborne                           ; $1ECECA |
 
 code_1ECECD:
   LDA $05C0                                 ; $1ECECD |
@@ -2110,7 +2326,8 @@ code_1ECFDF:
   LDA #$DA                                  ; $1ED002 |
   JMP reset_sprite_anim                     ; $1ED004 |
 
-code_1ED007:
+; player state $01: jumping/falling, variable jump
+player_airborne:
   LDA $0460                                 ; $1ED007 |\ player moving up?
   BMI code_1ED019                           ; $1ED00A |/
   LDA $3A                                   ; $1ED00C |
@@ -2672,6 +2889,9 @@ code_1ED3A9:
   STX $0484                                 ; $1ED3F5 |
   STX $0324                                 ; $1ED3F8 |
   BEQ code_1ED412                           ; $1ED3FB |
+
+; player state $02: sliding on ground
+player_slide:
   LDY #$02                                  ; $1ED3FD |
   JSR code_1FF67C                           ; $1ED3FF |
   BCC code_1ED455                           ; $1ED402 |
@@ -2809,6 +3029,9 @@ code_1ED4C8:
   STA $03C0                                 ; $1ED4E4 |
   LDA #$14                                  ; $1ED4E7 |
   BNE code_1ED4AF                           ; $1ED4E9 |
+
+; player state $03: on ladder (climb, fire, jump off)
+player_ladder:
   JSR code_1ED355                           ; $1ED4EB |
   LDA $14                                   ; $1ED4EE |
   AND #$40                                  ; $1ED4F0 |
@@ -2921,6 +3144,8 @@ code_1ED5B4:
 code_1ED5B9:
   RTS                                       ; $1ED5B9 |
 
+; player state $04: respawn/reappear (death, unpause, stage start) [confirmed]
+player_reappear:
   LDA $05A0                                 ; $1ED5BA |
   BNE code_1ED5EB                           ; $1ED5BD |
   LDA $22                                   ; $1ED5BF |
@@ -2970,6 +3195,8 @@ code_1ED60C:
   STA $30                                   ; $1ED60E |
   JMP reset_gravity                         ; $1ED610 |
 
+; player state $05: riding entity at slot $34 (anim $62) [unconfirmed]
+player_entity_ride:
   LDY $34                                   ; $1ED613 |
   LDA $0300,y                               ; $1ED615 |
   BPL code_1ED60C                           ; $1ED618 |
@@ -3045,6 +3272,8 @@ code_1ED69D:
   JSR code_1ED0C1                           ; $1ED6A7 |
   RTS                                       ; $1ED6AA |
 
+; player state $06: taking damage, init knockback
+player_damage:
   LDA $05C0                                 ; $1ED6AB |
   CMP #$11                                  ; $1ED6AE |
   BEQ code_1ED701                           ; $1ED6B0 |
@@ -3147,6 +3376,8 @@ code_1ED76A:
 code_1ED778:
   RTS                                       ; $1ED778 |
 
+; player state $0E: dead, explosion on all sprites
+player_death:
   LDA #$00                                  ; $1ED779 |
   STA $3D                                   ; $1ED77B |
   LDA $05C0                                 ; $1ED77D |
@@ -3208,6 +3439,8 @@ code_1ED7F0:
   db $FD, $FD, $00, $02, $03, $02, $00, $FD ; $1ED821 |
   db $FE, $FE, $00, $01, $01, $01, $00, $FE ; $1ED829 |
 
+; player state $07: palette cycling kill (bank04 hazard) [unconfirmed]
+player_special_death:
   LDA #$00                                  ; $1ED831 |
   STA $05E0                                 ; $1ED833 |
   DEC $0500                                 ; $1ED836 |
@@ -3232,6 +3465,8 @@ code_1ED84E:
 code_1ED857:
   RTS                                       ; $1ED857 |
 
+; player state $08: riding Rush Marine submarine [confirmed]
+player_rush_marine:
   JSR decrease_ammo.check_frames            ; $1ED858 |
   LDA $05C0                                 ; $1ED85B |
   CMP #$DA                                  ; $1ED85E |
@@ -3341,6 +3576,8 @@ code_1ED920:
   STA $05C0                                 ; $1ED925 |
   RTS                                       ; $1ED928 |
 
+; player state $09: frozen during boss intro (shutters/HP bar) [confirmed]
+player_boss_wait:
   LDY #$00                                  ; $1ED929 |
   JSR code_1FF67C                           ; $1ED92B |
   BCC code_1ED990                           ; $1ED92E |
@@ -3398,6 +3635,8 @@ code_1ED98C:
 code_1ED990:
   RTS                                       ; $1ED990 |
 
+; player state $0A: Top Spin recoil bounce (8 frames) [confirmed]
+player_top_spin:
   LDY #$00                                  ; $1ED991 |
   JSR code_1FF67C                           ; $1ED993 |
   BCS code_1ED9B6                           ; $1ED996 |
@@ -3424,6 +3663,8 @@ code_1ED9B6:
 code_1ED9BD:
   RTS                                       ; $1ED9BD |
 
+; player state $0B: Hard Knuckle fire freeze (16 frames) [confirmed]
+player_weapon_recoil:
   DEC $0520                                 ; $1ED9BE |
   BNE code_1ED9D2                           ; $1ED9C1 |
   LDY $0500                                 ; $1ED9C3 |
@@ -3435,6 +3676,8 @@ code_1ED9BD:
 code_1ED9D2:
   RTS                                       ; $1ED9D2 |
 
+; player state $0C: boss defeated cutscene (jump, get weapon) [confirmed]
+player_victory:
   LDA $0500                                 ; $1ED9D3 |
   AND #$0F                                  ; $1ED9D6 |
   BEQ code_1EDA31                           ; $1ED9D8 |
@@ -3707,6 +3950,8 @@ code_1EDBB5:
   STA $0560                                 ; $1EDBDD |
   RTS                                       ; $1EDBE0 |
 
+; player state $0D: teleport away, persists through menus [confirmed]
+player_teleport:
   LDA $0300                                 ; $1EDBE1 |
   AND #$0F                                  ; $1EDBE4 |
   BNE code_1EDC0F                           ; $1EDBE6 |
@@ -3811,6 +4056,8 @@ code_1EDC74:
   db $03, $05, $00, $02, $04, $00, $00, $00 ; $1EDD07 |
   db $00, $00, $06, $06, $06                ; $1EDD0F |
 
+; player state $10: vertical scroll transition between sections [confirmed]
+player_screen_scroll:
   LDY #$00                                  ; $1EDD14 |
   JSR code_1FF67C                           ; $1EDD16 |
   BCC code_1EDD25                           ; $1EDD19 |
@@ -3894,6 +4141,8 @@ code_1EDDA5:
 
   db $48, $3F, $3F, $3F                     ; $1EDDA6 |
 
+; player state $11: teleporter tube area initialization [confirmed]
+player_warp_init:
   LDA $05A0                                 ; $1EDDAA |
   CMP #$04                                  ; $1EDDAD |
   BNE code_1EDDA5                           ; $1EDDAF |
@@ -3975,6 +4224,8 @@ code_1EDE40:
   STA $30                                   ; $1EDE4F |
   RTS                                       ; $1EDE51 |
 
+; player state $12: wait for warp animation, return to $00 [confirmed]
+player_warp_anim:
   LDA $05A0                                 ; $1EDE52 |
   CMP #$04                                  ; $1EDE55 |
   BNE code_1EDE5D                           ; $1EDE57 |
@@ -4076,6 +4327,8 @@ weapon_framerate:
   db $02                                    ; $1EDF31 | Shadow Blade
   db $1E                                    ; $1EDF32 | Rush Jet
 
+; player state $13: teleport beam landing w/ gravity [unconfirmed]
+player_teleport_beam:
   LDA $05C0                                 ; $1EDF33 |
   CMP #$13                                  ; $1EDF36 |
   BEQ code_1EDF51                           ; $1EDF38 |
@@ -4120,6 +4373,8 @@ code_1EDF83:
 code_1EDF89:
   RTS                                       ; $1EDF89 |
 
+; player state $14: scripted walk to X=$50 (post-Wily cutscene) [confirmed]
+player_auto_walk:
   LDY #$00                                  ; $1EDF8A |
   JSR code_1FF67C                           ; $1EDF8C |
   PHP                                       ; $1EDF8F |
@@ -4254,6 +4509,8 @@ code_1FE07D:
 code_1FE08B:
   RTS                                       ; $1FE08B |
 
+; player state $15: scripted walk to X=$68, ending cutscene [confirmed]
+player_auto_walk_2:
   LDY #$00                                  ; $1FE08C |
   JSR code_1FF67C                           ; $1FE08E |
   BCS code_1FE097                           ; $1FE091 |

@@ -1,6 +1,42 @@
-; sprite code banks
-; these 2 banks hold all main routines &
-; AI code for main routine indices $00~$9F
+; =============================================================================
+; MEGA MAN 3 (U) — BANKS $1C-$1D — SPRITE PROCESSING & ENTITY AI
+; =============================================================================
+; Swappable bank pair mapped to $8000-$BFFF. Contains:
+;   - process_sprites: main entity processing loop (iterates all 32 slots)
+;   - check_player_hit: contact damage from entity to player
+;   - check_weapon_hit: weapon-entity collision and damage
+;   - 75+ named enemy/weapon main routines (main_*)
+;   - sprite_main_ptr_lo/hi: dispatch tables for routine indices
+;
+; Entity Dispatch Mechanism (differs from MM4's page-based system):
+;   Each entity has a "main routine index" at $0320,x.
+;   process_sprites reads $0320,x, selects the appropriate PRG bank:
+;     Indices $00-$9F → bank $1D (this bank pair)
+;     Indices $A0-$AF → bank $04 (Doc Robot: Flash/Wood/Crash/Metal)
+;     Indices $B0-$BF → bank $05 (Doc Robot: Bubble/Heat/Quick/Air)
+;     Indices $C0-$CF → bank $06 (Robot Masters: Needle/Magnet/Top/Shadow)
+;     Indices $D0-$DF → bank $07 (Robot Masters: Hard/Spark/Snake/Gemini)
+;     Indices $E0-$FF → bank $12 (Fortress bosses + special entities)
+;   Then jumps through sprite_main_ptr_lo/hi tables to the routine.
+;
+; Entity Slot Layout:
+;   Slot $00       = Mega Man (player, skipped in loop)
+;   Slots $01-$0F  = weapons / projectiles
+;   Slots $10-$1F  = enemies / items / bosses
+;   Only slots >= $10 get weapon-hit checks.
+;   Slot bit 7 of $0480,x = causes player contact damage.
+;
+; Spark Freeze: $5B/$5C hold frozen entity slot indices.
+;   Frozen entities skip AI, get constant weapon-collision re-checks.
+;   Animation counter $05E0,x held at 0 to freeze sprite frame.
+;
+; See bank1E_1F.asm header for full entity memory map.
+;
+; MM4 cross-reference:
+;   process_sprites ($1C800C) → code_3A8014 (24 slots, $18 stride in MM4)
+;   check_player_hit ($1C8097) → code_3A81CC
+;   check_weapon_hit ($1C8102) → code_3FF95D
+; =============================================================================
 
 bank $1C
 org $8000
