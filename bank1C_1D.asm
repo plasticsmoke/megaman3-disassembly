@@ -539,7 +539,7 @@ code_1C836A:
   STA $05CF                                 ; $1C83A2 |
   LDA #$64                                  ; $1C83A5 |
   STA $032F                                 ; $1C83A7 |
-  JSR code_1FE11A                           ; $1C83AA |
+  JSR spawn_weapon_orb                           ; $1C83AA |
 code_1C83AD:
   CLC                                       ; $1C83AD |
   RTS                                       ; $1C83AE |
@@ -2137,7 +2137,7 @@ code_1C8D9C:
 code_1C8DC3:
   RTS                                       ; $1C8DC3 |
 
-  JSR code_1FE000                           ; $1C8DC4 |
+  JSR auto_walk_spawn_done                           ; $1C8DC4 |
 
   db $FF                                    ; $1C8DC7 |
 

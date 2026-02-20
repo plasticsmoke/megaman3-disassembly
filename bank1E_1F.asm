@@ -4891,245 +4891,285 @@ code_1EDF83:
 code_1EDF89:
   RTS                                       ; $1EDF89 |
 
-; player state $14: scripted walk to X=$50 (post-Wily cutscene) [confirmed]
+; ===========================================================================
+; player_auto_walk — state $14: post-Wily cutscene walk (Break Man encounter)
+; ===========================================================================
+; Phase 0: Walk player to X=$50 with gravity, set jump/walk animation.
+;   On reaching X=$50: spawn Break Man entity in slot $1F, wait for timer.
+; Phase 1: Wait for timer countdown, then walk right to X=$A0.
+;   On reaching X=$A0: set jump velocity, spawn Break Man teleport OAM.
+; Phase 2: After landing, check if Break Man defeated ($0520).
+;   If defeated: transition to teleport state ($30=$0D, type=$81).
+; Uses $0300 lower nibble as sub-phase (0→1→2).
+; $0F bit 7 = "on ground" flag (rotated from carry after gravity).
+; ---------------------------------------------------------------------------
 player_auto_walk:
-  LDY #$00                                  ; $1EDF8A |
-  JSR move_vertical_gravity                           ; $1EDF8C |
-  PHP                                       ; $1EDF8F |
-  ROR $0F                                   ; $1EDF90 |
-  PLP                                       ; $1EDF92 |
-  BCS code_1EDFA2                           ; $1EDF93 |
-  LDA #$07                                  ; $1EDF95 |
-  CMP $05C0                                 ; $1EDF97 |
-  BEQ code_1EDFAC                           ; $1EDF9A |
+  LDY #$00                                  ; $1EDF8A |\ Y=0 (no horizontal component)
+  JSR move_vertical_gravity                  ; $1EDF8C |/ apply gravity + vertical collision
+  PHP                                       ; $1EDF8F |\ save carry (1=landed)
+  ROR $0F                                   ; $1EDF90 | | rotate carry into $0F bit 7
+  PLP                                       ; $1EDF92 |/ restore flags
+  BCS .aw_on_ground                         ; $1EDF93 | landed → walk anim
+  LDA #$07                                  ; $1EDF95 |\ airborne: set jump OAM ($07)
+  CMP $05C0                                 ; $1EDF97 | | already set?
+  BEQ .aw_check_phase                       ; $1EDF9A |/ yes → skip
   JSR reset_sprite_anim                     ; $1EDF9C |
-  JMP code_1EDFAC                           ; $1EDF9F |
+  JMP .aw_check_phase                       ; $1EDF9F |
 
-code_1EDFA2:
-  LDA #$04                                  ; $1EDFA2 |
-  CMP $05C0                                 ; $1EDFA4 |
-  BEQ code_1EDFAC                           ; $1EDFA7 |
+.aw_on_ground:
+  LDA #$04                                  ; $1EDFA2 |\ on ground: set walk OAM ($04)
+  CMP $05C0                                 ; $1EDFA4 | | already set?
+  BEQ .aw_check_phase                       ; $1EDFA7 |/ yes → skip
   JSR reset_sprite_anim                     ; $1EDFA9 |
-code_1EDFAC:
-  LDA $0300                                 ; $1EDFAC |
-  AND #$0F                                  ; $1EDFAF |
-  BNE code_1FE015                           ; $1EDFB1 |
-  LDA $0360                                 ; $1EDFB3 |
-  CMP #$50                                  ; $1EDFB6 |
-  BEQ code_1FE015                           ; $1EDFB8 |
-  BCS code_1EDFC2                           ; $1EDFBA |
-  INC $0360                                 ; $1EDFBC |
-  JMP code_1EDFC5                           ; $1EDFBF |
+.aw_check_phase:
+  LDA $0300                                 ; $1EDFAC |\ check sub-phase (lower nibble of type)
+  AND #$0F                                  ; $1EDFAF | | phase 0 = walk to X=$50
+  BNE aw_wait_timer                        ; $1EDFB1 |/ phase 1+ → wait/continue
+  LDA $0360                                 ; $1EDFB3 |\ player X pixel position
+  CMP #$50                                  ; $1EDFB6 | | reached target?
+  BEQ aw_wait_timer                        ; $1EDFB8 |/ yes → stop and wait
+  BCS .aw_move_left                         ; $1EDFBA | past target → walk left
+  INC $0360                                 ; $1EDFBC |\ walk right toward X=$50
+  JMP .aw_check_arrive                      ; $1EDFBF |/
 
-code_1EDFC2:
-  DEC $0360                                 ; $1EDFC2 |
-code_1EDFC5:
-  LDA $0360                                 ; $1EDFC5 |
-  CMP #$50                                  ; $1EDFC8 |
-  BNE code_1FE022                           ; $1EDFCA |
-  LDA $031F                                 ; $1EDFCC |
-  BMI code_1FE015                           ; $1EDFCF |
-  LDA #$80                                  ; $1EDFD1 |
-  STA $031F                                 ; $1EDFD3 |
-  LDA #$90                                  ; $1EDFD6 |
-  STA $059F                                 ; $1EDFD8 |
-  LDA #$6D                                  ; $1EDFDB |
-  STA $05DF                                 ; $1EDFDD |
-  LDA #$00                                  ; $1EDFE0 |
-  STA $05FF                                 ; $1EDFE2 |
-  STA $05BF                                 ; $1EDFE5 |
-  STA $03FF                                 ; $1EDFE8 |
-  STA $03DF                                 ; $1EDFEB |
-  STA $0520                                 ; $1EDFEE |
-  LDA $F9                                   ; $1EDFF1 |
-  STA $039F                                 ; $1EDFF3 |
-  LDA #$C0                                  ; $1EDFF6 |
-  STA $037F                                 ; $1EDFF8 |
-  LDA #$EE                                  ; $1EDFFB |
-  STA $033F                                 ; $1EDFFD |
+.aw_move_left:
+  DEC $0360                                 ; $1EDFC2 | walk left toward X=$50
+.aw_check_arrive:
+  LDA $0360                                 ; $1EDFC5 |\ just arrived at X=$50?
+  CMP #$50                                  ; $1EDFC8 | |
+  BNE aw_ret                               ; $1EDFCA |/ not yet → return
+  ; --- spawn Break Man in entity slot $1F ---
+  LDA $031F                                 ; $1EDFCC |\ slot $1F already active?
+  BMI aw_wait_timer                        ; $1EDFCF |/ yes (bit 7 set) → just wait
+  LDA #$80                                  ; $1EDFD1 |\ $031F = type $80 (Break Man entity)
+  STA $031F                                 ; $1EDFD3 |/
+  LDA #$90                                  ; $1EDFD6 |\ $059F = flags: active + bit 4
+  STA $059F                                 ; $1EDFD8 |/
+  LDA #$6D                                  ; $1EDFDB |\ $05DF = OAM ID $6D (Break Man sprite)
+  STA $05DF                                 ; $1EDFDD |/
+  LDA #$00                                  ; $1EDFE0 |\ clear slot $1F fields:
+  STA $05FF                                 ; $1EDFE2 | | $05FF = 0 (field $05E0+$1F)
+  STA $05BF                                 ; $1EDFE5 | | $05BF = 0 (field $05A0+$1F)
+  STA $03FF                                 ; $1EDFE8 | | $03FF = y_screen = 0
+  STA $03DF                                 ; $1EDFEB | | $03DF = y_pixel = 0
+  STA $0520                                 ; $1EDFEE |/ $0520 = player ai_timer = 0 (reused as phase flag)
+  LDA $F9                                   ; $1EDFF1 |\ $039F = x_screen = camera screen
+  STA $039F                                 ; $1EDFF3 |/
+  LDA #$C0                                  ; $1EDFF6 |\ $037F = x_pixel = $C0 (right side)
+  STA $037F                                 ; $1EDFF8 |/
+  LDA #$EE                                  ; $1EDFFB |\ $033F = routine = $EE (Break Man AI state)
+  STA $033F                                 ; $1EDFFD |/
 
 bank $1F
 org $E000
 
-code_1FE000:
-  LDA #$5A                                  ; $1FE000 |
-  STA $0500                                 ; $1FE002 |
-  LDA $0580                                 ; $1FE005 |
-  ORA #$40                                  ; $1FE008 |
-  STA $0580                                 ; $1FE00A |
-  LDA #$78                                  ; $1FE00D |
-  STA $0500                                 ; $1FE00F |
-  INC $0300                                 ; $1FE012 |
+  ; --- Break Man spawned: set initial wait timer, face right, advance phase ---
+auto_walk_spawn_done:
+  LDA #$5A                                  ; $1FE000 |\ initial wait = $5A frames (90)
+  STA $0500                                 ; $1FE002 |/ player ai_timer = 90
+  LDA $0580                                 ; $1FE005 |\ face right (set bit 6)
+  ORA #$40                                  ; $1FE008 | |
+  STA $0580                                 ; $1FE00A |/
+  LDA #$78                                  ; $1FE00D |\ override: wait = $78 frames (120)
+  STA $0500                                 ; $1FE00F |/ (overwrites the $5A above)
+  INC $0300                                 ; $1FE012 |  advance to phase 1 (type $80→$81? no, lower nibble 0→1)
 
-code_1FE015:
-  LDA $0500                                 ; $1FE015 |
-  BEQ code_1FE023                           ; $1FE018 |
-  DEC $0500                                 ; $1FE01A |
-  LDA #$01                                  ; $1FE01D |
-  JSR reset_sprite_anim                     ; $1FE01F |
+  ; --- wait timer countdown: show standing anim ($01) ---
+aw_wait_timer:
+  LDA $0500                                 ; $1FE015 |\ timer active?
+  BEQ aw_timer_done                        ; $1FE018 |/ 0 → done waiting
+  DEC $0500                                 ; $1FE01A |  decrement timer
+  LDA #$01                                  ; $1FE01D |\ set stand OAM ($01)
+  JSR reset_sprite_anim                     ; $1FE01F |/
 
-code_1FE022:
+aw_ret:
   RTS                                       ; $1FE022 |
 
-code_1FE023:
-  LDA $0300                                 ; $1FE023 |
-  AND #$0F                                  ; $1FE026 |
-  CMP #$02                                  ; $1FE028 |
-  BEQ code_1FE068                           ; $1FE02A |
-  LDA $0360                                 ; $1FE02C |
-  CMP #$A0                                  ; $1FE02F |
-  BEQ code_1FE05A                           ; $1FE031 |
-  LDA #$04                                  ; $1FE033 |
-  CMP $05C0                                 ; $1FE035 |
-  BEQ code_1FE03D                           ; $1FE038 |
+  ; --- timer expired: check current phase ---
+aw_timer_done:
+  LDA $0300                                 ; $1FE023 |\ sub-phase (lower nibble)
+  AND #$0F                                  ; $1FE026 | |
+  CMP #$02                                  ; $1FE028 | | phase 2 = post-jump (landed)
+  BEQ .aw_phase2                            ; $1FE02A |/
+  ; --- phase 1: walk right to X=$A0, then jump ---
+  LDA $0360                                 ; $1FE02C |\ reached X=$A0?
+  CMP #$A0                                  ; $1FE02F | |
+  BEQ .aw_start_jump                        ; $1FE031 |/ yes → initiate jump
+  LDA #$04                                  ; $1FE033 |\ set walk OAM ($04)
+  CMP $05C0                                 ; $1FE035 | | already set?
+  BEQ .aw_walk_right                        ; $1FE038 |/ yes → skip
   JSR reset_sprite_anim                     ; $1FE03A |
-code_1FE03D:
-  INC $0360                                 ; $1FE03D |
-  LDA $0360                                 ; $1FE040 |
-  CMP #$A0                                  ; $1FE043 |
-  BNE code_1FE08B                           ; $1FE045 |
-  LDA #$6E                                  ; $1FE047 |
-  STA $05DF                                 ; $1FE049 |
-  LDA #$00                                  ; $1FE04C |
-  STA $05FF                                 ; $1FE04E |
-  STA $05BF                                 ; $1FE051 |
-  LDA #$3C                                  ; $1FE054 |
-  STA $0500                                 ; $1FE056 |
+.aw_walk_right:
+  INC $0360                                 ; $1FE03D |  walk right 1px/frame
+  LDA $0360                                 ; $1FE040 |\ just arrived at X=$A0?
+  CMP #$A0                                  ; $1FE043 | |
+  BNE .aw_phase_ret                         ; $1FE045 |/ no → return
+  ; --- arrived at X=$A0: set Break Man teleport OAM, start wait ---
+  LDA #$6E                                  ; $1FE047 |\ $05DF = slot $1F OAM $6E (Break Man teleport)
+  STA $05DF                                 ; $1FE049 |/
+  LDA #$00                                  ; $1FE04C |\ clear slot $1F fields
+  STA $05FF                                 ; $1FE04E | |
+  STA $05BF                                 ; $1FE051 |/
+  LDA #$3C                                  ; $1FE054 |\ wait $3C frames (60) before jump
+  STA $0500                                 ; $1FE056 |/
   RTS                                       ; $1FE059 |
 
-code_1FE05A:
-  LDA #$E5                                  ; $1FE05A |
-  STA $0440                                 ; $1FE05C |
-  LDA #$04                                  ; $1FE05F |
-  STA $0460                                 ; $1FE061 |
-  INC $0300                                 ; $1FE064 |
+  ; --- initiate jump: set upward velocity ---
+.aw_start_jump:
+  LDA #$E5                                  ; $1FE05A |\ y_speed_sub = $E5
+  STA $0440                                 ; $1FE05C |/
+  LDA #$04                                  ; $1FE05F |\ y_speed = $04 (jump vel = $04.E5 upward)
+  STA $0460                                 ; $1FE061 |/
+  INC $0300                                 ; $1FE064 |  advance to phase 2
   RTS                                       ; $1FE067 |
 
-code_1FE068:
-  LDA $0F                                   ; $1FE068 |
-  BPL code_1FE079                           ; $1FE06A |
-  LDA $0520                                 ; $1FE06C |
-  BNE code_1FE07D                           ; $1FE06F |
-  INC $0520                                 ; $1FE071 |
-  LDA #$78                                  ; $1FE074 |
-  STA $0500                                 ; $1FE076 |
-code_1FE079:
-  DEC $0360                                 ; $1FE079 |
+  ; --- phase 2: airborne/landed after jump ---
+.aw_phase2:
+  LDA $0F                                   ; $1FE068 |\ bit 7 = on ground? (from ROR carry)
+  BPL .aw_still_airborne                    ; $1FE06A |/ not landed → keep falling
+  LDA $0520                                 ; $1FE06C |\ $0520 = Break Man defeated flag
+  BNE .aw_defeated                          ; $1FE06F |/ nonzero → done, teleport out
+  INC $0520                                 ; $1FE071 |\ first landing: set flag, wait $78 frames
+  LDA #$78                                  ; $1FE074 | |
+  STA $0500                                 ; $1FE076 |/
+.aw_still_airborne:
+  DEC $0360                                 ; $1FE079 |  drift left 1px/frame while airborne
   RTS                                       ; $1FE07C |
 
-code_1FE07D:
-  LDA #$81                                  ; $1FE07D |
-  STA $0300                                 ; $1FE07F |
-  LDA #$00                                  ; $1FE082 |
-  STA $0500                                 ; $1FE084 |
-  LDA #$0D                                  ; $1FE087 |
-  STA $30                                   ; $1FE089 |
-code_1FE08B:
+  ; --- Break Man defeated: transition to teleport ---
+.aw_defeated:
+  LDA #$81                                  ; $1FE07D |\ player type = $81 (inactive marker)
+  STA $0300                                 ; $1FE07F |/
+  LDA #$00                                  ; $1FE082 |\ clear timer
+  STA $0500                                 ; $1FE084 |/
+  LDA #$0D                                  ; $1FE087 |\ player state = $0D (teleport)
+  STA $30                                   ; $1FE089 |/
+.aw_phase_ret:
   RTS                                       ; $1FE08B |
 
-; player state $15: scripted walk to X=$68, ending cutscene [confirmed]
+; ===========================================================================
+; player_auto_walk_2 — state $15: boss-defeated ending cutscene
+; ===========================================================================
+; Walk player to X=$68, stand still, spawn 4 explosion entities at
+; positions from auto_walk_2_x_table, then spawn weapon orb pickup.
+; $0500 = frame counter (counts up, wraps at $FF→$00 to trigger spawns)
+; $0520 = explosion count (0-3, then 4 = done spawning)
+; ---------------------------------------------------------------------------
 player_auto_walk_2:
-  LDY #$00                                  ; $1FE08C |
-  JSR move_vertical_gravity                           ; $1FE08E |
-  BCS code_1FE097                           ; $1FE091 |
-  LDA #$07                                  ; $1FE093 |
-  BNE code_1FE099                           ; $1FE095 |
-code_1FE097:
-  LDA #$04                                  ; $1FE097 |
-code_1FE099:
-  CMP $05C0                                 ; $1FE099 |
-  BEQ code_1FE0A1                           ; $1FE09C |
+  LDY #$00                                  ; $1FE08C |\ no horizontal movement
+  JSR move_vertical_gravity                  ; $1FE08E |/ apply gravity
+  BCS .aw2_on_ground                        ; $1FE091 | landed?
+  LDA #$07                                  ; $1FE093 |\ airborne: jump OAM ($07)
+  BNE .aw2_set_anim                         ; $1FE095 |/ (always taken)
+.aw2_on_ground:
+  LDA #$04                                  ; $1FE097 |  on ground: walk OAM ($04)
+.aw2_set_anim:
+  CMP $05C0                                 ; $1FE099 |\ already set?
+  BEQ .aw2_check_x                          ; $1FE09C |/ yes → skip
   JSR reset_sprite_anim                     ; $1FE09E |
-code_1FE0A1:
-  LDA $0360                                 ; $1FE0A1 |
-  CMP #$68                                  ; $1FE0A4 |
-  BEQ code_1FE0B2                           ; $1FE0A6 |
-  BCS code_1FE0AE                           ; $1FE0A8 |
-  INC $0360                                 ; $1FE0AA |
+.aw2_check_x:
+  LDA $0360                                 ; $1FE0A1 |\ reached X=$68?
+  CMP #$68                                  ; $1FE0A4 | |
+  BEQ .aw2_at_target                        ; $1FE0A6 |/ yes → stop and spawn explosions
+  BCS .aw2_walk_left                        ; $1FE0A8 | past target → walk left
+  INC $0360                                 ; $1FE0AA |  walk right
   RTS                                       ; $1FE0AD |
 
-code_1FE0AE:
-  DEC $0360                                 ; $1FE0AE |
+.aw2_walk_left:
+  DEC $0360                                 ; $1FE0AE |  walk left
   RTS                                       ; $1FE0B1 |
 
-code_1FE0B2:
-  LDA #$01                                  ; $1FE0B2 |
-  CMP $05C0                                 ; $1FE0B4 |
-  BEQ code_1FE0BC                           ; $1FE0B7 |
+  ; --- at target X=$68: stand, count up, spawn explosions ---
+.aw2_at_target:
+  LDA #$01                                  ; $1FE0B2 |\ set stand OAM ($01)
+  CMP $05C0                                 ; $1FE0B4 | | already set?
+  BEQ .aw2_count                            ; $1FE0B7 |/ yes → skip
   JSR reset_sprite_anim                     ; $1FE0B9 |
-code_1FE0BC:
-  INC $0500                                 ; $1FE0BC |
-  BNE code_1FE119                           ; $1FE0BF |
-  LDA #$C0                                  ; $1FE0C1 |
-  STA $0500                                 ; $1FE0C3 |
-  LDA $0520                                 ; $1FE0C6 |
-  CMP #$04                                  ; $1FE0C9 |
-  BEQ code_1FE119                           ; $1FE0CB |
-  JSR find_enemy_freeslot_y                 ; $1FE0CD |
-  BCS code_1FE119                           ; $1FE0D0 |
-  LDA #$80                                  ; $1FE0D2 |
-  STA $0300,y                               ; $1FE0D4 |
-  LDA #$90                                  ; $1FE0D7 |
-  STA $0580,y                               ; $1FE0D9 |
-  LDA #$00                                  ; $1FE0DC |
-  STA $03C0,y                               ; $1FE0DE |
-  STA $03E0,y                               ; $1FE0E1 |
-  STA $05E0,y                               ; $1FE0E4 |
-  STA $05A0,y                               ; $1FE0E7 |
-  STA $0480,y                               ; $1FE0EA |
-  STA $0440,y                               ; $1FE0ED |
-  STA $0460,y                               ; $1FE0F0 |
-  LDA #$7C                                  ; $1FE0F3 |
-  STA $05C0,y                               ; $1FE0F5 |
-  LDA #$F9                                  ; $1FE0F8 |
-  STA $0320,y                               ; $1FE0FA |
-  LDA #$C4                                  ; $1FE0FD |
-  STA $0520,y                               ; $1FE0FF |
-  LDA $0520                                 ; $1FE102 |
-  STA $0500,y                               ; $1FE105 |
-  TAX                                       ; $1FE108 |
-  INC $0520                                 ; $1FE109 |
-  LDA $E166,x                               ; $1FE10C |
-  STA $0360,y                               ; $1FE10F |
-  LDA $F9                                   ; $1FE112 |
-  STA $0380,y                               ; $1FE114 |
-  LDX #$00                                  ; $1FE117 |
-code_1FE119:
+.aw2_count:
+  INC $0500                                 ; $1FE0BC |\ increment frame counter
+  BNE .aw2_done                             ; $1FE0BF |/ not wrapped → wait
+  ; --- counter wrapped $FF→$00: spawn next explosion ---
+  LDA #$C0                                  ; $1FE0C1 |\ reset counter to $C0 (192 frames between spawns)
+  STA $0500                                 ; $1FE0C3 |/
+  LDA $0520                                 ; $1FE0C6 |\ all 4 explosions spawned?
+  CMP #$04                                  ; $1FE0C9 | |
+  BEQ .aw2_done                             ; $1FE0CB |/ yes → done
+  JSR find_enemy_freeslot_y                 ; $1FE0CD |\ find free entity slot
+  BCS .aw2_done                             ; $1FE0D0 |/ none free → skip
+  ; --- init explosion entity in slot Y ---
+  LDA #$80                                  ; $1FE0D2 |\ type = $80 (generic cutscene entity)
+  STA $0300,y                               ; $1FE0D4 |/
+  LDA #$90                                  ; $1FE0D7 |\ flags = active + bit 4
+  STA $0580,y                               ; $1FE0D9 |/
+  LDA #$00                                  ; $1FE0DC |\ clear position/velocity fields:
+  STA $03C0,y                               ; $1FE0DE | | y_pixel = 0
+  STA $03E0,y                               ; $1FE0E1 | | y_screen = 0
+  STA $05E0,y                               ; $1FE0E4 | | field $05E0 = 0
+  STA $05A0,y                               ; $1FE0E7 | | field $05A0 = 0
+  STA $0480,y                               ; $1FE0EA | | shape = 0 (no hitbox)
+  STA $0440,y                               ; $1FE0ED | | y_speed_sub = 0
+  STA $0460,y                               ; $1FE0F0 |/ y_speed = 0
+  LDA #$7C                                  ; $1FE0F3 |\ OAM = $7C (boss explosion anim)
+  STA $05C0,y                               ; $1FE0F5 |/
+  LDA #$F9                                  ; $1FE0F8 |\ routine = $F9 (explosion AI)
+  STA $0320,y                               ; $1FE0FA |/
+  LDA #$C4                                  ; $1FE0FD |\ ai_timer = $C4 (countdown)
+  STA $0520,y                               ; $1FE0FF |/
+  LDA $0520                                 ; $1FE102 |\ player $0520 = explosion index
+  STA $0500,y                               ; $1FE105 | | copy to explosion's timer field
+  TAX                                       ; $1FE108 | |
+  INC $0520                                 ; $1FE109 |/ advance to next explosion
+  LDA $E166,x                               ; $1FE10C |\ x_pixel = auto_walk_2_x_table[index]
+  STA $0360,y                               ; $1FE10F |/
+  LDA $F9                                   ; $1FE112 |\ x_screen = camera screen
+  STA $0380,y                               ; $1FE114 |/
+  LDX #$00                                  ; $1FE117 |  restore X = player slot 0
+.aw2_done:
   RTS                                       ; $1FE119 |
 
-code_1FE11A:
-  LDA #$80                                  ; $1FE11A |
-  STA $030E                                 ; $1FE11C |
-  LDA #$90                                  ; $1FE11F |
-  STA $058E                                 ; $1FE121 |
-  LDA #$EB                                  ; $1FE124 |
-  STA $032E                                 ; $1FE126 |
-  LDA #$67                                  ; $1FE129 |
-  STA $05CE                                 ; $1FE12B |
-  LDA #$00                                  ; $1FE12E |
-  STA $05EE                                 ; $1FE130 |
-  STA $05AE                                 ; $1FE133 |
-  STA $03EE                                 ; $1FE136 |
-  STA $B3                                   ; $1FE139 |
-  LDA $F9                                   ; $1FE13B |
-  STA $038E                                 ; $1FE13D |
-  LDY $6C                                   ; $1FE140 |
-  LDA $DE72,y                               ; $1FE142 |
-  STA $036E                                 ; $1FE145 |
-  LDA $DE86,y                               ; $1FE148 |
-  AND #$F0                                  ; $1FE14B |
-  STA $03CE                                 ; $1FE14D |
-  LDA $6C                                   ; $1FE150 |
-  CLC                                       ; $1FE152 |
-  ADC #$18                                  ; $1FE153 |
-  STA $04CE                                 ; $1FE155 |
-  LDA $DEBF,y                               ; $1FE158 |
-  ORA $6E                                   ; $1FE15B |
-  STA $6E                                   ; $1FE15D |
-  LDA #$0C                                  ; $1FE15F |
-  STA $EC                                   ; $1FE161 |
-  JMP update_CHR_banks                      ; $1FE163 |
+; -----------------------------------------------
+; spawn_weapon_orb — create post-boss weapon pickup in entity slot $0E
+; -----------------------------------------------
+; Called from bank1C_1D after boss defeat to spawn the weapon orb that
+; gives Mega Man the defeated boss's special weapon.
+; Slot $0E (index $0E): hardcoded, not searched via find_freeslot.
+; $6C = boss/weapon index, used to look up position and CHR from tables.
+; ---------------------------------------------------------------------------
+spawn_weapon_orb:
+  LDA #$80                                  ; $1FE11A |\ $030E = type $80 (slot $0E)
+  STA $030E                                 ; $1FE11C |/
+  LDA #$90                                  ; $1FE11F |\ $058E = flags: active + bit 4
+  STA $058E                                 ; $1FE121 |/
+  LDA #$EB                                  ; $1FE124 |\ $032E = routine $EB (weapon orb AI)
+  STA $032E                                 ; $1FE126 |/
+  LDA #$67                                  ; $1FE129 |\ $05CE = OAM $67 (weapon orb sprite)
+  STA $05CE                                 ; $1FE12B |/
+  LDA #$00                                  ; $1FE12E |\ clear fields:
+  STA $05EE                                 ; $1FE130 | | field $05E0+$0E = 0
+  STA $05AE                                 ; $1FE133 | | field $05A0+$0E = 0
+  STA $03EE                                 ; $1FE136 | | y_screen = 0
+  STA $B3                                   ; $1FE139 |/ $B3 = 0 (weapon orb energy bar inactive)
+  LDA $F9                                   ; $1FE13B |\ $038E = x_screen = camera screen
+  STA $038E                                 ; $1FE13D |/
+  LDY $6C                                   ; $1FE140 |\ Y = boss/weapon index
+  LDA $DE72,y                               ; $1FE142 | | $036E = x_pixel from table (per-boss X)
+  STA $036E                                 ; $1FE145 |/
+  LDA $DE86,y                               ; $1FE148 |\ $03CE = y_pixel from table (upper nibble only)
+  AND #$F0                                  ; $1FE14B | |
+  STA $03CE                                 ; $1FE14D |/
+  LDA $6C                                   ; $1FE150 |\ $04CE = stage_enemy_id = boss index + $18
+  CLC                                       ; $1FE152 | | (prevents respawn tracking conflict)
+  ADC #$18                                  ; $1FE153 | |
+  STA $04CE                                 ; $1FE155 |/
+  LDA $DEBF,y                               ; $1FE158 |\ set boss-defeated bit in weapon bitmask $6E
+  ORA $6E                                   ; $1FE15B | |
+  STA $6E                                   ; $1FE15D |/
+  LDA #$0C                                  ; $1FE15F |\ $EC = $0C (trigger CHR bank update)
+  STA $EC                                   ; $1FE161 |/
+  JMP update_CHR_banks                      ; $1FE163 |  update sprite CHR for weapon orb
 
+; explosion X positions for auto_walk_2 (4 boss explosions)
+auto_walk_2_x_table:
   db $E0, $30, $B0, $68                     ; $1FE166 |
 
 ; ===========================================================================
@@ -6014,150 +6054,193 @@ render_vert_row:
   RTS                                       ; $1FE6C1 |
 
 ; --- render row: advance row pointer and build PPU update buffer ---
+; $24 = nametable row index (0-$1D, wraps), $23 bit 2 = direction (1=down, 0=up)
+; PPU buffer: $0780 = header, $0783 = top half tiles, $07AF = bottom half tiles
+; $07A3-$07A5 = attribute table PPU address + byte count
+; $07A6-$07AD = 8 attribute bytes for this row
+; $0640 = attribute cache (8 bytes per row block, updated incrementally)
 .do_render_row:
-  LDA $23                                   ; $1FE6C2 |
-  AND #$04                                  ; $1FE6C4 |
-  LSR                                       ; $1FE6C6 |
-  LSR                                       ; $1FE6C7 |
-  TAY                                       ; $1FE6C8 |
-  LDA $24                                   ; $1FE6C9 |
-  CLC                                       ; $1FE6CB |
-  ADC $E7E9,y                               ; $1FE6CC |
-  STA $24                                   ; $1FE6CF |
-  CMP #$1E                                  ; $1FE6D1 |
-  BCC code_1FE6DA                           ; $1FE6D3 |
-  LDA $E7E7,y                               ; $1FE6D5 |
-  STA $24                                   ; $1FE6D8 |
-code_1FE6DA:
-  LDA $24                                   ; $1FE6DA |
-  AND #$01                                  ; $1FE6DC |
-  CMP $E7E5,y                               ; $1FE6DE |
-  BEQ code_1FE6E6                           ; $1FE6E1 |
-  JMP code_1FE79F                           ; $1FE6E3 |
+  LDA $23                                   ; $1FE6C2 |\ Y = direction flag (0=up, 1=down)
+  AND #$04                                  ; $1FE6C4 | | bit 2 → shift to bit 0
+  LSR                                       ; $1FE6C6 | |
+  LSR                                       ; $1FE6C7 | |
+  TAY                                       ; $1FE6C8 |/
+  LDA $24                                   ; $1FE6C9 |\ advance row pointer:
+  CLC                                       ; $1FE6CB | | down: $24 += $01 (from vert_row_advance_tbl)
+  ADC $E7E9,y                               ; $1FE6CC | | up: $24 += $FF (i.e. $24 -= 1)
+  STA $24                                   ; $1FE6CF |/
+  CMP #$1E                                  ; $1FE6D1 |\ row < 30? (NES nametable = 30 rows)
+  BCC .row_in_range                         ; $1FE6D3 |/ yes → skip wrap
+  LDA $E7E7,y                               ; $1FE6D5 |\ wrap: down wraps to $00, up wraps to $1D
+  STA $24                                   ; $1FE6D8 |/
+.row_in_range:
+  LDA $24                                   ; $1FE6DA |\ check if row is on correct nametable half
+  AND #$01                                  ; $1FE6DC | | (even/odd parity vs direction)
+  CMP $E7E5,y                               ; $1FE6DE | | down expects $01, up expects $00
+  BEQ .row_new_data                         ; $1FE6E1 |/ match → need to render fresh row
+  JMP .row_shift_only                       ; $1FE6E3 |  mismatch → just shift existing buffer
 
-code_1FE6E6:
-  LDA $22                                   ; $1FE6E6 |
-  STA $F5                                   ; $1FE6E8 |
-  JSR select_PRG_banks                      ; $1FE6EA |
-  LDY $29                                   ; $1FE6ED |
-  JSR metatile_column_ptr                           ; $1FE6EF |
-  LDA $24                                   ; $1FE6F2 |
-  AND #$1C                                  ; $1FE6F4 |
-  ASL                                       ; $1FE6F6 |
-  STA $28                                   ; $1FE6F7 |
-  ORA #$C0                                  ; $1FE6F9 |
-  STA $07A4                                 ; $1FE6FB |
-  LDA #$23                                  ; $1FE6FE |
-  STA $07A3                                 ; $1FE700 |
-  LDA #$07                                  ; $1FE703 |
-  STA $07A5                                 ; $1FE705 |
-  LDA #$00                                  ; $1FE708 |
-  STA $03                                   ; $1FE70A |
-code_1FE70C:
-  LDY $28                                   ; $1FE70C |
-  LDA $0640,y                               ; $1FE70E |
-  STA $11                                   ; $1FE711 |
-  JSR metatile_to_chr_tiles                           ; $1FE713 |
-  LDY $03                                   ; $1FE716 |
-  LDA $24                                   ; $1FE718 |
-  AND #$03                                  ; $1FE71A |
-  TAX                                       ; $1FE71C |
-  LDA $E7D9,x                               ; $1FE71D |
-  STA $04                                   ; $1FE720 |
-  LDA $E7DD,x                               ; $1FE722 |
-  STA $05                                   ; $1FE725 |
-  LDA #$03                                  ; $1FE727 |
-  STA $06                                   ; $1FE729 |
-code_1FE72B:
-  LDX $04                                   ; $1FE72B |
-  LDA $06C0,x                               ; $1FE72D |
-  STA $0783,y                               ; $1FE730 |
-  LDX $05                                   ; $1FE733 |
-  LDA $06C0,x                               ; $1FE735 |
-  STA $07AF,y                               ; $1FE738 |
-  INC $04                                   ; $1FE73B |
-  INC $05                                   ; $1FE73D |
-  INY                                       ; $1FE73F |
-  DEC $06                                   ; $1FE740 |
-  BPL code_1FE72B                           ; $1FE742 |
-  STY $03                                   ; $1FE744 |
-  LDA $24                                   ; $1FE746 |
-  AND #$03                                  ; $1FE748 |
-  TAX                                       ; $1FE74A |
-  LDA $10                                   ; $1FE74B |
-  AND $E7D1,x                               ; $1FE74D |
-  STA $10                                   ; $1FE750 |
-  LDA $11                                   ; $1FE752 |
-  AND $E7D5,x                               ; $1FE754 |
-  ORA $10                                   ; $1FE757 |
-  STA $10                                   ; $1FE759 |
-  LDX $28                                   ; $1FE75B |
-  STA $0640,x                               ; $1FE75D |
-  TXA                                       ; $1FE760 |
-  AND #$07                                  ; $1FE761 |
-  TAX                                       ; $1FE763 |
-  LDA $10                                   ; $1FE764 |
-  STA $07A6,x                               ; $1FE766 |
-  INC $28                                   ; $1FE769 |
-  CPX #$07                                  ; $1FE76B |
-  BNE code_1FE70C                           ; $1FE76D |
-  LDA $24                                   ; $1FE76F |
-  PHA                                       ; $1FE771 |
-  AND #$03                                  ; $1FE772 |
-  TAY                                       ; $1FE774 |
-  PLA                                       ; $1FE775 |
-  LSR                                       ; $1FE776 |
-  LSR                                       ; $1FE777 |
-  TAX                                       ; $1FE778 |
-  LDA $E8A9,x                               ; $1FE779 |
-  STA $0780                                 ; $1FE77C |
-  LDA $E8A1,x                               ; $1FE77F |
-  ORA $E7E1,y                               ; $1FE782 |
-  STA $0781                                 ; $1FE785 |
-  LDA #$1F                                  ; $1FE788 |
-  STA $0782                                 ; $1FE78A |
-  LDA $23                                   ; $1FE78D |
-  AND #$04                                  ; $1FE78F |
-  LSR                                       ; $1FE791 |
-  LSR                                       ; $1FE792 |
-  TAY                                       ; $1FE793 |
-  LDX $E7ED,y                               ; $1FE794 |
-  LDA #$FF                                  ; $1FE797 |
-  STA $0780,x                               ; $1FE799 |
-  STA $19                                   ; $1FE79C |
+  ; --- render new row from level data ---
+.row_new_data:
+  LDA $22                                   ; $1FE6E6 |\ switch to stage data bank
+  STA $F5                                   ; $1FE6E8 | |
+  JSR select_PRG_banks                      ; $1FE6EA |/
+  LDY $29                                   ; $1FE6ED |\ set up metatile column pointer for screen $29
+  JSR metatile_column_ptr                    ; $1FE6EF |/
+  LDA $24                                   ; $1FE6F2 |\ $28 = row-within-block offset × 2
+  AND #$1C                                  ; $1FE6F4 | | (rows come in groups of 4 within metatile)
+  ASL                                       ; $1FE6F6 | |
+  STA $28                                   ; $1FE6F7 |/
+  ORA #$C0                                  ; $1FE6F9 |\ PPU addr for attribute table row = $23C0 + offset
+  STA $07A4                                 ; $1FE6FB |/ store low byte of attr PPU addr
+  LDA #$23                                  ; $1FE6FE |\ high byte = $23 (nametable 0 attr table)
+  STA $07A3                                 ; $1FE700 |/
+  LDA #$07                                  ; $1FE703 |\ 8 attribute bytes to write
+  STA $07A5                                 ; $1FE705 |/
+  LDA #$00                                  ; $1FE708 |\ $03 = PPU buffer write offset (starts at 0)
+  STA $03                                   ; $1FE70A |/
+
+  ; --- loop: process 8 metatile columns for this row ---
+.row_column_loop:
+  LDY $28                                   ; $1FE70C |\ $11 = previous attribute byte from cache
+  LDA $0640,y                               ; $1FE70E | |
+  STA $11                                   ; $1FE711 |/
+  JSR metatile_to_chr_tiles                  ; $1FE713 |  decode metatile → CHR tiles + attr in $10
+  LDY $03                                   ; $1FE716 |  Y = buffer write offset
+  LDA $24                                   ; $1FE718 |\ X = row sub-position (0-3 within metatile)
+  AND #$03                                  ; $1FE71A | |
+  TAX                                       ; $1FE71C |/
+  LDA $E7D9,x                               ; $1FE71D |\ $04 = CHR buffer offset for top row
+  STA $04                                   ; $1FE720 |/
+  LDA $E7DD,x                               ; $1FE722 |\ $05 = CHR buffer offset for bottom row
+  STA $05                                   ; $1FE725 |/
+  LDA #$03                                  ; $1FE727 |\ $06 = 4 tiles per metatile column (count-1)
+  STA $06                                   ; $1FE729 |/
+
+  ; --- inner loop: copy 4 CHR tile IDs to PPU buffers ---
+.row_tile_loop:
+  LDX $04                                   ; $1FE72B |\ top half: $06C0[top offset] → $0783 buffer
+  LDA $06C0,x                               ; $1FE72D | |
+  STA $0783,y                               ; $1FE730 |/
+  LDX $05                                   ; $1FE733 |\ bottom half: $06C0[bot offset] → $07AF buffer
+  LDA $06C0,x                               ; $1FE735 | |
+  STA $07AF,y                               ; $1FE738 |/
+  INC $04                                   ; $1FE73B |\ advance offsets
+  INC $05                                   ; $1FE73D |/
+  INY                                       ; $1FE73F |  advance buffer write position
+  DEC $06                                   ; $1FE740 |\ 4 tiles done?
+  BPL .row_tile_loop                        ; $1FE742 |/
+  STY $03                                   ; $1FE744 |  save buffer position
+
+  ; --- merge attribute bits for this column ---
+  LDA $24                                   ; $1FE746 |\ X = row sub-position (0-3)
+  AND #$03                                  ; $1FE748 | |
+  TAX                                       ; $1FE74A |/
+  LDA $10                                   ; $1FE74B |\ keep new attr bits (mask from vert_attr_keep_tbl)
+  AND $E7D1,x                               ; $1FE74D | |
+  STA $10                                   ; $1FE750 |/
+  LDA $11                                   ; $1FE752 |\ merge old attr bits (mask from vert_attr_old_tbl)
+  AND $E7D5,x                               ; $1FE754 | |
+  ORA $10                                   ; $1FE757 | |
+  STA $10                                   ; $1FE759 |/ $10 = merged attribute byte
+  LDX $28                                   ; $1FE75B |\ update attribute cache
+  STA $0640,x                               ; $1FE75D |/
+  TXA                                       ; $1FE760 |\ X = column index (0-7)
+  AND #$07                                  ; $1FE761 | |
+  TAX                                       ; $1FE763 |/
+  LDA $10                                   ; $1FE764 |\ store attribute to PPU buffer
+  STA $07A6,x                               ; $1FE766 |/
+  INC $28                                   ; $1FE769 |\ next column
+  CPX #$07                                  ; $1FE76B | | done all 8?
+  BNE .row_column_loop                      ; $1FE76D |/
+
+  ; --- build PPU header for row tile data ---
+  LDA $24                                   ; $1FE76F |\ compute nametable PPU address for this row
+  PHA                                       ; $1FE771 | |
+  AND #$03                                  ; $1FE772 | | Y = sub-row (0-3)
+  TAY                                       ; $1FE774 | |
+  PLA                                       ; $1FE775 | |
+  LSR                                       ; $1FE776 | | X = row/4 (metatile row index)
+  LSR                                       ; $1FE777 | |
+  TAX                                       ; $1FE778 |/
+  LDA $E8A9,x                               ; $1FE779 |\ $0780 = PPU addr high byte (from row table)
+  STA $0780                                 ; $1FE77C |/
+  LDA $E8A1,x                               ; $1FE77F |\ $0781 = PPU addr low byte | nametable offset
+  ORA $E7E1,y                               ; $1FE782 | | (sub-row adds $00/$20/$40/$60)
+  STA $0781                                 ; $1FE785 |/
+  LDA #$1F                                  ; $1FE788 |\ $0782 = tile count ($1F = 32 tiles per row)
+  STA $0782                                 ; $1FE78A |/
+  ; --- set buffer terminator based on scroll direction ---
+  LDA $23                                   ; $1FE78D |\ Y = direction (0=up, 1=down)
+  AND #$04                                  ; $1FE78F | |
+  LSR                                       ; $1FE791 | |
+  LSR                                       ; $1FE792 | |
+  TAY                                       ; $1FE793 |/
+  LDX $E7ED,y                               ; $1FE794 |\ terminator offset from vert_term_offset_tbl
+  LDA #$FF                                  ; $1FE797 | | $FF = end-of-buffer marker
+  STA $0780,x                               ; $1FE799 | | place at appropriate end
+  STA $19                                   ; $1FE79C |/ $19 = flag: PPU update pending
   RTS                                       ; $1FE79E |
 
-code_1FE79F:
-  LDY #$1F                                  ; $1FE79F |
-code_1FE7A1:
-  LDA $07AF,y                               ; $1FE7A1 |
-  STA $0783,y                               ; $1FE7A4 |
-  DEY                                       ; $1FE7A7 |
-  BPL code_1FE7A1                           ; $1FE7A8 |
-  LDA $24                                   ; $1FE7AA |
-  AND #$03                                  ; $1FE7AC |
-  TAX                                       ; $1FE7AE |
-  LDA $0781                                 ; $1FE7AF |
-  AND #$80                                  ; $1FE7B2 |
-  ORA $E7E1,x                               ; $1FE7B4 |
-  STA $0781                                 ; $1FE7B7 |
-  LDA #$23                                  ; $1FE7BA |
-  STA $07A3                                 ; $1FE7BC |
-  LDA $23                                   ; $1FE7BF |
-  AND #$04                                  ; $1FE7C1 |
-  LSR                                       ; $1FE7C3 |
-  LSR                                       ; $1FE7C4 |
-  TAY                                       ; $1FE7C5 |
-  LDX $E7EF,y                               ; $1FE7C6 |
-  LDA #$FF                                  ; $1FE7C9 |
-  STA $0780,x                               ; $1FE7CB |
-  STA $19                                   ; $1FE7CE |
+  ; --- row_shift_only: no new data, shift existing buffer down ---
+  ; When the row parity doesn't match (nametable transition), we just
+  ; copy the bottom-half buffer ($07AF) over the top-half ($0783).
+.row_shift_only:
+  LDY #$1F                                  ; $1FE79F |\ copy 32 bytes: $07AF → $0783
+.row_shift_loop:
+  LDA $07AF,y                               ; $1FE7A1 | |
+  STA $0783,y                               ; $1FE7A4 | |
+  DEY                                       ; $1FE7A7 | |
+  BPL .row_shift_loop                       ; $1FE7A8 |/
+  LDA $24                                   ; $1FE7AA |\ update PPU addr low byte
+  AND #$03                                  ; $1FE7AC | | with new sub-row nametable offset
+  TAX                                       ; $1FE7AE | |
+  LDA $0781                                 ; $1FE7AF | | keep high bit (nametable select)
+  AND #$80                                  ; $1FE7B2 | |
+  ORA $E7E1,x                               ; $1FE7B4 | |
+  STA $0781                                 ; $1FE7B7 |/
+  LDA #$23                                  ; $1FE7BA |\ attribute table high byte
+  STA $07A3                                 ; $1FE7BC |/
+  LDA $23                                   ; $1FE7BF |\ set terminator based on direction
+  AND #$04                                  ; $1FE7C1 | |
+  LSR                                       ; $1FE7C3 | |
+  LSR                                       ; $1FE7C4 | |
+  TAY                                       ; $1FE7C5 |/
+  LDX $E7EF,y                               ; $1FE7C6 |\ terminator offset (shift variant)
+  LDA #$FF                                  ; $1FE7C9 | |
+  STA $0780,x                               ; $1FE7CB | |
+  STA $19                                   ; $1FE7CE |/ PPU update pending
   RTS                                       ; $1FE7D0 |
 
-  db $0F, $0F, $F0, $F0, $F0, $F0, $0F, $0F ; $1FE7D1 |
-  db $00, $04, $08, $0C, $04, $00, $0C, $08 ; $1FE7D9 |
-  db $00, $20, $40, $60, $01, $00, $1D, $00 ; $1FE7E1 |
-  db $FF, $01, $00, $1D, $23, $2E, $2E, $23 ; $1FE7E9 |
+; --- vertical row rendering lookup tables ---
+; attribute mask tables: which bits to keep from new vs old attribute
+vert_attr_keep_tbl:
+  db $0F, $0F, $F0, $F0                     ; $1FE7D1 | new attr mask per sub-row (0-3)
+vert_attr_old_tbl:
+  db $F0, $F0, $0F, $0F                     ; $1FE7D5 | old attr mask per sub-row (0-3)
+; CHR buffer offsets: top-half and bottom-half starting positions
+vert_chr_top_offsets:
+  db $00, $04, $08, $0C                     ; $1FE7D9 | top-half CHR offset per sub-row
+vert_chr_bot_offsets:
+  db $04, $00, $0C, $08                     ; $1FE7DD | bottom-half CHR offset per sub-row
+; nametable row offsets: $00, $20, $40, $60 per sub-row
+vert_row_nt_offsets:
+  db $00, $20, $40, $60                     ; $1FE7E1 |
+; row parity check: down expects $01, up expects $00
+vert_row_parity_tbl:
+  db $01, $00                               ; $1FE7E5 |
+; row wrap values: down wraps to $00, up wraps to $1D
+vert_row_wrap_tbl:
+  db $1D, $00                               ; $1FE7E7 |
+; row advance: down +1 ($01), up -1 ($FF)
+vert_row_advance_tbl:
+  db $FF, $01                               ; $1FE7E9 |
+; unknown small tables (used by boundary check / buffer termination)
+  db $00, $1D                               ; $1FE7EB |
+vert_term_offset_tbl:
+  db $23, $2E                               ; $1FE7ED | terminator offset: up=$23, down=$2E
+vert_term_shift_tbl:
+  db $2E, $23                               ; $1FE7EF | shift terminator: up=$2E, down=$23
 
 ; ===========================================================================
 ; metatile_to_chr_tiles — convert 4 metatile quadrants to CHR tile IDs
