@@ -217,7 +217,7 @@ code_12A13D:
   JSR find_enemy_freeslot_y                 ; $12A17D |
   BCS code_12A1F5                           ; $12A180 |
   LDA #$58                                  ; $12A182 |
-  JSR code_1FF846                           ; $12A184 |
+  JSR init_child_entity                           ; $12A184 |
   LDA $0360,x                               ; $12A187 |
   STA $0360,y                               ; $12A18A |
   LDA $0380,x                               ; $12A18D |
@@ -237,7 +237,7 @@ code_12A13D:
   STY $0F                                   ; $12A1B1 |
   STX $0E                                   ; $12A1B3 |
   LDX $0F                                   ; $12A1B5 |
-  JSR code_1FFC63                           ; $12A1B7 |
+  JSR calc_homing_velocity                           ; $12A1B7 |
   LDY $0F                                   ; $12A1BA |
   LDX $0E                                   ; $12A1BC |
   LDA $0C                                   ; $12A1BE |
@@ -637,7 +637,7 @@ code_12A50E:
   LDA $0300,x                               ; $12A50E |
   AND #$0F                                  ; $12A511 |
   BNE code_12A551                           ; $12A513 |
-  JSR code_1FF797                           ; $12A515 |
+  JSR apply_y_speed                           ; $12A515 |
   LDA #$98                                  ; $12A518 |
   CMP $03C0,x                               ; $12A51A |
   BCS code_12A524                           ; $12A51D |
@@ -675,7 +675,7 @@ code_12A551:
   STA $0500,y                               ; $12A562 |
   INC $0560,x                               ; $12A565 |
   LDA #$7F                                  ; $12A568 |
-  JSR code_1FF846                           ; $12A56A |
+  JSR init_child_entity                           ; $12A56A |
   LDA $0360,x                               ; $12A56D |
   STA $0360,y                               ; $12A570 |
   LDA $0380,x                               ; $12A573 |
@@ -1059,7 +1059,7 @@ code_12AA0A:
   BNE code_12AA7E                           ; $12AA14 |
   LDA $0540,x                               ; $12AA16 |
   BNE code_12AA7B                           ; $12AA19 |
-  JSR code_1FF8C2                           ; $12AA1B |
+  JSR entity_x_dist_to_player                           ; $12AA1B |
   CMP #$48                                  ; $12AA1E |
   BCC code_12AA7E                           ; $12AA20 |
   JSR find_enemy_freeslot_y                 ; $12AA22 |
@@ -1067,7 +1067,7 @@ code_12AA0A:
   LDA #$B4                                  ; $12AA27 |
   STA $0540,x                               ; $12AA29 |
   LDA #$61                                  ; $12AA2C |
-  JSR code_1FF846                           ; $12AA2E |
+  JSR init_child_entity                           ; $12AA2E |
   LDA $0360,x                               ; $12AA31 |
   STA $0360,y                               ; $12AA34 |
   LDA $F9                                   ; $12AA37 |
@@ -1090,7 +1090,7 @@ code_12AA0A:
   STY $0F                                   ; $12AA61 |
   STX $0E                                   ; $12AA63 |
   LDX $0F                                   ; $12AA65 |
-  JSR code_1FFC63                           ; $12AA67 |
+  JSR calc_homing_velocity                           ; $12AA67 |
   LDY $0F                                   ; $12AA6A |
   LDX $0E                                   ; $12AA6C |
   LDA $0C                                   ; $12AA6E |
@@ -1117,7 +1117,7 @@ code_12AA86:
 
 code_12AA91:
   LDA #$58                                  ; $12AA91 |
-  JSR code_1FF846                           ; $12AA93 |
+  JSR init_child_entity                           ; $12AA93 |
   LDA #$00                                  ; $12AA96 |
   STA $0440,y                               ; $12AA98 |
   LDA #$04                                  ; $12AA9B |
@@ -1143,14 +1143,14 @@ code_12AA91:
   STA $0360,y                               ; $12AACC |
   LDX $0F                                   ; $12AACF |
   JSR face_player                           ; $12AAD1 |
-  JSR code_1FF8C2                           ; $12AAD4 |
+  JSR entity_x_dist_to_player                           ; $12AAD4 |
   STA $01                                   ; $12AAD7 |
   LDA #$00                                  ; $12AAD9 |
   STA $00                                   ; $12AADB |
   STA $02                                   ; $12AADD |
   LDA #$24                                  ; $12AADF |
   STA $03                                   ; $12AAE1 |
-  JSR code_1FFD11                           ; $12AAE3 |
+  JSR divide_16bit                           ; $12AAE3 |
   LDY $0F                                   ; $12AAE6 |
   LDA $04                                   ; $12AAE8 |
   STA $0400,x                               ; $12AAEA |
@@ -1335,7 +1335,7 @@ code_12AC5D:
   JSR find_enemy_freeslot_y                 ; $12AC5D |
   BCS code_12AC96                           ; $12AC60 |
   LDA #$59                                  ; $12AC62 |
-  JSR code_1FF846                           ; $12AC64 |
+  JSR init_child_entity                           ; $12AC64 |
   LDA #$00                                  ; $12AC67 |
   STA $0500,y                               ; $12AC69 |
   STA $0480,y                               ; $12AC6C |
@@ -1430,7 +1430,7 @@ code_12AD24:
   RTS                                       ; $12AD24 |
 
 code_12AD25:
-  JSR code_1FF797                           ; $12AD25 |
+  JSR apply_y_speed                           ; $12AD25 |
   LDA $04A0,x                               ; $12AD28 |
   AND #$01                                  ; $12AD2B |
   BEQ code_12AD32                           ; $12AD2D |
@@ -1554,7 +1554,7 @@ code_12AE7B:
 code_12AE95:
   LDA $0500,x                               ; $12AE95 |
   BNE code_12AEAC                           ; $12AE98 |
-  JSR code_1FF8C2                           ; $12AE9A |
+  JSR entity_x_dist_to_player                           ; $12AE9A |
   CMP #$50                                  ; $12AE9D |
   BCS code_12AEAF                           ; $12AE9F |
   JSR face_player                           ; $12AEA1 |
@@ -1566,7 +1566,7 @@ code_12AEAC:
 code_12AEAF:
   LDA $0540,x                               ; $12AEAF |
   BNE code_12AEBB                           ; $12AEB2 |
-  JSR code_1FF8B3                           ; $12AEB4 |
+  JSR entity_y_dist_to_player                           ; $12AEB4 |
   CMP #$30                                  ; $12AEB7 |
   BCS code_12AEE3                           ; $12AEB9 |
 code_12AEBB:
@@ -1603,7 +1603,7 @@ code_12AEED:
 code_12AEF5:
   LDA #$5B                                  ; $12AEF5 |
 code_12AEF7:
-  JSR code_1FF846                           ; $12AEF7 |
+  JSR init_child_entity                           ; $12AEF7 |
   LDA #$90                                  ; $12AEFA |
   STA $0580,y                               ; $12AEFC |
   LDA #$00                                  ; $12AEFF |
@@ -1679,7 +1679,7 @@ code_12AF76:
   LDA #$01                                  ; $12AFA8 |
   STA $0420,y                               ; $12AFAA |
   LDA #$58                                  ; $12AFAD |
-  JSR code_1FF846                           ; $12AFAF |
+  JSR init_child_entity                           ; $12AFAF |
   LDA #$51                                  ; $12AFB2 |
   STA $0320,y                               ; $12AFB4 |
   LDA #$8B                                  ; $12AFB7 |
@@ -1704,7 +1704,7 @@ code_12AFD2:
   LDA #$04                                  ; $12AFDC |
   STA $0460,y                               ; $12AFDE |
   LDA #$58                                  ; $12AFE1 |
-  JSR code_1FF846                           ; $12AFE3 |
+  JSR init_child_entity                           ; $12AFE3 |
   LDA #$8B                                  ; $12AFE6 |
   STA $0480,y                               ; $12AFE8 |
   LDA #$0C                                  ; $12AFEB |
@@ -1721,7 +1721,7 @@ code_12AFD2:
   STA $03E0,y                               ; $12B008 |
   LDA $04A0,x                               ; $12B00B |
   STA $04A0,y                               ; $12B00E |
-  JSR code_1FF8C2                           ; $12B011 |
+  JSR entity_x_dist_to_player                           ; $12B011 |
   STX $00                                   ; $12B014 |
   LDX #$03                                  ; $12B016 |
 code_12B018:
@@ -1747,7 +1747,7 @@ code_12B03B:
   JSR find_enemy_freeslot_y                 ; $12B040 |
   BCS code_12B091                           ; $12B043 |
   LDA #$77                                  ; $12B045 |
-  JSR code_1FF846                           ; $12B047 |
+  JSR init_child_entity                           ; $12B047 |
   LDA $0360,x                               ; $12B04A |
   STA $0360,y                               ; $12B04D |
   LDA $0380,x                               ; $12B050 |
@@ -1769,7 +1769,7 @@ code_12B03B:
   STY $0F                                   ; $12B077 |
   STX $0E                                   ; $12B079 |
   LDX $0F                                   ; $12B07B |
-  JSR code_1FFC63                           ; $12B07D |
+  JSR calc_homing_velocity                           ; $12B07D |
   LDY $0F                                   ; $12B080 |
   LDX $0E                                   ; $12B082 |
   LDA $0C                                   ; $12B084 |
@@ -1944,7 +1944,7 @@ code_12B1DA:
 code_12B1DE:
   JSR check_player_collision                ; $12B1DE | is player touching teleporter?
   BCS code_12B20F                           ; $12B1E1 | no → return
-  JSR code_1FF8C2                           ; $12B1E3 | detailed alignment check
+  JSR entity_x_dist_to_player                           ; $12B1E3 | detailed alignment check
   CMP #$02                                  ; $12B1E6 | close enough to center?
   BCS code_12B20F                           ; $12B1E8 | no → return
   LDA $0360,x                               ; $12B1EA | snap player X to teleporter X
@@ -2023,7 +2023,7 @@ code_12B279:
 
 code_12B27A:
   LDY #$08                                  ; $12B27A |
-  JSR code_1FF67C                           ; $12B27C |
+  JSR move_vertical_gravity                           ; $12B27C |
   BCS code_12B285                           ; $12B27F |
   INC $0360,x                               ; $12B281 |
   RTS                                       ; $12B284 |
@@ -2037,7 +2037,7 @@ code_12B28F:
   RTS                                       ; $12B28F |
 
 code_12B290:
-  JSR code_1FF797                           ; $12B290 |
+  JSR apply_y_speed                           ; $12B290 |
   LDA #$B0                                  ; $12B293 |
   CMP $03C0,x                               ; $12B295 |
   BCS code_12B28F                           ; $12B298 |
@@ -2055,7 +2055,7 @@ code_12B2AF:
   JSR find_enemy_freeslot_y                 ; $12B2AF |
   BCS code_12B28F                           ; $12B2B2 |
   LDA #$78                                  ; $12B2B4 |
-  JSR code_1FF846                           ; $12B2B6 |
+  JSR init_child_entity                           ; $12B2B6 |
   LDA #$FA                                  ; $12B2B9 |
   STA $0320,y                               ; $12B2BB |
   LDA #$00                                  ; $12B2BE |
@@ -2113,7 +2113,7 @@ code_12B32B:
   JSR find_enemy_freeslot_y                 ; $12B330 |
   BCS code_12B379                           ; $12B333 |
   LDA #$7D                                  ; $12B335 |
-  JSR code_1FF846                           ; $12B337 |
+  JSR init_child_entity                           ; $12B337 |
   LDA #$00                                  ; $12B33A |
   STA $03C0,y                               ; $12B33C |
   LDA $0360,x                               ; $12B33F |
@@ -2146,7 +2146,7 @@ code_12B379:
   db $02, $01, $02, $01, $02, $02, $01, $01 ; $12B382 |
 
 code_12B38A:
-  JSR code_1FF797                           ; $12B38A |
+  JSR apply_y_speed                           ; $12B38A |
   LDA $03C0,x                               ; $12B38D |
   CMP #$B8                                  ; $12B390 |
   BCC code_12B39A                           ; $12B392 |
@@ -2164,7 +2164,7 @@ code_12B3A4:
   JMP move_sprite_left                      ; $12B3A4 |
 
 code_12B3A7:
-  JSR code_1FF797                           ; $12B3A7 |
+  JSR apply_y_speed                           ; $12B3A7 |
   LDA $04A0,x                               ; $12B3AA |
   AND #$02                                  ; $12B3AD |
   BEQ code_12B3DA                           ; $12B3AF |
@@ -2287,7 +2287,7 @@ code_12B49E:
   JSR find_enemy_freeslot_y                 ; $12B49E |
   BCS code_12B4E4                           ; $12B4A1 |
   LDA #$71                                  ; $12B4A3 |
-  JSR code_1FF846                           ; $12B4A5 |
+  JSR init_child_entity                           ; $12B4A5 |
   LDA #$00                                  ; $12B4A8 |
   STA $0500,y                               ; $12B4AA |
   STA $0480,y                               ; $12B4AD |
@@ -2418,7 +2418,7 @@ code_12B5A5:
   JSR find_enemy_freeslot_y                 ; $12B5A5 |
   BCS code_12B5FA                           ; $12B5A8 |
   LDA #$6F                                  ; $12B5AA |
-  JSR code_1FF846                           ; $12B5AC |
+  JSR init_child_entity                           ; $12B5AC |
   LDA #$80                                  ; $12B5AF |
   STA $0480,y                               ; $12B5B1 |
   LDA #$00                                  ; $12B5B4 |
@@ -2455,7 +2455,7 @@ code_12B5FB:
   JSR find_enemy_freeslot_y                 ; $12B5FB |
   BCS code_12B5FA                           ; $12B5FE |
   LDA #$1D                                  ; $12B600 |
-  JSR code_1FF846                           ; $12B602 |
+  JSR init_child_entity                           ; $12B602 |
   LDA #$C0                                  ; $12B605 |
   STA $0480,y                               ; $12B607 |
   LDA #$6D                                  ; $12B60A |
@@ -2537,12 +2537,12 @@ code_12B6C7:
   AND #$01                                  ; $12B6CA |
   BEQ code_12B6D6                           ; $12B6CC |
   LDY #$20                                  ; $12B6CE |
-  JSR code_1FF580                           ; $12B6D0 |
+  JSR move_right_collide                           ; $12B6D0 |
   JMP code_12B6DB                           ; $12B6D3 |
 
 code_12B6D6:
   LDY #$21                                  ; $12B6D6 |
-  JSR code_1FF5C4                           ; $12B6D8 |
+  JSR move_left_collide                           ; $12B6D8 |
 code_12B6DB:
   BCC code_12B6E5                           ; $12B6DB |
   LDA $04A0,x                               ; $12B6DD |
@@ -2650,7 +2650,7 @@ code_12B756:
   STA $0420,y                               ; $12B7AB |
   STA $0460,y                               ; $12B7AE |
   LDA #$5E                                  ; $12B7B1 |
-  JSR code_1FF846                           ; $12B7B3 |
+  JSR init_child_entity                           ; $12B7B3 |
   LDA $04A0,y                               ; $12B7B6 |
   AND #$01                                  ; $12B7B9 |
   BNE code_12B7C5                           ; $12B7BB |
@@ -2703,12 +2703,12 @@ code_12B81C:
   AND #$01                                  ; $12B81F |
   BEQ code_12B82B                           ; $12B821 |
   LDY #$0C                                  ; $12B823 |
-  JSR code_1FF580                           ; $12B825 |
+  JSR move_right_collide                           ; $12B825 |
   JMP code_12B830                           ; $12B828 |
 
 code_12B82B:
   LDY #$0D                                  ; $12B82B |
-  JSR code_1FF5C4                           ; $12B82D |
+  JSR move_left_collide                           ; $12B82D |
 code_12B830:
   BCC code_12B847                           ; $12B830 |
   LDA $04A0,x                               ; $12B832 |
@@ -2737,7 +2737,7 @@ code_12B85D:
 code_12B85F:
   STA $05C0,x                               ; $12B85F |
   LDY #$0E                                  ; $12B862 |
-  JSR code_1FF606                           ; $12B864 |
+  JSR move_down_collide                           ; $12B864 |
   JMP code_12B898                           ; $12B867 |
 
 code_12B86A:
@@ -2763,7 +2763,7 @@ code_12B88E:
 code_12B890:
   STA $05C0,x                               ; $12B890 |
   LDY #$0F                                  ; $12B893 |
-  JSR code_1FF642                           ; $12B895 |
+  JSR move_up_collide                           ; $12B895 |
 code_12B898:
   BCC code_12B8A2                           ; $12B898 |
   LDA $04A0,x                               ; $12B89A |
@@ -2788,7 +2788,7 @@ code_12B8A3:
   INC $0560,x                               ; $12B8C4 |
 code_12B8C7:
   LDY #$0F                                  ; $12B8C7 |
-  JSR code_1FF67C                           ; $12B8C9 |
+  JSR move_vertical_gravity                           ; $12B8C9 |
   LDA $10                                   ; $12B8CC |
   AND #$10                                  ; $12B8CE |
   BEQ code_12B8D5                           ; $12B8D0 |
@@ -2799,7 +2799,7 @@ code_12B8D5:
   AND #$01                                  ; $12B8D8 |
   BEQ code_12B8EC                           ; $12B8DA |
   LDY #$0C                                  ; $12B8DC |
-  JSR code_1FF580                           ; $12B8DE |
+  JSR move_right_collide                           ; $12B8DE |
   LDA $0580,x                               ; $12B8E1 |
   AND #$BF                                  ; $12B8E4 |
   STA $0580,x                               ; $12B8E6 |
@@ -2807,7 +2807,7 @@ code_12B8D5:
 
 code_12B8EC:
   LDY #$0D                                  ; $12B8EC |
-  JSR code_1FF5C4                           ; $12B8EE |
+  JSR move_left_collide                           ; $12B8EE |
   LDA $0580,x                               ; $12B8F1 |
   ORA #$40                                  ; $12B8F4 |
   STA $0580,x                               ; $12B8F6 |
@@ -2918,7 +2918,7 @@ code_12B9B5:
   STA $0480,y                               ; $12B9DC |
   STA $04E0,y                               ; $12B9DF |
   LDA #$67                                  ; $12B9E2 |
-  JSR code_1FF846                           ; $12B9E4 |
+  JSR init_child_entity                           ; $12B9E4 |
 code_12B9E7:
   RTS                                       ; $12B9E7 |
 
@@ -2943,7 +2943,7 @@ code_12B9EC:
   LDA #$01                                  ; $12BA15 |
   STA $04E0,y                               ; $12BA17 |
   LDA #$66                                  ; $12BA1A |
-  JSR code_1FF846                           ; $12BA1C |
+  JSR init_child_entity                           ; $12BA1C |
   LDA $04A0,y                               ; $12BA1F |
   AND #$01                                  ; $12BA22 |
   BNE code_12BA2E                           ; $12BA24 |
@@ -3137,7 +3137,7 @@ code_12BB91:
   AND #$08                                  ; $12BBB1 |
   BNE code_12BBD8                           ; $12BBB3 |
   LDA #$5D                                  ; $12BBB5 |
-  JSR code_1FF846                           ; $12BBB7 |
+  JSR init_child_entity                           ; $12BBB7 |
   LDA $04A0,x                               ; $12BBBA |
   STA $04A0,y                               ; $12BBBD |
   AND #$01                                  ; $12BBC0 |
@@ -3155,7 +3155,7 @@ code_12BBD8:
   LDA $04A0,x                               ; $12BBD8 |
   STA $04A0,y                               ; $12BBDB |
   LDA #$5C                                  ; $12BBDE |
-  JSR code_1FF846                           ; $12BBE0 |
+  JSR init_child_entity                           ; $12BBE0 |
   LDA $0360,x                               ; $12BBE3 |
   STA $0360,y                               ; $12BBE6 |
   LDA $03C0,x                               ; $12BBE9 |
@@ -3181,7 +3181,7 @@ code_12BC0A:
   AND #$08                                  ; $12BC0D |
   BEQ code_12BC20                           ; $12BC0F |
   LDY #$09                                  ; $12BC11 |
-  JSR code_1FF642                           ; $12BC13 |
+  JSR move_up_collide                           ; $12BC13 |
   LDA $03C0,x                               ; $12BC16 |
   CMP #$48                                  ; $12BC19 |
   BCS code_12BC48                           ; $12BC1B |
@@ -3192,12 +3192,12 @@ code_12BC20:
   AND #$01                                  ; $12BC23 |
   BEQ code_12BC2F                           ; $12BC25 |
   LDY #$08                                  ; $12BC27 |
-  JSR code_1FF580                           ; $12BC29 |
+  JSR move_right_collide                           ; $12BC29 |
   JMP code_12BC34                           ; $12BC2C |
 
 code_12BC2F:
   LDY #$09                                  ; $12BC2F |
-  JSR code_1FF5C4                           ; $12BC31 |
+  JSR move_left_collide                           ; $12BC31 |
 code_12BC34:
   BCC code_12BC48                           ; $12BC34 |
 code_12BC36:
@@ -3212,10 +3212,10 @@ code_12BC3D:
   RTS                                       ; $12BC47 |
 
 code_12BC48:
-  JSR code_1FF8C2                           ; $12BC48 |
+  JSR entity_x_dist_to_player                           ; $12BC48 |
   CMP #$18                                  ; $12BC4B |
   BCS code_12BC75                           ; $12BC4D |
-  JSR code_1FF8B3                           ; $12BC4F |
+  JSR entity_y_dist_to_player                           ; $12BC4F |
   CMP #$14                                  ; $12BC52 |
   BCS code_12BC75                           ; $12BC54 |
   LDA $04A0,x                               ; $12BC56 |
@@ -3436,7 +3436,7 @@ code_12BDE2:
   LDA #$01                                  ; $12BE08 |
   STA $0420,y                               ; $12BE0A |
   LDA #$13                                  ; $12BE0D |
-  JSR code_1FF846                           ; $12BE0F |
+  JSR init_child_entity                           ; $12BE0F |
   LDA #$00                                  ; $12BE12 |
   STA $0540,y                               ; $12BE14 |
   STA $0560,y                               ; $12BE17 |
@@ -3527,13 +3527,13 @@ code_12BEB8:
   STY $0F                                   ; $12BEF3 |
   STX $0E                                   ; $12BEF5 |
   LDX $0F                                   ; $12BEF7 |
-  JSR code_1FFC63                           ; $12BEF9 |
+  JSR calc_homing_velocity                           ; $12BEF9 |
   LDY $0F                                   ; $12BEFC |
   LDX $0E                                   ; $12BEFE |
   LDA $0C                                   ; $12BF00 |
   STA $04A0,y                               ; $12BF02 |
   LDA #$73                                  ; $12BF05 |
-  JSR code_1FF846                           ; $12BF07 |
+  JSR init_child_entity                           ; $12BF07 |
   LDA #$8F                                  ; $12BF0A |
   STA $0320,y                               ; $12BF0C |
   LDA #$8B                                  ; $12BF0F |

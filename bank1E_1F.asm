@@ -2352,7 +2352,7 @@ player_stunned:
   LDA $5A                                   ; $1ECDCC |
   BMI code_1ECDE6                           ; $1ECDCE |
   LDY #$00                                  ; $1ECDD0 |
-  JSR code_1FF67C                           ; $1ECDD2 |
+  JSR move_vertical_gravity                           ; $1ECDD2 |
   BCC code_1ECDE5                           ; $1ECDD5 |
   LDA #$01                                  ; $1ECDD7 |
   CMP $05C0                                 ; $1ECDD9 |
@@ -2387,12 +2387,12 @@ code_1ECE0A:
   LDA $36                                   ; $1ECE0A |
   AND #$01                                  ; $1ECE0C |
   BEQ code_1ECE16                           ; $1ECE0E |
-  JSR code_1FF580                           ; $1ECE10 |
+  JSR move_right_collide                           ; $1ECE10 |
   JMP code_1ECE1A                           ; $1ECE13 |
 
 code_1ECE16:
   INY                                       ; $1ECE16 |
-  JSR code_1FF5C4                           ; $1ECE17 |
+  JSR move_left_collide                           ; $1ECE17 |
 code_1ECE1A:
   PLA                                       ; $1ECE1A |
   STA $0420                                 ; $1ECE1B |
@@ -2550,11 +2550,11 @@ code_1ECF3D:
   AND #$01                                  ; $1ECF3D |
   BEQ code_1ECF46                           ; $1ECF3F |
   LDY #$00                                  ; $1ECF41 |
-  JMP code_1FF580                           ; $1ECF43 |
+  JMP move_right_collide                           ; $1ECF43 |
 
 code_1ECF46:
   LDY #$01                                  ; $1ECF46 |
-  JMP code_1FF5C4                           ; $1ECF48 |
+  JMP move_left_collide                           ; $1ECF48 |
 
 code_1ECF4B:
   LDA $32                                   ; $1ECF4B |
@@ -2610,7 +2610,7 @@ code_1ECF9B:
   AND #$08                                  ; $1ECFAD |
   BEQ code_1ECFC2                           ; $1ECFAF |
   LDY #$01                                  ; $1ECFB1 |
-  JSR code_1FF642                           ; $1ECFB3 |
+  JSR move_up_collide                           ; $1ECFB3 |
   LDA #$0C                                  ; $1ECFB6 |
   CMP $03C0                                 ; $1ECFB8 |
   BCC code_1ECFC7                           ; $1ECFBB |
@@ -2618,7 +2618,7 @@ code_1ECF9B:
   BCS code_1ECFC7                           ; $1ECFC0 |
 code_1ECFC2:
   LDY #$07                                  ; $1ECFC2 |
-  JSR code_1FF606                           ; $1ECFC4 |
+  JSR move_down_collide                           ; $1ECFC4 |
 code_1ECFC7:
   LDA $03C0                                 ; $1ECFC7 |
   CLC                                       ; $1ECFCA |
@@ -2665,11 +2665,11 @@ code_1ED019:
   STA $3A                                   ; $1ED01B |
 code_1ED01D:
   LDY #$06                                  ; $1ED01D |
-  JSR code_1FE8D6                           ; $1ED01F |
+  JSR check_tile_horiz                           ; $1ED01F |
   LDA $10                                   ; $1ED022 |
   STA $0F                                   ; $1ED024 |
   LDY #$00                                  ; $1ED026 |
-  JSR code_1FF67C                           ; $1ED028 |
+  JSR move_vertical_gravity                           ; $1ED028 |
   PHP                                       ; $1ED02B |
   LDA $0F                                   ; $1ED02C |
   CMP #$80                                  ; $1ED02E |
@@ -2874,7 +2874,7 @@ code_1ED1B7:
 code_1ED1BA:
   LDY #$01                                  ; $1ED1BA |
   LDA #$13                                  ; $1ED1BC |
-  JSR code_1FF846                           ; $1ED1BE |
+  JSR init_child_entity                           ; $1ED1BE |
   LDA #$00                                  ; $1ED1C1 |
   STA $03C1                                 ; $1ED1C3 |
   STA $03E1                                 ; $1ED1C6 |
@@ -3173,7 +3173,7 @@ code_1ED396:
   BNE code_1ED39F                           ; $1ED39C |
   INY                                       ; $1ED39E |
 code_1ED39F:
-  JSR code_1FE8D6                           ; $1ED39F |
+  JSR check_tile_horiz                           ; $1ED39F |
   LDA $10                                   ; $1ED3A2 |\ solid ground ahead?
   AND #$10                                  ; $1ED3A4 | | if yes, wall → stop slide
   BEQ code_1ED3A9                           ; $1ED3A6 |/
@@ -3217,7 +3217,7 @@ code_1ED3A9:
 ; player state $02: sliding on ground
 player_slide:
   LDY #$02                                  ; $1ED3FD |
-  JSR code_1FF67C                           ; $1ED3FF |
+  JSR move_vertical_gravity                           ; $1ED3FF |
   BCC code_1ED455                           ; $1ED402 |
   LDA $16                                   ; $1ED404 |
   AND #$03                                  ; $1ED406 |
@@ -3231,12 +3231,12 @@ code_1ED412:
   AND #$01                                  ; $1ED414 |
   BEQ code_1ED420                           ; $1ED416 |
   LDY #$02                                  ; $1ED418 |
-  JSR code_1FF580                           ; $1ED41A |
+  JSR move_right_collide                           ; $1ED41A |
   JMP code_1ED425                           ; $1ED41D |
 
 code_1ED420:
   LDY #$03                                  ; $1ED420 |
-  JSR code_1FF5C4                           ; $1ED422 |
+  JSR move_left_collide                           ; $1ED422 |
 code_1ED425:
   LDA $10                                   ; $1ED425 |\ solid ground under feet?
   AND #$10                                  ; $1ED427 | | if on ground, land
@@ -3255,7 +3255,7 @@ code_1ED43D:
 
 code_1ED43E:
   LDY #$01                                  ; $1ED43E |
-  JSR code_1FE8D6                           ; $1ED440 |
+  JSR check_tile_horiz                           ; $1ED440 |
   LDA $10                                   ; $1ED443 |\ bit 4 = solid ground under feet
   AND #$10                                  ; $1ED445 | | ($10,$30,$50,$70 all have bit 4)
   BNE code_1ED470                           ; $1ED447 |/ on ground → return
@@ -3400,7 +3400,7 @@ code_1ED521:
   JSR reset_sprite_anim                     ; $1ED538 |
 code_1ED53B:
   LDY #$00                                  ; $1ED53B |
-  JSR code_1FF606                           ; $1ED53D |
+  JSR move_down_collide                           ; $1ED53D |
   BCS code_1ED5AD                           ; $1ED540 |
   LDA $03E0                                 ; $1ED542 |
   BEQ code_1ED54D                           ; $1ED545 |
@@ -3424,7 +3424,7 @@ code_1ED54D:
   BNE code_1ED5AD                           ; $1ED566 |
 code_1ED568:
   LDY #$01                                  ; $1ED568 |
-  JSR code_1FF642                           ; $1ED56A |
+  JSR move_up_collide                           ; $1ED56A |
   BCS code_1ED5B4                           ; $1ED56D |
   LDA $03E0                                 ; $1ED56F |
   BEQ code_1ED57A                           ; $1ED572 |
@@ -3478,19 +3478,19 @@ player_reappear:
   LDA $03C0                                 ; $1ED5C5 |
   CMP #$68                                  ; $1ED5C8 |
   BCS code_1ED5DF                           ; $1ED5CA |
-  JSR code_1FF797                           ; $1ED5CC |
+  JSR apply_y_speed                           ; $1ED5CC |
   JMP code_1ED5E6                           ; $1ED5CF |
 
 code_1ED5D2:
   LDA $03C0                                 ; $1ED5D2 |
   CMP #$30                                  ; $1ED5D5 |
   BCS code_1ED5DF                           ; $1ED5D7 |
-  JSR code_1FF797                           ; $1ED5D9 |
+  JSR apply_y_speed                           ; $1ED5D9 |
   JMP code_1ED5E6                           ; $1ED5DC |
 
 code_1ED5DF:
   LDY #$00                                  ; $1ED5DF |
-  JSR code_1FF67C                           ; $1ED5E1 |
+  JSR move_vertical_gravity                           ; $1ED5E1 |
   BCS code_1ED5EB                           ; $1ED5E4 |
 code_1ED5E6:
   LDA #$00                                  ; $1ED5E6 |
@@ -3543,12 +3543,12 @@ player_entity_ride:
   AND #$08                                  ; $1ED63D |
   BEQ code_1ED649                           ; $1ED63F |
   LDY #$01                                  ; $1ED641 |
-  JSR code_1FF642                           ; $1ED643 |
+  JSR move_up_collide                           ; $1ED643 |
   JMP code_1ED64E                           ; $1ED646 |
 
 code_1ED649:
   LDY #$00                                  ; $1ED649 |
-  JSR code_1FF606                           ; $1ED64B |
+  JSR move_down_collide                           ; $1ED64B |
 code_1ED64E:
   PLA                                       ; $1ED64E |
   STA $0460                                 ; $1ED64F |
@@ -3576,7 +3576,7 @@ code_1ED667:
   STA $0580                                 ; $1ED67B |
 code_1ED67E:
   LDY #$01                                  ; $1ED67E |
-  JSR code_1FF642                           ; $1ED680 |
+  JSR move_up_collide                           ; $1ED680 |
   LDA $0440                                 ; $1ED683 |
   CLC                                       ; $1ED686 |
   ADC #$40                                  ; $1ED687 |
@@ -3641,7 +3641,7 @@ code_1ED701:
   CMP #$79                                  ; $1ED707 |
   BCS code_1ED742                           ; $1ED709 |
   LDY #$00                                  ; $1ED70B |
-  JSR code_1FF67C                           ; $1ED70D |
+  JSR move_vertical_gravity                           ; $1ED70D |
   LDA #$80                                  ; $1ED710 |
   STA $0400                                 ; $1ED712 |
   LDA #$00                                  ; $1ED715 |
@@ -3652,12 +3652,12 @@ code_1ED701:
   AND #$40                                  ; $1ED721 |
   BNE code_1ED72D                           ; $1ED723 |
   LDY #$00                                  ; $1ED725 |
-  JSR code_1FF580                           ; $1ED727 |
+  JSR move_right_collide                           ; $1ED727 |
   JMP code_1ED732                           ; $1ED72A |
 
 code_1ED72D:
   LDY #$01                                  ; $1ED72D |
-  JSR code_1FF5C4                           ; $1ED72F |
+  JSR move_left_collide                           ; $1ED72F |
 code_1ED732:
   LDA $0360                                 ; $1ED732 |
   STA $0364                                 ; $1ED735 |
@@ -3802,7 +3802,7 @@ player_rush_marine:
   JSR reset_sprite_anim                     ; $1ED86B |
 code_1ED86E:
   LDY #$06                                  ; $1ED86E |
-  JSR code_1FE8D6                           ; $1ED870 |
+  JSR check_tile_horiz                           ; $1ED870 |
   LDA $10                                   ; $1ED873 |
   CMP #$80                                  ; $1ED875 |
   BEQ code_1ED886                           ; $1ED877 |
@@ -3821,7 +3821,7 @@ code_1ED886:
 
 code_1ED893:
   LDY #$00                                  ; $1ED893 |
-  JSR code_1FF67C                           ; $1ED895 |
+  JSR move_vertical_gravity                           ; $1ED895 |
   BCC code_1ED8AF                           ; $1ED898 |
   LDA $14                                   ; $1ED89A |
   AND #$80                                  ; $1ED89C |
@@ -3832,7 +3832,7 @@ code_1ED8A0:
   LDA #$04                                  ; $1ED8A5 |
   STA $0460                                 ; $1ED8A7 |
   LDY #$00                                  ; $1ED8AA |
-  JSR code_1FF67C                           ; $1ED8AC |
+  JSR move_vertical_gravity                           ; $1ED8AC |
 code_1ED8AF:
   LDA $16                                   ; $1ED8AF |
   AND #$03                                  ; $1ED8B1 |
@@ -3846,7 +3846,7 @@ code_1ED8BD:
   AND #$80                                  ; $1ED8BF |
   BEQ code_1ED8CE                           ; $1ED8C1 |
   LDY #$01                                  ; $1ED8C3 |
-  JSR code_1FE8D6                           ; $1ED8C5 |
+  JSR check_tile_horiz                           ; $1ED8C5 |
   LDA $10                                   ; $1ED8C8 |
   CMP #$80                                  ; $1ED8CA |
   BNE code_1ED8A0                           ; $1ED8CC |
@@ -3867,9 +3867,9 @@ code_1ED8D9:
   AND #$04                                  ; $1ED8E9 |
   BNE code_1ED90B                           ; $1ED8EB |
   LDY #$01                                  ; $1ED8ED |
-  JSR code_1FF642                           ; $1ED8EF |
+  JSR move_up_collide                           ; $1ED8EF |
   LDY #$06                                  ; $1ED8F2 |
-  JSR code_1FE8D6                           ; $1ED8F4 |
+  JSR check_tile_horiz                           ; $1ED8F4 |
   LDA $10                                   ; $1ED8F7 |
   CMP #$80                                  ; $1ED8F9 |
   BEQ code_1ED908                           ; $1ED8FB |
@@ -3883,7 +3883,7 @@ code_1ED908:
 
 code_1ED90B:
   LDY #$00                                  ; $1ED90B |
-  JMP code_1FF606                           ; $1ED90D |
+  JMP move_down_collide                           ; $1ED90D |
 
 code_1ED910:
   LDA $05C0                                 ; $1ED910 |
@@ -3903,7 +3903,7 @@ code_1ED920:
 ; player state $09: frozen during boss intro (shutters/HP bar) [confirmed]
 player_boss_wait:
   LDY #$00                                  ; $1ED929 |
-  JSR code_1FF67C                           ; $1ED92B |
+  JSR move_vertical_gravity                           ; $1ED92B |
   BCC code_1ED990                           ; $1ED92E |
   LDA #$01                                  ; $1ED930 |
   CMP $05C0                                 ; $1ED932 |
@@ -3962,19 +3962,19 @@ code_1ED990:
 ; player state $0A: Top Spin recoil bounce (8 frames) [confirmed]
 player_top_spin:
   LDY #$00                                  ; $1ED991 |
-  JSR code_1FF67C                           ; $1ED993 |
+  JSR move_vertical_gravity                           ; $1ED993 |
   BCS code_1ED9B6                           ; $1ED996 |
   LDA $0580                                 ; $1ED998 |
   PHA                                       ; $1ED99B |
   AND #$40                                  ; $1ED99C |
   BNE code_1ED9A8                           ; $1ED99E |
   LDY #$00                                  ; $1ED9A0 |
-  JSR code_1FF580                           ; $1ED9A2 |
+  JSR move_right_collide                           ; $1ED9A2 |
   JMP code_1ED9AD                           ; $1ED9A5 |
 
 code_1ED9A8:
   LDY #$01                                  ; $1ED9A8 |
-  JSR code_1FF5C4                           ; $1ED9AA |
+  JSR move_left_collide                           ; $1ED9AA |
 code_1ED9AD:
   PLA                                       ; $1ED9AD |
   STA $0580                                 ; $1ED9AE |
@@ -4070,7 +4070,7 @@ code_1EDA49:
   STA $18                                   ; $1EDA53 |
 code_1EDA55:
   LDY #$00                                  ; $1EDA55 |
-  JSR code_1FF67C                           ; $1EDA57 |
+  JSR move_vertical_gravity                           ; $1EDA57 |
   BCC code_1EDA6C                           ; $1EDA5A |
   LDA $0520                                 ; $1EDA5C |
   BEQ code_1EDA6C                           ; $1EDA5F |
@@ -4144,7 +4144,7 @@ code_1EDAD1:
   BEQ code_1EDB00                           ; $1EDAD8 |
   BCS code_1EDAEF                           ; $1EDADA |
   LDY #$00                                  ; $1EDADC |
-  JSR code_1FF580                           ; $1EDADE |
+  JSR move_right_collide                           ; $1EDADE |
   ROL $00                                   ; $1EDAE1 |
   LDA #$80                                  ; $1EDAE3 |
   CMP $0360                                 ; $1EDAE5 |
@@ -4153,7 +4153,7 @@ code_1EDAD1:
   BCC code_1EDB00                           ; $1EDAED |
 code_1EDAEF:
   LDY #$01                                  ; $1EDAEF |
-  JSR code_1FF5C4                           ; $1EDAF1 |
+  JSR move_left_collide                           ; $1EDAF1 |
   ROL $00                                   ; $1EDAF4 |
   LDA #$80                                  ; $1EDAF6 |
   CMP $0360                                 ; $1EDAF8 |
@@ -4198,7 +4198,7 @@ code_1EDB3A:
   LDY #$1F                                  ; $1EDB40 |
 code_1EDB42:
   LDA #$5B                                  ; $1EDB42 |
-  JSR code_1FF846                           ; $1EDB44 |
+  JSR init_child_entity                           ; $1EDB44 |
   LDA #$00                                  ; $1EDB47 |
   STA $0480,y                               ; $1EDB49 |
   LDA #$11                                  ; $1EDB4C |
@@ -4280,7 +4280,7 @@ player_teleport:
   AND #$0F                                  ; $1EDBE4 |
   BNE code_1EDC0F                           ; $1EDBE6 |
   LDY #$00                                  ; $1EDBE8 |
-  JSR code_1FF67C                           ; $1EDBEA |
+  JSR move_vertical_gravity                           ; $1EDBEA |
   BCS code_1EDBFB                           ; $1EDBED |
   LDA $05A0                                 ; $1EDBEF |
   CMP #$04                                  ; $1EDBF2 |
@@ -4386,7 +4386,7 @@ code_1EDC73:
 ; player state $10: vertical scroll transition between sections [confirmed]
 player_screen_scroll:
   LDY #$00                                  ; $1EDD14 |
-  JSR code_1FF67C                           ; $1EDD16 |
+  JSR move_vertical_gravity                           ; $1EDD16 |
   BCC code_1EDD25                           ; $1EDD19 |
   LDA #$01                                  ; $1EDD1B |
   CMP $05C0                                 ; $1EDD1D |
@@ -4663,7 +4663,7 @@ player_teleport_beam:
   CMP #$13                                  ; $1EDF36 |
   BEQ code_1EDF51                           ; $1EDF38 |
   LDY #$00                                  ; $1EDF3A |
-  JSR code_1FF67C                           ; $1EDF3C |
+  JSR move_vertical_gravity                           ; $1EDF3C |
   BCC code_1EDF89                           ; $1EDF3F |
   LDA #$13                                  ; $1EDF41 |
   JSR reset_sprite_anim                     ; $1EDF43 |
@@ -4706,7 +4706,7 @@ code_1EDF89:
 ; player state $14: scripted walk to X=$50 (post-Wily cutscene) [confirmed]
 player_auto_walk:
   LDY #$00                                  ; $1EDF8A |
-  JSR code_1FF67C                           ; $1EDF8C |
+  JSR move_vertical_gravity                           ; $1EDF8C |
   PHP                                       ; $1EDF8F |
   ROR $0F                                   ; $1EDF90 |
   PLP                                       ; $1EDF92 |
@@ -4842,7 +4842,7 @@ code_1FE08B:
 ; player state $15: scripted walk to X=$68, ending cutscene [confirmed]
 player_auto_walk_2:
   LDY #$00                                  ; $1FE08C |
-  JSR code_1FF67C                           ; $1FE08E |
+  JSR move_vertical_gravity                           ; $1FE08E |
   BCS code_1FE097                           ; $1FE091 |
   LDA #$07                                  ; $1FE093 |
   BNE code_1FE099                           ; $1FE095 |
@@ -6005,366 +6005,419 @@ code_1FE8B4:
   STA $21                                   ; $1FE8D3 |/
   RTS                                       ; $1FE8D5 |
 
-code_1FE8D6:
-  LDA $EBE2,y                               ; $1FE8D6 |
-  STA $40                                   ; $1FE8D9 |
-  JSR code_1FEB0C                           ; $1FE8DB |
-  TAY                                       ; $1FE8DE |
-  LDA $EC10,y                               ; $1FE8DF |
-  STA $02                                   ; $1FE8E2 |
-  LDA $03E0,x                               ; $1FE8E4 |
-  STA $03                                   ; $1FE8E7 |
-  LDA $EC11,y                               ; $1FE8E9 |
-  PHA                                       ; $1FE8EC |
-  CLC                                       ; $1FE8ED |
-  ADC $03C0,x                               ; $1FE8EE |
-  STA $11                                   ; $1FE8F1 |
-  PLA                                       ; $1FE8F3 |
-  BMI code_1FE900                           ; $1FE8F4 |
-  BCS code_1FE902                           ; $1FE8F6 |
-  LDA $11                                   ; $1FE8F8 |
-  CMP #$F0                                  ; $1FE8FA |
-  BCS code_1FE902                           ; $1FE8FC |
-  BCC code_1FE90F                           ; $1FE8FE |
-code_1FE900:
-  BCS code_1FE90F                           ; $1FE900 |
-code_1FE902:
-  LDA #$00                                  ; $1FE902 |
-  LDY $02                                   ; $1FE904 |
-code_1FE906:
-  STA $0042,y                               ; $1FE906 |
-  DEY                                       ; $1FE909 |
-  BPL code_1FE906                           ; $1FE90A |
-  JMP code_1FEB24                           ; $1FE90C |
+; -----------------------------------------------
+; check_tile_horiz — horizontal-scan tile collision
+; -----------------------------------------------
+; Checks multiple X positions at a fixed Y offset for collisions.
+; Used for floor/ceiling detection (scanning across the entity's
+; width at a specific vertical position).
+;
+; parameters:
+;   Y = hitbox config index into $EBE2 offset table
+;   X = entity slot
+; hitbox offset tables:
+;   $EBE2,y = starting offset index (into $EC12)
+;   $EC10,y = number of check points - 1
+;   $EC11,y = Y pixel offset (signed, relative to entity Y)
+;   $EC12,y = X pixel offsets (signed, relative to entity X)
+; results:
+;   $42-$44 = tile type at each check point
+;   $41     = max (highest priority) tile type encountered
+;   $10     = OR of all tile types (AND #$10 tests solid)
+; -----------------------------------------------
+check_tile_horiz:
+  LDA $EBE2,y                               ; $1FE8D6 |\ $40 = starting offset index
+  STA $40                                   ; $1FE8D9 |/
+  JSR tile_check_init                        ; $1FE8DB |  clear accumulators, switch to stage bank
+  TAY                                       ; $1FE8DE |  Y = hitbox config index
+  LDA $EC10,y                               ; $1FE8DF |\ $02 = number of check points - 1
+  STA $02                                   ; $1FE8E2 |/
+  LDA $03E0,x                               ; $1FE8E4 |\ $03 = entity Y screen
+  STA $03                                   ; $1FE8E7 |/
+  LDA $EC11,y                               ; $1FE8E9 |\ $11 = entity_Y + Y_offset
+  PHA                                       ; $1FE8EC | | (compute check Y position)
+  CLC                                       ; $1FE8ED | |
+  ADC $03C0,x                               ; $1FE8EE | |
+  STA $11                                   ; $1FE8F1 |/
+  PLA                                       ; $1FE8F3 |  A = original Y offset (for sign check)
+  BMI .y_offset_neg                         ; $1FE8F4 |  negative offset? handle differently
+  BCS .y_offscreen                          ; $1FE8F6 |  positive offset + carry = past screen
+  LDA $11                                   ; $1FE8F8 |\ check if Y wrapped past $F0
+  CMP #$F0                                  ; $1FE8FA | | (screen height)
+  BCS .y_offscreen                          ; $1FE8FC |/
+  BCC .y_ok                                 ; $1FE8FE |  within bounds → proceed
+.y_offset_neg:
+  BCS .y_ok                                 ; $1FE900 |  neg offset + carry = no underflow → ok
+.y_offscreen:
+  LDA #$00                                  ; $1FE902 |\ Y out of bounds: zero all results
+  LDY $02                                   ; $1FE904 |/
+.clear_results:
+  STA $0042,y                               ; $1FE906 |\ clear $42..$42+count
+  DEY                                       ; $1FE909 | |
+  BPL .clear_results                        ; $1FE90A |/
+  JMP tile_check_cleanup                     ; $1FE90C |  restore bank and return
 
-code_1FE90F:
-  LDA $03                                   ; $1FE90F |
-  BNE code_1FE902                           ; $1FE911 |
-  LDA $11                                   ; $1FE913 |
-  LSR                                       ; $1FE915 |
-  LSR                                       ; $1FE916 |
-  PHA                                       ; $1FE917 |
-  AND #$38                                  ; $1FE918 |
-  STA $28                                   ; $1FE91A |
-  PLA                                       ; $1FE91C |
-  LSR                                       ; $1FE91D |
-  AND #$02                                  ; $1FE91E |
-  STA $03                                   ; $1FE920 |
-  LDA #$00                                  ; $1FE922 |
-  STA $04                                   ; $1FE924 |
-  LDA $EC12,y                               ; $1FE926 |
-  BPL code_1FE92D                           ; $1FE929 |
-  DEC $04                                   ; $1FE92B |
-code_1FE92D:
-  CLC                                       ; $1FE92D |
-  ADC $0360,x                               ; $1FE92E |
-  STA $12                                   ; $1FE931 |
-  LDA $0380,x                               ; $1FE933 |
-  ADC $04                                   ; $1FE936 |
-  STA $13                                   ; $1FE938 |
-  LDA $12                                   ; $1FE93A |
-  LSR                                       ; $1FE93C |
-  LSR                                       ; $1FE93D |
-  LSR                                       ; $1FE93E |
-  LSR                                       ; $1FE93F |
-  PHA                                       ; $1FE940 |
-  AND #$01                                  ; $1FE941 |
-  ORA $03                                   ; $1FE943 |
-  STA $03                                   ; $1FE945 |
-  PLA                                       ; $1FE947 |
-  LSR                                       ; $1FE948 |
-  ORA $28                                   ; $1FE949 |
-  STA $28                                   ; $1FE94B |
-code_1FE94D:
-  STX $04                                   ; $1FE94D |
-  LDA $22                                   ; $1FE94F |
-  STA $F5                                   ; $1FE951 |
-  JSR select_PRG_banks                      ; $1FE953 |
-  LDX $04                                   ; $1FE956 |
-  LDY $13                                   ; $1FE958 |
-  JSR metatile_column_ptr                           ; $1FE95A |
-code_1FE95D:
-  JSR metatile_chr_ptr                           ; $1FE95D |
-code_1FE960:
-  LDY $03                                   ; $1FE960 |
-  LDA ($00),y                               ; $1FE962 |
-  TAY                                       ; $1FE964 |
-  LDA $BF00,y                               ; $1FE965 |
-  AND #$F0                                  ; $1FE968 |
-  JSR breakable_block_collision                           ; $1FE96A |
-  JSR code_1FEB8A                           ; $1FE96D |
-  LDY $02                                   ; $1FE970 |
-  STA $0042,y                               ; $1FE972 |
-  CMP $41                                   ; $1FE975 |
-  BCC code_1FE97B                           ; $1FE977 |
-  STA $41                                   ; $1FE979 |
-code_1FE97B:
-  ORA $10                                   ; $1FE97B |
-  STA $10                                   ; $1FE97D |
-  DEC $02                                   ; $1FE97F |
-  BMI code_1FE9BA                           ; $1FE981 |
-  INC $40                                   ; $1FE983 |
-  LDY $40                                   ; $1FE985 |
-  LDA $12                                   ; $1FE987 |
-  PHA                                       ; $1FE989 |
-  AND #$10                                  ; $1FE98A |
-  STA $04                                   ; $1FE98C |
-  PLA                                       ; $1FE98E |
-  CLC                                       ; $1FE98F |
-  ADC $EC12,y                               ; $1FE990 |
-  STA $12                                   ; $1FE993 |
-  AND #$10                                  ; $1FE995 |
-  CMP $04                                   ; $1FE997 |
-  BEQ code_1FE960                           ; $1FE999 |
-  LDA $03                                   ; $1FE99B |
-  EOR #$01                                  ; $1FE99D |
-  STA $03                                   ; $1FE99F |
-  AND #$01                                  ; $1FE9A1 |
-  BNE code_1FE960                           ; $1FE9A3 |
-  INC $28                                   ; $1FE9A5 |
-  LDA $28                                   ; $1FE9A7 |
-  AND #$07                                  ; $1FE9A9 |
-  BNE code_1FE95D                           ; $1FE9AB |
-  INC $13                                   ; $1FE9AD |
-  DEC $28                                   ; $1FE9AF |
-  LDA $28                                   ; $1FE9B1 |
-  AND #$38                                  ; $1FE9B3 |
-  STA $28                                   ; $1FE9B5 |
-  JMP code_1FE94D                           ; $1FE9B7 |
+.y_ok:
+  LDA $03                                   ; $1FE90F |\ Y screen != 0? treat as offscreen
+  BNE .y_offscreen                          ; $1FE911 |/ (only check screen 0)
+  ;--- convert pixel Y ($11) to metatile row/sub-tile ---
+  LDA $11                                   ; $1FE913 |\ Y >> 2 = 4-pixel rows
+  LSR                                       ; $1FE915 | |
+  LSR                                       ; $1FE916 |/
+  PHA                                       ; $1FE917 |\ $28 = metatile row (bits 5-3 of Y>>2)
+  AND #$38                                  ; $1FE918 | | = column offset in metatile grid
+  STA $28                                   ; $1FE91A |/
+  PLA                                       ; $1FE91C |\ $03 bit1 = sub-tile Y (bit 2 of Y>>2)
+  LSR                                       ; $1FE91D | | selects top/bottom half of metatile
+  AND #$02                                  ; $1FE91E | |
+  STA $03                                   ; $1FE920 |/
+  ;--- compute first X check position ---
+  LDA #$00                                  ; $1FE922 |\ $04 = sign extension for X offset
+  STA $04                                   ; $1FE924 |/
+  LDA $EC12,y                               ; $1FE926 |\ first X offset (signed)
+  BPL .x_pos                                ; $1FE929 |/ positive? skip sign extend
+  DEC $04                                   ; $1FE92B |  negative: $04 = $FF
+.x_pos:
+  CLC                                       ; $1FE92D |\ $12/$13 = entity_X + X_offset
+  ADC $0360,x                               ; $1FE92E | | $12 = X pixel
+  STA $12                                   ; $1FE931 | | $13 = X screen
+  LDA $0380,x                               ; $1FE933 | |
+  ADC $04                                   ; $1FE936 | |
+  STA $13                                   ; $1FE938 |/
+  ;--- convert pixel X ($12) to metatile column/sub-tile ---
+  LDA $12                                   ; $1FE93A |\ X >> 4 = tile column
+  LSR                                       ; $1FE93C | |
+  LSR                                       ; $1FE93D | |
+  LSR                                       ; $1FE93E | |
+  LSR                                       ; $1FE93F |/
+  PHA                                       ; $1FE940 |\ $03 bit0 = sub-tile X (bit 0 of X>>4)
+  AND #$01                                  ; $1FE941 | | selects left/right half of metatile
+  ORA $03                                   ; $1FE943 | | (combined with Y sub-tile in bits 0-1)
+  STA $03                                   ; $1FE945 |/
+  PLA                                       ; $1FE947 |\ $28 |= metatile column (X>>5)
+  LSR                                       ; $1FE948 | | merged with row from Y
+  ORA $28                                   ; $1FE949 | |
+  STA $28                                   ; $1FE94B |/
+  ;--- tile lookup loop: scan X positions at fixed Y ---
+.switch_bank:
+  STX $04                                   ; $1FE94D |\ save entity slot
+  LDA $22                                   ; $1FE94F | | switch to stage PRG bank
+  STA $F5                                   ; $1FE951 | |
+  JSR select_PRG_banks                      ; $1FE953 | |
+  LDX $04                                   ; $1FE956 |/ restore entity slot
+  LDY $13                                   ; $1FE958 |\ get metatile column pointer for X screen
+  JSR metatile_column_ptr                    ; $1FE95A |/
+.new_column:
+  JSR metatile_chr_ptr                       ; $1FE95D |  get CHR data pointer for column+row ($28)
+.check_tile:
+  LDY $03                                   ; $1FE960 |\ read metatile index at sub-tile ($03)
+  LDA ($00),y                               ; $1FE962 | | $03 = {0,1,2,3} for TL/TR/BL/BR
+  TAY                                       ; $1FE964 |/
+  LDA $BF00,y                               ; $1FE965 |\ get collision attribute for this tile
+  AND #$F0                                  ; $1FE968 |/ upper nibble = collision type
+  JSR breakable_block_collision              ; $1FE96A |  override if destroyed breakable block
+  JSR code_1FEB8A                           ; $1FE96D |  Proto Man wall override
+  LDY $02                                   ; $1FE970 |\ store result in $42+count
+  STA $0042,y                               ; $1FE972 |/
+  CMP $41                                   ; $1FE975 |\ update max tile type
+  BCC .not_max                              ; $1FE977 | |
+  STA $41                                   ; $1FE979 |/
+.not_max:
+  ORA $10                                   ; $1FE97B |\ accumulate all tile types
+  STA $10                                   ; $1FE97D |/
+  DEC $02                                   ; $1FE97F |\ all check points done?
+  BMI .done_scan                            ; $1FE981 |/
+  ;--- advance to next X check point ---
+  INC $40                                   ; $1FE983 |\ next offset index
+  LDY $40                                   ; $1FE985 |/
+  LDA $12                                   ; $1FE987 |\ save old bit4 of X (16px tile boundary)
+  PHA                                       ; $1FE989 | |
+  AND #$10                                  ; $1FE98A | |
+  STA $04                                   ; $1FE98C |/
+  PLA                                       ; $1FE98E |\ $12 += next X offset
+  CLC                                       ; $1FE98F | |
+  ADC $EC12,y                               ; $1FE990 | |
+  STA $12                                   ; $1FE993 |/
+  AND #$10                                  ; $1FE995 |\ did bit4 change? (crossed 16px tile?)
+  CMP $04                                   ; $1FE997 | |
+  BEQ .check_tile                           ; $1FE999 |/ no → same tile, just re-read
+  LDA $03                                   ; $1FE99B |\ toggle sub-tile X (bit 0)
+  EOR #$01                                  ; $1FE99D | |
+  STA $03                                   ; $1FE99F |/
+  AND #$01                                  ; $1FE9A1 |\ if now odd → just toggled into right half
+  BNE .check_tile                           ; $1FE9A3 |/ same metatile, re-read sub-tile
+  ;--- crossed metatile boundary (X moved 32px) ---
+  INC $28                                   ; $1FE9A5 |\ advance metatile column index
+  LDA $28                                   ; $1FE9A7 | |
+  AND #$07                                  ; $1FE9A9 | | crossed column group? (8 columns)
+  BNE .new_column                           ; $1FE9AB |/ no → same screen, new column
+  ;--- crossed screen boundary ---
+  INC $13                                   ; $1FE9AD |\ next X screen
+  DEC $28                                   ; $1FE9AF | | wrap column index back
+  LDA $28                                   ; $1FE9B1 | | keep row bits, clear column
+  AND #$38                                  ; $1FE9B3 | |
+  STA $28                                   ; $1FE9B5 |/
+  JMP .switch_bank                          ; $1FE9B7 |  re-load metatile data for new screen
 
-code_1FE9BA:
-  CPX #$00                                  ; $1FE9BA |
-  BNE code_1FE9E0                           ; $1FE9BC |
-  LDA $39                                   ; $1FE9BE |
-  BNE code_1FE9E0                           ; $1FE9C0 |
-  LDA $3D                                   ; $1FE9C2 |
-  BNE code_1FE9E0                           ; $1FE9C4 |
-  LDA $30                                   ; $1FE9C6 |
-  CMP #$06                                  ; $1FE9C8 |
-  BEQ code_1FE9E0                           ; $1FE9CA |
-  CMP #$0E                                  ; $1FE9CC |
-  BEQ code_1FE9E0                           ; $1FE9CE |
-  LDY #$06                                  ; $1FE9D0 |
-  LDA $41                                   ; $1FE9D2 |\ $41 = max tile type encountered
-  CMP #$30                                  ; $1FE9D4 | | $30 = damage tile → $3D=$06
-  BEQ code_1FE9DE                           ; $1FE9D6 |/
-  LDY #$0E                                  ; $1FE9D8 |\ $50 = spike → $3D=$0E (death)
-  CMP #$50                                  ; $1FE9DA | |
-  BNE code_1FE9E0                           ; $1FE9DC |/
-code_1FE9DE:
-  STY $3D                                   ; $1FE9DE |  set pending damage/death
-code_1FE9E0:
-  JMP code_1FEB24                           ; $1FE9E0 |
+  ;--- scan complete: check for player damage ---
+.done_scan:
+  CPX #$00                                  ; $1FE9BA |\ only check damage for player (slot 0)
+  BNE .exit                                 ; $1FE9BC |/
+  LDA $39                                   ; $1FE9BE |\ skip if invincibility active
+  BNE .exit                                 ; $1FE9C0 |/
+  LDA $3D                                   ; $1FE9C2 |\ skip if damage already pending
+  BNE .exit                                 ; $1FE9C4 |/
+  LDA $30                                   ; $1FE9C6 |\ skip if player in damage state ($06)
+  CMP #$06                                  ; $1FE9C8 | |
+  BEQ .exit                                 ; $1FE9CA |/
+  CMP #$0E                                  ; $1FE9CC |\ skip if player in death state ($0E)
+  BEQ .exit                                 ; $1FE9CE |/
+  LDY #$06                                  ; $1FE9D0 |  Y = damage state
+  LDA $41                                   ; $1FE9D2 |\ $30 = damage tile?
+  CMP #$30                                  ; $1FE9D4 | |
+  BEQ .set_damage                           ; $1FE9D6 |/ → set $3D = $06
+  LDY #$0E                                  ; $1FE9D8 |  Y = death state
+  CMP #$50                                  ; $1FE9DA |\ $50 = spike tile?
+  BNE .exit                                 ; $1FE9DC |/ no hazard → skip
+.set_damage:
+  STY $3D                                   ; $1FE9DE |  set pending damage/death transition
+.exit:
+  JMP tile_check_cleanup                     ; $1FE9E0 |  restore bank and return
 
 ; -----------------------------------------------
-; check_tile_collision: reads tile attributes under sprite
-; looks up metatile at sprite's position in the level bank,
-; reads collision type from $BF00 tile attribute table.
-; upper nibble of $BF00,y = collision type:
-;   $00 = air (passthrough)
-;   $10 = solid ground
-;   $20 = ladder (climbable, passthrough)
-;   $30 = damage tile (lava/fire — triggers player_damage)
-;   $40 = ladder top (climbable, grab point from above)
-;   $50 = spikes (instant kill — triggers death)
-;   $70 = disappearing block (Gemini Man stages $02/$09 only)
-; results stored in:
-;   $43/$44 = tile type at each foot check point
+; check_tile_collision — vertical-scan tile collision
+; -----------------------------------------------
+; Checks multiple Y positions at a fixed X offset for collisions.
+; Used for wall detection (scanning down the entity's height at a
+; specific horizontal position).
+;
+; parameters:
+;   Y = hitbox config index into $ECE1 offset table
+;   X = entity slot
+; hitbox offset tables:
+;   $ECE1,y = starting offset index (into $ED09)
+;   $ED07,y = number of check points - 1
+;   $ED08,y = X pixel offset (signed, relative to entity X)
+;   $ED09,y = Y pixel offsets (signed, relative to entity Y)
+; results:
+;   $42-$44 = tile type at each check point
 ;   $41     = max (highest priority) tile type encountered
-;   $10     = OR of all tile types (AND #$10 tests solid ground)
-; parameters: Y = hitbox offset index into $ECE1
+;   $10     = OR of all tile types (AND #$10 tests solid)
 ; -----------------------------------------------
 check_tile_collision:
-  LDA $ECE1,y                               ; $1FE9E3 |
-  STA $40                                   ; $1FE9E6 |
-  JSR code_1FEB0C                           ; $1FE9E8 |
-  TAY                                       ; $1FE9EB |
-  LDA $ED07,y                               ; $1FE9EC |
-  STA $02                                   ; $1FE9EF |
-  LDA #$00                                  ; $1FE9F1 |
-  STA $04                                   ; $1FE9F3 |
-  LDA $ED08,y                               ; $1FE9F5 |
-  BPL code_1FE9FC                           ; $1FE9F8 |
-  DEC $04                                   ; $1FE9FA |
-code_1FE9FC:
-  CLC                                       ; $1FE9FC |
-  ADC $0360,x                               ; $1FE9FD |
-  STA $12                                   ; $1FEA00 |
-  LDA $0380,x                               ; $1FEA02 |
-  ADC $04                                   ; $1FEA05 |
-  STA $13                                   ; $1FEA07 |
-  LDA $12                                   ; $1FEA09 |
-  LSR                                       ; $1FEA0B |
-  LSR                                       ; $1FEA0C |
-  LSR                                       ; $1FEA0D |
-  LSR                                       ; $1FEA0E |
-  PHA                                       ; $1FEA0F |
-  AND #$01                                  ; $1FEA10 |
-  STA $03                                   ; $1FEA12 |
-  PLA                                       ; $1FEA14 |
-  LSR                                       ; $1FEA15 |
-  STA $28                                   ; $1FEA16 |
-  LDA $03E0,x                               ; $1FEA18 |
-  BMI code_1FEA41                           ; $1FEA1B |
-  BNE code_1FEA3B                           ; $1FEA1D |
-  LDA $03C0,x                               ; $1FEA1F |
-  CLC                                       ; $1FEA22 |
-  ADC $ED09,y                               ; $1FEA23 |
-  STA $11                                   ; $1FEA26 |
-  LDA $ED09,y                               ; $1FEA28 |
-  BPL code_1FEA31                           ; $1FEA2B |
-  BCC code_1FEA41                           ; $1FEA2D |
-  BCS code_1FEA33                           ; $1FEA2F |
-code_1FEA31:
-  BCS code_1FEA3B                           ; $1FEA31 |
-code_1FEA33:
-  LDA $11                                   ; $1FEA33 |
-  CMP #$F0                                  ; $1FEA35 |
-  BCC code_1FEA6C                           ; $1FEA37 |
-  BCS code_1FEA31                           ; $1FEA39 |
-code_1FEA3B:
-  LDA #$EF                                  ; $1FEA3B |
-  STA $11                                   ; $1FEA3D |
-  BNE code_1FEA6C                           ; $1FEA3F |
-code_1FEA41:
-  LDA #$00                                  ; $1FEA41 |
-  STA $11                                   ; $1FEA43 |
-  BEQ code_1FEA6C                           ; $1FEA45 |
-code_1FEA47:
-  LDA $11                                   ; $1FEA47 |
-  CLC                                       ; $1FEA49 |
-  ADC $ED09,y                               ; $1FEA4A |
-  STA $11                                   ; $1FEA4D |
-  CMP #$F0                                  ; $1FEA4F |
-  BCC code_1FEA5B                           ; $1FEA51 |
-  ADC #$10                                  ; $1FEA53 |
-  STA $11                                   ; $1FEA55 |
-  INC $04                                   ; $1FEA57 |
-  BEQ code_1FEA6C                           ; $1FEA59 |
-code_1FEA5B:
-  INY                                       ; $1FEA5B |
-  STY $40                                   ; $1FEA5C |
-  LDY $02                                   ; $1FEA5E |
-  LDA #$00                                  ; $1FEA60 |
-  STA $0042,y                               ; $1FEA62 |
-  DEC $02                                   ; $1FEA65 |
-  BPL code_1FEA47                           ; $1FEA67 |
-  JMP code_1FEB24                           ; $1FEA69 |
+  LDA $ECE1,y                               ; $1FE9E3 |\ $40 = starting offset index
+  STA $40                                   ; $1FE9E6 |/
+  JSR tile_check_init                        ; $1FE9E8 |  clear accumulators, switch to stage bank
+  TAY                                       ; $1FE9EB |  Y = hitbox config index
+  LDA $ED07,y                               ; $1FE9EC |\ $02 = number of check points - 1
+  STA $02                                   ; $1FE9EF |/
+  ;--- compute fixed X position ---
+  LDA #$00                                  ; $1FE9F1 |\ $04 = sign extension for X offset
+  STA $04                                   ; $1FE9F3 |/
+  LDA $ED08,y                               ; $1FE9F5 |\ X offset (signed)
+  BPL .x_pos                                ; $1FE9F8 |/
+  DEC $04                                   ; $1FE9FA |  negative: $04 = $FF
+.x_pos:
+  CLC                                       ; $1FE9FC |\ $12/$13 = entity_X + X_offset
+  ADC $0360,x                               ; $1FE9FD | | $12 = X pixel
+  STA $12                                   ; $1FEA00 | | $13 = X screen
+  LDA $0380,x                               ; $1FEA02 | |
+  ADC $04                                   ; $1FEA05 | |
+  STA $13                                   ; $1FEA07 |/
+  ;--- convert pixel X ($12) to metatile column/sub-tile ---
+  LDA $12                                   ; $1FEA09 |\ X >> 4 = tile column
+  LSR                                       ; $1FEA0B | |
+  LSR                                       ; $1FEA0C | |
+  LSR                                       ; $1FEA0D | |
+  LSR                                       ; $1FEA0E |/
+  PHA                                       ; $1FEA0F |\ $03 bit0 = sub-tile X (left/right)
+  AND #$01                                  ; $1FEA10 | |
+  STA $03                                   ; $1FEA12 |/
+  PLA                                       ; $1FEA14 |\ $28 = metatile column (X>>5)
+  LSR                                       ; $1FEA15 | |
+  STA $28                                   ; $1FEA16 |/
+  ;--- compute first Y check position ---
+  LDA $03E0,x                               ; $1FEA18 |  Y screen
+  BMI .y_above_screen                       ; $1FEA1B |  negative screen → clamp to 0
+  BNE .y_below_screen                       ; $1FEA1D |  screen > 0 → clamp to $EF
+  LDA $03C0,x                               ; $1FEA1F |\ $11 = entity_Y + first Y offset
+  CLC                                       ; $1FEA22 | |
+  ADC $ED09,y                               ; $1FEA23 | |
+  STA $11                                   ; $1FEA26 |/
+  LDA $ED09,y                               ; $1FEA28 |  check offset sign
+  BPL .y_offset_pos                         ; $1FEA2B |  positive offset
+  BCC .y_above_screen                       ; $1FEA2D |  neg offset + no carry = underflow
+  BCS .y_check_f0                           ; $1FEA2F |  neg offset + carry = ok, check $F0
+.y_offset_pos:
+  BCS .y_below_screen                       ; $1FEA31 |  pos offset + carry = overflow
+.y_check_f0:
+  LDA $11                                   ; $1FEA33 |\ within screen ($00-$EF)?
+  CMP #$F0                                  ; $1FEA35 | |
+  BCC .y_ready                              ; $1FEA37 |/ yes → proceed to tile lookup
+  BCS .y_offset_pos                         ; $1FEA39 |  wrapped past $F0 → below screen
+.y_below_screen:
+  LDA #$EF                                  ; $1FEA3B |\ clamp to bottom of screen
+  STA $11                                   ; $1FEA3D | |
+  BNE .y_ready                              ; $1FEA3F |/
+.y_above_screen:
+  LDA #$00                                  ; $1FEA41 |\ clamp to top of screen
+  STA $11                                   ; $1FEA43 | |
+  BEQ .y_ready                              ; $1FEA45 |/
+  ;--- advance to next Y check point (offscreen skip loop) ---
+.advance_y:
+  LDA $11                                   ; $1FEA47 |\ $11 += next Y offset
+  CLC                                       ; $1FEA49 | |
+  ADC $ED09,y                               ; $1FEA4A | |
+  STA $11                                   ; $1FEA4D |/
+  CMP #$F0                                  ; $1FEA4F |\ crossed screen boundary?
+  BCC .skip_point                           ; $1FEA51 |/ no → skip this point
+  ADC #$10                                  ; $1FEA53 |\ wrap into next screen
+  STA $11                                   ; $1FEA55 | |
+  INC $04                                   ; $1FEA57 | | Y screen++
+  BEQ .y_ready                              ; $1FEA59 |/ reached screen 0 → start checking
+.skip_point:
+  INY                                       ; $1FEA5B |\ advance offset index
+  STY $40                                   ; $1FEA5C |/
+  LDY $02                                   ; $1FEA5E |\ zero this check point's result
+  LDA #$00                                  ; $1FEA60 | |
+  STA $0042,y                               ; $1FEA62 |/
+  DEC $02                                   ; $1FEA65 |\ more points? continue skipping
+  BPL .advance_y                            ; $1FEA67 |/
+  JMP tile_check_cleanup                     ; $1FEA69 |  all offscreen → done
 
-code_1FEA6C:
-  LDA $11                                   ; $1FEA6C |
-  LSR                                       ; $1FEA6E |
-  LSR                                       ; $1FEA6F |
-  PHA                                       ; $1FEA70 |
-  AND #$38                                  ; $1FEA71 |
-  ORA $28                                   ; $1FEA73 |
-  STA $28                                   ; $1FEA75 |
-  PLA                                       ; $1FEA77 |
-  LSR                                       ; $1FEA78 |
-  AND #$02                                  ; $1FEA79 |
-  ORA $03                                   ; $1FEA7B |
-  STA $03                                   ; $1FEA7D |
-  STX $04                                   ; $1FEA7F |
-  LDA $22                                   ; $1FEA81 |
-  STA $F5                                   ; $1FEA83 |
-  JSR select_PRG_banks                      ; $1FEA85 |
-  LDX $04                                   ; $1FEA88 |
-  LDY $13                                   ; $1FEA8A |
-  JSR metatile_column_ptr                           ; $1FEA8C |
-code_1FEA8F:
-  JSR metatile_chr_ptr                           ; $1FEA8F |
-code_1FEA92:
-  LDY $03                                   ; $1FEA92 |
-  LDA ($00),y                               ; $1FEA94 |  metatile index at position
-  TAY                                       ; $1FEA96 |
-  LDA $BF00,y                               ; $1FEA97 |  tile attribute byte
-  AND #$F0                                  ; $1FEA9A |  upper nibble = collision type
-  JSR breakable_block_collision                           ; $1FEA9C |  special: disappearing block ($70)
-  JSR code_1FEB8A                           ; $1FEA9F |  special: Proto Man wall override
-  LDY $02                                   ; $1FEAA2 |
-  STA $0042,y                               ; $1FEAA4 |  store in $43 or $44
-  CMP $41                                   ; $1FEAA7 |\ track max tile type
-  BCC code_1FEAAD                           ; $1FEAA9 | | (highest priority hazard wins)
+  ;--- convert pixel Y ($11) to metatile row and begin scan ---
+.y_ready:
+  LDA $11                                   ; $1FEA6C |\ Y >> 2 = 4-pixel rows
+  LSR                                       ; $1FEA6E | |
+  LSR                                       ; $1FEA6F |/
+  PHA                                       ; $1FEA70 |\ $28 |= metatile row (bits 5-3)
+  AND #$38                                  ; $1FEA71 | | merged with column from X
+  ORA $28                                   ; $1FEA73 | |
+  STA $28                                   ; $1FEA75 |/
+  PLA                                       ; $1FEA77 |\ $03 bit1 = sub-tile Y (top/bottom)
+  LSR                                       ; $1FEA78 | |
+  AND #$02                                  ; $1FEA79 | |
+  ORA $03                                   ; $1FEA7B | |
+  STA $03                                   ; $1FEA7D |/
+  ;--- tile lookup loop: scan Y positions at fixed X ---
+  STX $04                                   ; $1FEA7F |\ switch to stage PRG bank
+  LDA $22                                   ; $1FEA81 | |
+  STA $F5                                   ; $1FEA83 | |
+  JSR select_PRG_banks                      ; $1FEA85 | |
+  LDX $04                                   ; $1FEA88 |/ restore entity slot
+  LDY $13                                   ; $1FEA8A |\ get metatile column pointer for X screen
+  JSR metatile_column_ptr                    ; $1FEA8C |/
+.new_row:
+  JSR metatile_chr_ptr                       ; $1FEA8F |  get CHR data pointer for column+row ($28)
+.check_tile:
+  LDY $03                                   ; $1FEA92 |\ read metatile index at sub-tile ($03)
+  LDA ($00),y                               ; $1FEA94 | |
+  TAY                                       ; $1FEA96 |/
+  LDA $BF00,y                               ; $1FEA97 |\ get collision attribute
+  AND #$F0                                  ; $1FEA9A |/ upper nibble = collision type
+  JSR breakable_block_collision              ; $1FEA9C |  override if destroyed breakable block
+  JSR code_1FEB8A                           ; $1FEA9F |  Proto Man wall override
+  LDY $02                                   ; $1FEAA2 |\ store result in $42+count
+  STA $0042,y                               ; $1FEAA4 |/
+  CMP $41                                   ; $1FEAA7 |\ update max tile type
+  BCC .not_max                              ; $1FEAA9 | |
   STA $41                                   ; $1FEAAB |/
-code_1FEAAD:
+.not_max:
   ORA $10                                   ; $1FEAAD |\ accumulate all tile types
-  STA $10                                   ; $1FEAAF |/ (AND #$10 later tests solid)
-  DEC $02                                   ; $1FEAB1 |
-  BMI code_1FEAE9                           ; $1FEAB3 |
-  INC $40                                   ; $1FEAB5 |
-  LDY $40                                   ; $1FEAB7 |
-  LDA $11                                   ; $1FEAB9 |
-  PHA                                       ; $1FEABB |
-  AND #$10                                  ; $1FEABC |
-  STA $04                                   ; $1FEABE |
-  PLA                                       ; $1FEAC0 |
-  CLC                                       ; $1FEAC1 |
-  ADC $ED09,y                               ; $1FEAC2 |
-  STA $11                                   ; $1FEAC5 |
-  AND #$10                                  ; $1FEAC7 |
-  CMP $04                                   ; $1FEAC9 |
-  BEQ code_1FEA92                           ; $1FEACB |
-  LDA $03                                   ; $1FEACD |
-  EOR #$02                                  ; $1FEACF |
-  STA $03                                   ; $1FEAD1 |
-  AND #$02                                  ; $1FEAD3 |
-  BNE code_1FEA92                           ; $1FEAD5 |
-  LDA $28                                   ; $1FEAD7 |
-  PHA                                       ; $1FEAD9 |
-  CLC                                       ; $1FEADA |
-  ADC #$08                                  ; $1FEADB |
-  STA $28                                   ; $1FEADD |
-  CMP #$40                                  ; $1FEADF |
-  PLA                                       ; $1FEAE1 |
-  BCC code_1FEA8F                           ; $1FEAE2 |
-  STA $28                                   ; $1FEAE4 |
-  JMP code_1FEA92                           ; $1FEAE6 |
+  STA $10                                   ; $1FEAAF |/
+  DEC $02                                   ; $1FEAB1 |\ all check points done?
+  BMI .done_scan                            ; $1FEAB3 |/
+  ;--- advance to next Y check point ---
+  INC $40                                   ; $1FEAB5 |\ next offset index
+  LDY $40                                   ; $1FEAB7 |/
+  LDA $11                                   ; $1FEAB9 |\ save old bit4 of Y (16px tile boundary)
+  PHA                                       ; $1FEABB | |
+  AND #$10                                  ; $1FEABC | |
+  STA $04                                   ; $1FEABE |/
+  PLA                                       ; $1FEAC0 |\ $11 += next Y offset
+  CLC                                       ; $1FEAC1 | |
+  ADC $ED09,y                               ; $1FEAC2 | |
+  STA $11                                   ; $1FEAC5 |/
+  AND #$10                                  ; $1FEAC7 |\ did bit4 change? (crossed 16px tile?)
+  CMP $04                                   ; $1FEAC9 | |
+  BEQ .check_tile                           ; $1FEACB |/ no → same tile, just re-read
+  LDA $03                                   ; $1FEACD |\ toggle sub-tile Y (bit 1)
+  EOR #$02                                  ; $1FEACF | |
+  STA $03                                   ; $1FEAD1 |/
+  AND #$02                                  ; $1FEAD3 |\ if now set → toggled into bottom half
+  BNE .check_tile                           ; $1FEAD5 |/ same metatile, re-read sub-tile
+  ;--- crossed metatile row boundary (Y moved 32px) ---
+  LDA $28                                   ; $1FEAD7 |\ advance metatile row ($28 += $08)
+  PHA                                       ; $1FEAD9 | |
+  CLC                                       ; $1FEADA | |
+  ADC #$08                                  ; $1FEADB | |
+  STA $28                                   ; $1FEADD |/
+  CMP #$40                                  ; $1FEADF |\ past screen bottom? ($40 = 8 rows)
+  PLA                                       ; $1FEAE1 | |
+  BCC .new_row                              ; $1FEAE2 |/ no → same screen, new row
+  STA $28                                   ; $1FEAE4 |\ restore row, check last sub-tile
+  JMP .check_tile                           ; $1FEAE6 |/ (clamp — don't scroll to next screen)
 
-code_1FEAE9:
-  CPX #$00                                  ; $1FEAE9 |
-  BNE code_1FEB09                           ; $1FEAEB |
-  LDA $39                                   ; $1FEAED |
-  BNE code_1FEB09                           ; $1FEAEF |
-  LDA $3D                                   ; $1FEAF1 |
-  BNE code_1FEB09                           ; $1FEAF3 |
-  LDA $30                                   ; $1FEAF5 |
-  CMP #$06                                  ; $1FEAF7 |
-  BEQ code_1FEB09                           ; $1FEAF9 |
-  CMP #$0E                                  ; $1FEAFB |
-  BEQ code_1FEB09                           ; $1FEAFD |
-  LDA $41                                   ; $1FEAFF |\ $50 = spike tile
-  CMP #$50                                  ; $1FEB01 | | instant kill
-  BNE code_1FEB09                           ; $1FEB03 |/
-  LDA #$0E                                  ; $1FEB05 |\ $3D = $0E → death state
+  ;--- scan complete: check for player spike damage ---
+.done_scan:
+  CPX #$00                                  ; $1FEAE9 |\ only check damage for player (slot 0)
+  BNE .v_exit                               ; $1FEAEB |/
+  LDA $39                                   ; $1FEAED |\ skip if invincibility active
+  BNE .v_exit                               ; $1FEAEF |/
+  LDA $3D                                   ; $1FEAF1 |\ skip if damage already pending
+  BNE .v_exit                               ; $1FEAF3 |/
+  LDA $30                                   ; $1FEAF5 |\ skip if player in damage state ($06)
+  CMP #$06                                  ; $1FEAF7 | |
+  BEQ .v_exit                               ; $1FEAF9 |/
+  CMP #$0E                                  ; $1FEAFB |\ skip if player in death state ($0E)
+  BEQ .v_exit                               ; $1FEAFD |/
+  LDA $41                                   ; $1FEAFF |\ $50 = spike tile → instant kill
+  CMP #$50                                  ; $1FEB01 | |
+  BNE .v_exit                               ; $1FEB03 |/
+  LDA #$0E                                  ; $1FEB05 |\ set pending death transition
   STA $3D                                   ; $1FEB07 |/
-code_1FEB09:
-  JMP code_1FEB24                           ; $1FEB09 |
+.v_exit:
+  JMP tile_check_cleanup                     ; $1FEB09 |  restore bank and return
 
-code_1FEB0C:
-  PHA                                       ; $1FEB0C |
-  TXA                                       ; $1FEB0D |
-  PHA                                       ; $1FEB0E |
-  LDA #$00                                  ; $1FEB0F |
-  STA $10                                   ; $1FEB11 |
-  STA $41                                   ; $1FEB13 |
-  LDA $F5                                   ; $1FEB15 |
-  STA $2F                                   ; $1FEB17 |
-  LDA $22                                   ; $1FEB19 |
-  STA $F5                                   ; $1FEB1B |
-  JSR select_PRG_banks                      ; $1FEB1D |
-  PLA                                       ; $1FEB20 |
-  TAX                                       ; $1FEB21 |
-  PLA                                       ; $1FEB22 |
+; -----------------------------------------------
+; tile_check_init — initialize tile collision check
+; -----------------------------------------------
+; Clears result accumulators ($10, $41), saves the current PRG bank
+; to $2F, and switches to the stage PRG bank ($22) so the tile
+; collision code can read metatile/attribute data from $A000-$BFFF.
+; Preserves A and X across the bank switch.
+; -----------------------------------------------
+tile_check_init:
+  PHA                                       ; $1FEB0C |\ save A (table index)
+  TXA                                       ; $1FEB0D | |
+  PHA                                       ; $1FEB0E |/ save X (entity slot)
+  LDA #$00                                  ; $1FEB0F |\ clear collision accumulators
+  STA $10                                   ; $1FEB11 | | $10 = OR of all tile types
+  STA $41                                   ; $1FEB13 |/ $41 = max tile type
+  LDA $F5                                   ; $1FEB15 |\ save current PRG bank to $2F
+  STA $2F                                   ; $1FEB17 |/
+  LDA $22                                   ; $1FEB19 |\ switch to stage PRG bank
+  STA $F5                                   ; $1FEB1B | |
+  JSR select_PRG_banks                      ; $1FEB1D |/
+  PLA                                       ; $1FEB20 |\ restore X and A
+  TAX                                       ; $1FEB21 | |
+  PLA                                       ; $1FEB22 |/
   RTS                                       ; $1FEB23 |
 
-code_1FEB24:
-  TXA                                       ; $1FEB24 |
-  PHA                                       ; $1FEB25 |
-  LDA $2F                                   ; $1FEB26 |
-  STA $F5                                   ; $1FEB28 |
-  JSR select_PRG_banks                      ; $1FEB2A |
-  PLA                                       ; $1FEB2D |
-  TAX                                       ; $1FEB2E |
+; -----------------------------------------------
+; tile_check_cleanup — restore PRG bank after tile collision
+; -----------------------------------------------
+; Restores the PRG bank saved in $2F by tile_check_init.
+; Preserves X.
+; -----------------------------------------------
+tile_check_cleanup:
+  TXA                                       ; $1FEB24 |\ save X
+  PHA                                       ; $1FEB25 |/
+  LDA $2F                                   ; $1FEB26 |\ restore saved PRG bank
+  STA $F5                                   ; $1FEB28 | |
+  JSR select_PRG_banks                      ; $1FEB2A |/
+  PLA                                       ; $1FEB2D |\ restore X
+  TAX                                       ; $1FEB2E |/
   RTS                                       ; $1FEB2F |
 
 ; ===========================================================================
@@ -6550,62 +6603,91 @@ code_1FEBC0:
   db $EC, $14, $14, $02, $10, $E8, $18, $18 ; $1FEDBE |
   db $02, $F0, $E8, $18, $18                ; $1FEDC6 |
 
-code_1FEDCB:
-  LDA $12                                   ; $1FEDCB |
-  AND #$0F                                  ; $1FEDCD |
-  STA $12                                   ; $1FEDCF |
-  LDA $0360,x                               ; $1FEDD1 |
-  SEC                                       ; $1FEDD4 |
-  SBC $12                                   ; $1FEDD5 |
-  STA $0360,x                               ; $1FEDD7 |
-  LDA $0380,x                               ; $1FEDDA |
-  SBC #$00                                  ; $1FEDDD |
-  STA $0380,x                               ; $1FEDDF |
+; -----------------------------------------------
+; snap_x_to_wall_right — push entity left after hitting a wall on its right
+; -----------------------------------------------
+; After a rightward collision, aligns entity X to the left edge of the
+; solid tile. $12 = collision check X; lower 4 bits = how far into the
+; 16-pixel tile. Subtracts that offset from entity X position.
+; -----------------------------------------------
+snap_x_to_wall_right:
+  LDA $12                                   ; $1FEDCB |\ offset = $12 & $0F
+  AND #$0F                                  ; $1FEDCD | | (sub-tile penetration depth)
+  STA $12                                   ; $1FEDCF |/
+  LDA $0360,x                               ; $1FEDD1 |\ X pixel -= offset
+  SEC                                       ; $1FEDD4 | | (push entity left)
+  SBC $12                                   ; $1FEDD5 | |
+  STA $0360,x                               ; $1FEDD7 |/
+  LDA $0380,x                               ; $1FEDDA |\ X screen -= borrow
+  SBC #$00                                  ; $1FEDDD | |
+  STA $0380,x                               ; $1FEDDF |/
   RTS                                       ; $1FEDE2 |
 
-code_1FEDE3:
-  LDA $12                                   ; $1FEDE3 |
-  AND #$0F                                  ; $1FEDE5 |
-  EOR #$0F                                  ; $1FEDE7 |
-  SEC                                       ; $1FEDE9 |
-  ADC $0360,x                               ; $1FEDEA |
-  STA $0360,x                               ; $1FEDED |
-  LDA $0380,x                               ; $1FEDF0 |
-  ADC #$00                                  ; $1FEDF3 |
-  STA $0380,x                               ; $1FEDF5 |
+; -----------------------------------------------
+; snap_x_to_wall_left — push entity right after hitting a wall on its left
+; -----------------------------------------------
+; After a leftward collision, aligns entity X to the right edge of the
+; solid tile + 1. $12 = collision check X; computes (16 - offset) and
+; adds to entity X. EOR #$0F + SEC/ADC = add (16 - low_nibble).
+; -----------------------------------------------
+snap_x_to_wall_left:
+  LDA $12                                   ; $1FEDE3 |\ offset = ($12 & $0F) ^ $0F
+  AND #$0F                                  ; $1FEDE5 | | = 15 - sub-tile position
+  EOR #$0F                                  ; $1FEDE7 |/
+  SEC                                       ; $1FEDE9 |\ X pixel += (16 - sub_tile_pos)
+  ADC $0360,x                               ; $1FEDEA | | SEC + ADC = add offset + 1
+  STA $0360,x                               ; $1FEDED | | (push entity right)
+  LDA $0380,x                               ; $1FEDF0 | | X screen += carry
+  ADC #$00                                  ; $1FEDF3 | |
+  STA $0380,x                               ; $1FEDF5 |/
   RTS                                       ; $1FEDF8 |
 
-code_1FEDF9:
-  LDA $11                                   ; $1FEDF9 |
-  AND #$0F                                  ; $1FEDFB |
-  EOR #$0F                                  ; $1FEDFD |
-  SEC                                       ; $1FEDFF |
-  ADC $03C0,x                               ; $1FEE00 |
-  STA $03C0,x                               ; $1FEE03 |
-  CMP #$F0                                  ; $1FEE06 |
-  BCC code_1FEE12                           ; $1FEE08 |
-  ADC #$0F                                  ; $1FEE0A |
-  STA $03C0,x                               ; $1FEE0C |
-  INC $03E0,x                               ; $1FEE0F |
-code_1FEE12:
+; -----------------------------------------------
+; snap_y_to_ceil — push entity down after hitting a ceiling above
+; -----------------------------------------------
+; After an upward collision, aligns entity Y to the bottom of the
+; solid tile + 1. Same math as snap_x_to_wall_left but for Y axis.
+; Handles downward screen wrap at Y=$F0.
+; -----------------------------------------------
+snap_y_to_ceil:
+  LDA $11                                   ; $1FEDF9 |\ offset = ($11 & $0F) ^ $0F
+  AND #$0F                                  ; $1FEDFB | |
+  EOR #$0F                                  ; $1FEDFD |/
+  SEC                                       ; $1FEDFF |\ Y pixel += (16 - sub_tile_pos)
+  ADC $03C0,x                               ; $1FEE00 | | (push entity down)
+  STA $03C0,x                               ; $1FEE03 |/
+  CMP #$F0                                  ; $1FEE06 |\ screen height = $F0
+  BCC .done                                 ; $1FEE08 |/ within screen? done
+  ADC #$0F                                  ; $1FEE0A |\ wrap to next screen down
+  STA $03C0,x                               ; $1FEE0C | |
+  INC $03E0,x                               ; $1FEE0F |/ Y screen++
+.done:
   RTS                                       ; $1FEE12 |
 
-code_1FEE13:
-  LDA $11                                   ; $1FEE13 |
-  PHA                                       ; $1FEE15 |
-  AND #$0F                                  ; $1FEE16 |
-  STA $11                                   ; $1FEE18 |
-  LDA $03C0,x                               ; $1FEE1A |
-  SEC                                       ; $1FEE1D |
-  SBC $11                                   ; $1FEE1E |
-  STA $03C0,x                               ; $1FEE20 |
-  BCS code_1FEE2D                           ; $1FEE23 |
-  SBC #$0F                                  ; $1FEE25 |
-  STA $03C0,x                               ; $1FEE27 |
-  DEC $03E0,x                               ; $1FEE2A |
-code_1FEE2D:
-  PLA                                       ; $1FEE2D |
-  STA $11                                   ; $1FEE2E |
+; -----------------------------------------------
+; snap_y_to_floor — push entity up after landing on a floor below
+; -----------------------------------------------
+; After a downward collision, aligns entity Y to the top of the
+; solid tile. $11 = collision check Y; subtracts low nibble from
+; entity Y. Preserves $11 (restored from stack after adjustment).
+; Handles upward screen wrap (underflow).
+; -----------------------------------------------
+snap_y_to_floor:
+  LDA $11                                   ; $1FEE13 |\ save original $11
+  PHA                                       ; $1FEE15 |/
+  AND #$0F                                  ; $1FEE16 |\ offset = $11 & $0F
+  STA $11                                   ; $1FEE18 |/ (sub-tile penetration depth)
+  LDA $03C0,x                               ; $1FEE1A |\ Y pixel -= offset
+  SEC                                       ; $1FEE1D | | (push entity up)
+  SBC $11                                   ; $1FEE1E | |
+  STA $03C0,x                               ; $1FEE20 |/
+  BCS .no_wrap                              ; $1FEE23 |\ no underflow? done
+  SBC #$0F                                  ; $1FEE25 |\ wrap to previous screen
+  STA $03C0,x                               ; $1FEE27 | |
+  DEC $03E0,x                               ; $1FEE2A |/ Y screen--
+.no_wrap:
+  PLA                                       ; $1FEE2D |\ restore original $11
+  STA $11                                   ; $1FEE2E |/
   RTS                                       ; $1FEE30 |
 
 code_1FEE31:
@@ -6721,7 +6803,7 @@ code_1FEEAB:
   LDA #$00                                  ; $1FEF17 |
   STA $01                                   ; $1FEF19 |
   LDA $11                                   ; $1FEF1B |
-  JSR code_1FE88D                           ; $1FEF1D |
+  JSR .calc_chr_offset                           ; $1FEF1D |
   JSR metatile_to_chr_tiles_continue                           ; $1FEF20 |
   JMP code_1FEF2D                           ; $1FEF23 |
 
@@ -6900,427 +6982,479 @@ fill_nametable_progressive:
 ppu_column_offsets:
   db $03, $07, $0B, $0F                     ; $1FF030 |
 
-code_1FF034:
-  INC $95                                   ; $1FF034 |
-  INC $4F                                   ; $1FF036 |
-  LDA $95                                   ; $1FF038 |
-  LSR                                       ; $1FF03A |
-  BCS code_1FF055                           ; $1FF03B |
-  JSR code_1FF298                           ; $1FF03D |
-  LDX #$00                                  ; $1FF040 |
-  STX $96                                   ; $1FF042 |
-code_1FF044:
-  LDA $0300,x                               ; $1FF044 |
-  BPL code_1FF04C                           ; $1FF047 |
-  JSR code_1FF06B                           ; $1FF049 |
-code_1FF04C:
-  INC $96                                   ; $1FF04C |
-  LDX $96                                   ; $1FF04E |
-  CPX #$20                                  ; $1FF050 |
-  BNE code_1FF044                           ; $1FF052 |
+; --- update_entity_sprites ---
+; main per-frame entity rendering loop
+; iterates all 32 entity slots (0-31), alternating direction each frame
+; on even frames: draws HUD first, then slots 0→31
+; on odd frames: slots 31→0, then draws HUD
+; $95 = global frame counter, $96 = current slot index
+; $97 = OAM buffer write index (used by sprite assembly routines)
+update_entity_sprites:
+  INC $95                                   ; $1FF034 | advance global frame counter
+  INC $4F                                   ; $1FF036 | advance secondary counter
+  LDA $95                                   ; $1FF038 |\
+  LSR                                       ; $1FF03A | | even frame? forward iteration
+  BCS .reverse                              ; $1FF03B |/  odd? reverse
+  JSR draw_energy_bars                      ; $1FF03D | draw HUD bars first on even frames
+  LDX #$00                                  ; $1FF040 |\
+  STX $96                                   ; $1FF042 |/ start at slot 0
+.loop_fwd:
+  LDA $0300,x                               ; $1FF044 |\ bit 7 = entity active
+  BPL .skip_fwd                             ; $1FF047 |/ skip inactive
+  JSR process_entity_display                ; $1FF049 | render this entity
+.skip_fwd:
+  INC $96                                   ; $1FF04C |\
+  LDX $96                                   ; $1FF04E | | next slot
+  CPX #$20                                  ; $1FF050 | | 32 slots total
+  BNE .loop_fwd                             ; $1FF052 |/
   RTS                                       ; $1FF054 |
 
-code_1FF055:
-  LDX #$1F                                  ; $1FF055 |
-  STX $96                                   ; $1FF057 |
-code_1FF059:
-  LDA $0300,x                               ; $1FF059 |
-  BPL code_1FF061                           ; $1FF05C |
-  JSR code_1FF06B                           ; $1FF05E |
-code_1FF061:
-  DEC $96                                   ; $1FF061 |
-  LDX $96                                   ; $1FF063 |
-  BPL code_1FF059                           ; $1FF065 |
-  JSR code_1FF298                           ; $1FF067 |
+.reverse:
+  LDX #$1F                                  ; $1FF055 |\
+  STX $96                                   ; $1FF057 |/ start at slot 31
+.loop_rev:
+  LDA $0300,x                               ; $1FF059 |\ bit 7 = entity active
+  BPL .skip_rev                             ; $1FF05C |/ skip inactive
+  JSR process_entity_display                ; $1FF05E | render this entity
+.skip_rev:
+  DEC $96                                   ; $1FF061 |\
+  LDX $96                                   ; $1FF063 | | previous slot
+  BPL .loop_rev                             ; $1FF065 |/
+  JSR draw_energy_bars                      ; $1FF067 | draw HUD bars last on odd frames
   RTS                                       ; $1FF06A |
 
-code_1FF06B:
-  LDA $0580,x                               ; $1FF06B |
-  AND #$10                                  ; $1FF06E |
-  BEQ code_1FF0F1                           ; $1FF070 |
-  LDA $0360,x                               ; $1FF072 |
-  SEC                                       ; $1FF075 |
-  SBC $FC                                   ; $1FF076 |
-  STA $13                                   ; $1FF078 |
-  LDA $0380,x                               ; $1FF07A |
-  SBC $F9                                   ; $1FF07D |
-  BNE code_1FF091                           ; $1FF07F |
-  LDA $03E0,x                               ; $1FF081 |
-  BEQ code_1FF0F6                           ; $1FF084 |
-  CPX #$00                                  ; $1FF086 |
-  BEQ code_1FF0AF                           ; $1FF088 |
-  LDA $03E0,x                               ; $1FF08A |
-  BMI code_1FF0AF                           ; $1FF08D |
-  BPL code_1FF0A4                           ; $1FF08F |
-code_1FF091:
-  LDA $0580,x                               ; $1FF091 |
-  AND #$08                                  ; $1FF094 |
-  BEQ code_1FF0A4                           ; $1FF096 |
-  LDA $13                                   ; $1FF098 |
-  BCS code_1FF0A0                           ; $1FF09A |
-  EOR #$FF                                  ; $1FF09C |
-  ADC #$01                                  ; $1FF09E |
-code_1FF0A0:
-  CMP #$48                                  ; $1FF0A0 |
-  BCC code_1FF0AF                           ; $1FF0A2 |
-code_1FF0A4:
-  LDA #$00                                  ; $1FF0A4 |
-  STA $0300,x                               ; $1FF0A6 |
-  LDA #$FF                                  ; $1FF0A9 |
-  STA $04C0,x                               ; $1FF0AB |
+; --- process_entity_display ---
+; per-entity display handler: screen culling, death/damage, OAM assembly
+; X = entity slot index (0-31)
+; $FC/$F9 = camera scroll X pixel/screen
+; $12/$13 = screen Y/X position for OAM drawing
+process_entity_display:
+  LDA $0580,x                               ; $1FF06B |\
+  AND #$10                                  ; $1FF06E | | bit 4 = uses world coordinates
+  BEQ .screen_fixed                         ; $1FF070 |/  (needs camera subtraction)
+  LDA $0360,x                               ; $1FF072 |\
+  SEC                                       ; $1FF075 | | screen X = entity X - camera X
+  SBC $FC                                   ; $1FF076 | |
+  STA $13                                   ; $1FF078 |/
+  LDA $0380,x                               ; $1FF07A |\ entity X screen - camera screen
+  SBC $F9                                   ; $1FF07D | | if different screen, offscreen
+  BNE .diff_screen                          ; $1FF07F |/
+  LDA $03E0,x                               ; $1FF081 |\ Y screen = 0? → on same screen
+  BEQ .set_draw_pos                         ; $1FF084 |/
+  CPX #$00                                  ; $1FF086 |\ player? keep visible
+  BEQ .on_screen                            ; $1FF088 |/
+  LDA $03E0,x                               ; $1FF08A |\ Y screen negative? keep visible
+  BMI .on_screen                            ; $1FF08D |/ Y screen positive? deactivate
+  BPL .deactivate                           ; $1FF08F |
+.diff_screen:
+  LDA $0580,x                               ; $1FF091 |\ bit 3 = wide offscreen margin
+  AND #$08                                  ; $1FF094 | | (keep alive within 72px of edge)
+  BEQ .deactivate                           ; $1FF096 |/
+  LDA $13                                   ; $1FF098 |\ take absolute value of screen X
+  BCS .check_margin                         ; $1FF09A | |
+  EOR #$FF                                  ; $1FF09C | | negate if negative
+  ADC #$01                                  ; $1FF09E |/
+.check_margin:
+  CMP #$48                                  ; $1FF0A0 |\ within 72px margin?
+  BCC .on_screen                            ; $1FF0A2 |/ yes → keep alive
+.deactivate:
+  LDA #$00                                  ; $1FF0A4 |\ deactivate entity
+  STA $0300,x                               ; $1FF0A6 |/
+  LDA #$FF                                  ; $1FF0A9 |\ mark as despawned
+  STA $04C0,x                               ; $1FF0AB |/
   RTS                                       ; $1FF0AE |
 
-code_1FF0AF:
-  LDA $0580,x                               ; $1FF0AF |
-  AND #$7F                                  ; $1FF0B2 |
-  STA $0580,x                               ; $1FF0B4 |
-  CPX #$00                                  ; $1FF0B7 |
-  BNE code_1FF0EE                           ; $1FF0B9 |
-  LDA $17                                   ; $1FF0BB |
-  AND #$01                                  ; $1FF0BD |
-  BNE code_1FF0D9                           ; $1FF0BF |
-  LDA $03E0                                 ; $1FF0C1 |
-  BMI code_1FF0EE                           ; $1FF0C4 |
-  LDA #$0E                                  ; $1FF0C6 |
-  CMP $30                                   ; $1FF0C8 |
-  BEQ code_1FF0D8                           ; $1FF0CA |
-  STA $30                                   ; $1FF0CC |
-  LDA #$F2                                  ; $1FF0CE |
-  JSR submit_sound_ID                       ; $1FF0D0 |
-  LDA #$17                                  ; $1FF0D3 |
-  JSR submit_sound_ID                       ; $1FF0D5 |
-code_1FF0D8:
+.on_screen:
+  LDA $0580,x                               ; $1FF0AF |\
+  AND #$7F                                  ; $1FF0B2 | | clear bit 7 (drawn flag)
+  STA $0580,x                               ; $1FF0B4 |/
+  CPX #$00                                  ; $1FF0B7 |\ not player? skip to sprite draw
+  BNE .draw                                 ; $1FF0B9 |/
+  LDA $17                                   ; $1FF0BB |\ $17 bit 0 = ??? flag
+  AND #$01                                  ; $1FF0BD | |
+  BNE .player_check_landing                 ; $1FF0BF |/
+  LDA $03E0                                 ; $1FF0C1 |\ player Y screen negative? draw
+  BMI .draw                                 ; $1FF0C4 |/
+  LDA #$0E                                  ; $1FF0C6 |\ set player state = $0E (death)
+  CMP $30                                   ; $1FF0C8 | | if already dead, skip
+  BEQ .death_ret                            ; $1FF0CA |/
+  STA $30                                   ; $1FF0CC | store death state
+  LDA #$F2                                  ; $1FF0CE |\ play death sound
+  JSR submit_sound_ID                       ; $1FF0D0 |/
+  LDA #$17                                  ; $1FF0D3 |\ play death music
+  JSR submit_sound_ID                       ; $1FF0D5 |/
+.death_ret:
   RTS                                       ; $1FF0D8 |
 
-code_1FF0D9:
-  LDA $03E0                                 ; $1FF0D9 |
-  CMP #$01                                  ; $1FF0DC |
-  BNE code_1FF0EE                           ; $1FF0DE |
-  LDA #$01                                  ; $1FF0E0 |
-  STA $30                                   ; $1FF0E2 |
-  LDA #$10                                  ; $1FF0E4 |
-  STA $0440                                 ; $1FF0E6 |
-  LDA #$0D                                  ; $1FF0E9 |
-  STA $0460                                 ; $1FF0EB |
-code_1FF0EE:
-  JMP code_1FF108                           ; $1FF0EE |
+.player_check_landing:
+  LDA $03E0                                 ; $1FF0D9 |\ Y screen = 1? (landed from above)
+  CMP #$01                                  ; $1FF0DC | |
+  BNE .draw                                 ; $1FF0DE |/
+  LDA #$01                                  ; $1FF0E0 |\ set player state = $01 (airborne)
+  STA $30                                   ; $1FF0E2 |/
+  LDA #$10                                  ; $1FF0E4 |\ set Y subpixel speed = $10
+  STA $0440                                 ; $1FF0E6 |/
+  LDA #$0D                                  ; $1FF0E9 |\ set Y velocity = $0D (falling fast)
+  STA $0460                                 ; $1FF0EB |/
+.draw:
+  JMP setup_sprite_render                   ; $1FF0EE |
 
-code_1FF0F1:
-  LDA $0360,x                               ; $1FF0F1 |
-  STA $13                                   ; $1FF0F4 |
-code_1FF0F6:
-  LDA $03C0,x                               ; $1FF0F6 |
-  STA $12                                   ; $1FF0F9 |
-  LDA $0580,x                               ; $1FF0FB |
-  ORA #$80                                  ; $1FF0FE |
-  STA $0580,x                               ; $1FF100 |
-  AND #$04                                  ; $1FF103 |
-  BEQ code_1FF108                           ; $1FF105 |
-code_1FF107:
+.screen_fixed:
+  LDA $0360,x                               ; $1FF0F1 |\ for screen-fixed entities,
+  STA $13                                   ; $1FF0F4 |/ X pos is already screen-relative
+.set_draw_pos:
+  LDA $03C0,x                               ; $1FF0F6 |\ Y pixel → draw Y position
+  STA $12                                   ; $1FF0F9 |/
+  LDA $0580,x                               ; $1FF0FB |\
+  ORA #$80                                  ; $1FF0FE | | set bit 7 (mark as drawn)
+  STA $0580,x                               ; $1FF100 |/
+  AND #$04                                  ; $1FF103 |\ bit 2 = invisible (skip OAM)
+  BEQ setup_sprite_render                   ; $1FF105 |/
+.ret:
   RTS                                       ; $1FF107 |
 
-code_1FF108:
-  LDY #$00                                  ; $1FF108 |
-  LDA $0580,x                               ; $1FF10A |
-  AND #$40                                  ; $1FF10D |
-  STA $10                                   ; $1FF10F |
-  BEQ code_1FF114                           ; $1FF111 |
-  INY                                       ; $1FF113 |
-code_1FF114:
-  STY $11                                   ; $1FF114 |
-  CPX #$10                                  ; $1FF116 |
-  BCC code_1FF126                           ; $1FF118 |
-  LDA $5A                                   ; $1FF11A |
-  BEQ code_1FF126                           ; $1FF11C |
-  LDY #$15                                  ; $1FF11E |
-  CPY $F4                                   ; $1FF120 |
-  BEQ code_1FF13B                           ; $1FF122 |
-  BNE code_1FF132                           ; $1FF124 |
-code_1FF126:
-  LDY #$1A                                  ; $1FF126 |\  for OAM ID's
-  LDA $05C0,x                               ; $1FF128 | | $00~$7F, select bank $1A
-  BPL code_1FF12E                           ; $1FF12B | | $80~$FF, select bank $1B
+; --- setup_sprite_render ---
+; prepares sprite bank selection and animation state for OAM assembly
+; X = entity slot, $10 = h-flip flag, $11 = flip offset
+; $00/$01 = pointer to animation sequence data
+setup_sprite_render:
+  LDY #$00                                  ; $1FF108 |\
+  LDA $0580,x                               ; $1FF10A | | bit 6 = horizontal flip
+  AND #$40                                  ; $1FF10D | |
+  STA $10                                   ; $1FF10F | | $10 = flip flag for OAM attr
+  BEQ .no_flip                              ; $1FF111 |/
+  INY                                       ; $1FF113 | Y=1 if flipped
+.no_flip:
+  STY $11                                   ; $1FF114 | $11 = flip table offset
+  CPX #$10                                  ; $1FF116 |\ slot >= 16? (weapon/projectile)
+  BCC .entity_bank                          ; $1FF118 |/
+  LDA $5A                                   ; $1FF11A |\ $5A = weapon sprite bank override
+  BEQ .entity_bank                          ; $1FF11C |/ 0 = use normal entity bank
+  LDY #$15                                  ; $1FF11E |\ weapon sprites in PRG bank $15
+  CPY $F4                                   ; $1FF120 | | already selected?
+  BEQ .bank_ready                           ; $1FF122 |/
+  BNE .select_bank                          ; $1FF124 |
+.entity_bank:
+  LDY #$1A                                  ; $1FF126 |\ OAM ID bit 7 selects bank:
+  LDA $05C0,x                               ; $1FF128 | | $00-$7F → bank $1A
+  BPL .bank_ok                              ; $1FF12B | | $80-$FF → bank $1B
   INY                                       ; $1FF12D |/
-code_1FF12E:
-  CPY $F4                                   ; $1FF12E |\
-  BEQ code_1FF13B                           ; $1FF130 |/ if not already selected
-code_1FF132:
+.bank_ok:
+  CPY $F4                                   ; $1FF12E |\ already selected?
+  BEQ .bank_ready                           ; $1FF130 |/
+.select_bank:
   STY $F4                                   ; $1FF132 |\
-  STX $00                                   ; $1FF134 | | select $8000~$9FFF bank
-  JSR select_PRG_banks                      ; $1FF136 | | ($1A or $1B)
-  LDX $00                                   ; $1FF139 |/  preserve & restore X
-code_1FF13B:
-  LDA $05C0,x                               ; $1FF13B |\ OAM ID $00?
-  BEQ code_1FF107                           ; $1FF13E |/ return
-  AND #$7F                                  ; $1FF140 |
-  TAY                                       ; $1FF142 |
-  LDA $8000,y                               ; $1FF143 |\
-  STA $00                                   ; $1FF146 | |
-  LDA $8080,y                               ; $1FF148 | |
+  STX $00                                   ; $1FF134 | | select $8000-$9FFF PRG bank
+  JSR select_PRG_banks                      ; $1FF136 | |
+  LDX $00                                   ; $1FF139 |/  restore entity slot
+.bank_ready:
+  LDA $05C0,x                               ; $1FF13B |\ OAM ID = 0? no sprite
+  BEQ .ret                                  ; $1FF13E |/ return
+  AND #$7F                                  ; $1FF140 |\ strip bank select bit
+  TAY                                       ; $1FF142 |/
+  LDA $8000,y                               ; $1FF143 |\ $00/$01 = animation sequence ptr
+  STA $00                                   ; $1FF146 | | (low bytes at $8000+ID,
+  LDA $8080,y                               ; $1FF148 | |  high bytes at $8080+ID)
   STA $01                                   ; $1FF14B |/
-  LDA $17                                   ; $1FF14D |
-  AND #$08                                  ; $1FF14F |
-  BEQ code_1FF15F                           ; $1FF151 |
-  LDA $95                                   ; $1FF153 |
-  AND #$07                                  ; $1FF155 |
-  BNE code_1FF18B                           ; $1FF157 |
-  LDA $17                                   ; $1FF159 |
-  AND #$80                                  ; $1FF15B |
-  BNE code_1FF18B                           ; $1FF15D |
-code_1FF15F:
-  LDA $58                                   ; $1FF15F |
-  BNE code_1FF18B                           ; $1FF161 |
-  LDA $05E0,x                               ; $1FF163 |
-  AND #$7F                                  ; $1FF166 |
-  INC $05E0,x                               ; $1FF168 |
-  LDY #$01                                  ; $1FF16B |
-  CMP ($00),y                               ; $1FF16D |
-  BNE code_1FF18B                           ; $1FF16F |
-  LDA $05E0,x                               ; $1FF171 |
-  AND #$80                                  ; $1FF174 |
-  STA $05E0,x                               ; $1FF176 |
-  LDA $05A0,x                               ; $1FF179 |
-  AND #$7F                                  ; $1FF17C |
-  INC $05A0,x                               ; $1FF17E |
-  DEY                                       ; $1FF181 |
-  CMP ($00),y                               ; $1FF182 |
-  BNE code_1FF18B                           ; $1FF184 |
-  LDA #$00                                  ; $1FF186 |
-  STA $05A0,x                               ; $1FF188 |
-code_1FF18B:
-  LDA $0580,x                               ; $1FF18B |
-  BPL code_1FF1E3                           ; $1FF18E |
-  LDA $05E0,x                               ; $1FF190 |
-  BPL code_1FF19B                           ; $1FF193 |
-  LDA $92                                   ; $1FF195 |
-  AND #$04                                  ; $1FF197 |
-  BNE code_1FF1E3                           ; $1FF199 |
-code_1FF19B:
-  CPX #$10                                  ; $1FF19B |
-  BCC code_1FF1CE                           ; $1FF19D |
-  LDA $04E0,x                               ; $1FF19F |
-  AND #$E0                                  ; $1FF1A2 |
-  BEQ code_1FF1CE                           ; $1FF1A4 |
-  LDA $0300,x                               ; $1FF1A6 |
-  AND #$40                                  ; $1FF1A9 |
-  BEQ code_1FF1B3                           ; $1FF1AB |
-  LDA $4F                                   ; $1FF1AD |
-  AND #$03                                  ; $1FF1AF |
-  BNE code_1FF1BC                           ; $1FF1B1 |
-code_1FF1B3:
-  LDA $04E0,x                               ; $1FF1B3 |
-  SEC                                       ; $1FF1B6 |
-  SBC #$20                                  ; $1FF1B7 |
-  STA $04E0,x                               ; $1FF1B9 |
-code_1FF1BC:
-  LDA $0300,x                               ; $1FF1BC |
-  AND #$40                                  ; $1FF1BF |
-  BEQ code_1FF1E3                           ; $1FF1C1 |
-  LDA $04E0,x                               ; $1FF1C3 |
-  AND #$20                                  ; $1FF1C6 |
-  BEQ code_1FF1CE                           ; $1FF1C8 |
-  LDA #$AF                                  ; $1FF1CA |
-  BNE code_1FF1E4                           ; $1FF1CC |
-code_1FF1CE:
-  LDA $05A0,x                               ; $1FF1CE |
-  AND #$7F                                  ; $1FF1D1 |
-  CLC                                       ; $1FF1D3 |
-  ADC #$02                                  ; $1FF1D4 |
-  TAY                                       ; $1FF1D6 |
-  LDA ($00),y                               ; $1FF1D7 |
-  BNE code_1FF1E4                           ; $1FF1D9 |
-  STA $0300,x                               ; $1FF1DB |
-  LDA #$FF                                  ; $1FF1DE |
-  STA $04C0,x                               ; $1FF1E0 |
-code_1FF1E3:
+; --- animation tick / frame advancement ---
+; Animation sequence format at ($00):
+;   byte 0 = total frames in sequence
+;   byte 1 = ticks per frame (duration)
+;   byte 2+ = sprite definition IDs per frame (0 = deactivate entity)
+  LDA $17                                   ; $1FF14D |\ $17 bit 3 = slow-motion mode
+  AND #$08                                  ; $1FF14F | |
+  BEQ .anim_check_freeze                    ; $1FF151 |/  not set? check freeze
+  LDA $95                                   ; $1FF153 |\ in slow-motion: only tick every 8th frame
+  AND #$07                                  ; $1FF155 | |
+  BNE .skip_anim_tick                       ; $1FF157 |/  skip 7 of 8 frames
+  LDA $17                                   ; $1FF159 |\ $17 bit 7 = full freeze
+  AND #$80                                  ; $1FF15B | |
+  BNE .skip_anim_tick                       ; $1FF15D |/  completely frozen
+.anim_check_freeze:
+  LDA $58                                   ; $1FF15F |\ $58 = global animation freeze
+  BNE .skip_anim_tick                       ; $1FF161 |/ nonzero = skip ticking
+  LDA $05E0,x                               ; $1FF163 |\ $05E0 = frame tick counter
+  AND #$7F                                  ; $1FF166 | | (bit 7 = damage flash flag)
+  INC $05E0,x                               ; $1FF168 | | increment tick
+  LDY #$01                                  ; $1FF16B | |
+  CMP ($00),y                               ; $1FF16D | | compare tick vs duration at seq[1]
+  BNE .skip_anim_tick                       ; $1FF16F |/  not reached? keep waiting
+  LDA $05E0,x                               ; $1FF171 |\ tick reached duration:
+  AND #$80                                  ; $1FF174 | | reset tick to 0, preserve bit 7
+  STA $05E0,x                               ; $1FF176 |/  (damage flash flag)
+  LDA $05A0,x                               ; $1FF179 |\ $05A0 = current frame index
+  AND #$7F                                  ; $1FF17C | | (bit 7 preserved)
+  INC $05A0,x                               ; $1FF17E | | advance to next frame
+  DEY                                       ; $1FF181 | | Y=0
+  CMP ($00),y                               ; $1FF182 | | compare frame vs total at seq[0]
+  BNE .skip_anim_tick                       ; $1FF184 |/  more frames? continue
+  LDA #$00                                  ; $1FF186 |\ reached end: loop back to frame 0
+  STA $05A0,x                               ; $1FF188 |/
+; --- damage flash and sprite definition lookup ---
+.skip_anim_tick:
+  LDA $0580,x                               ; $1FF18B |\ bit 7 = drawn flag (set by process_entity_display)
+  BPL .ret                                  ; $1FF18E |/ not marked for drawing? skip
+  LDA $05E0,x                               ; $1FF190 |\ bit 7 of tick counter = damage flash active
+  BPL .no_flash                             ; $1FF193 |/ not flashing? draw normally
+  LDA $92                                   ; $1FF195 |\ $92 = invincibility blink timer
+  AND #$04                                  ; $1FF197 | | blink every 4 frames
+  BNE .ret                                  ; $1FF199 |/ odd phase = skip draw (invisible)
+.no_flash:
+  CPX #$10                                  ; $1FF19B |\ slot < 16? not a weapon/projectile
+  BCC .get_sprite_def                       ; $1FF19D |/
+  LDA $04E0,x                               ; $1FF19F |\ $04E0 = projectile lifetime/timer
+  AND #$E0                                  ; $1FF1A2 | | upper 3 bits = active countdown
+  BEQ .get_sprite_def                       ; $1FF1A4 |/ not counting down? normal
+  LDA $0300,x                               ; $1FF1A6 |\ $0300 bit 6 = slow decay flag
+  AND #$40                                  ; $1FF1A9 | |
+  BEQ .decay_timer                          ; $1FF1AB |/ not set? always decay
+  LDA $4F                                   ; $1FF1AD |\ slow decay: only every 4th frame
+  AND #$03                                  ; $1FF1AF | |
+  BNE .check_explode                        ; $1FF1B1 |/ skip 3 of 4 frames
+.decay_timer:
+  LDA $04E0,x                               ; $1FF1B3 |\ subtract $20 from timer
+  SEC                                       ; $1FF1B6 | | (decrement upper 3-bit counter)
+  SBC #$20                                  ; $1FF1B7 | |
+  STA $04E0,x                               ; $1FF1B9 |/
+.check_explode:
+  LDA $0300,x                               ; $1FF1BC |\ bit 6 = explode when timer expires?
+  AND #$40                                  ; $1FF1BF | |
+  BEQ .ret                                  ; $1FF1C1 |/ no flag? just disappear
+  LDA $04E0,x                               ; $1FF1C3 |\ check if timer reached $20 threshold
+  AND #$20                                  ; $1FF1C6 | |
+  BEQ .get_sprite_def                       ; $1FF1C8 |/ not yet? keep going
+  LDA #$AF                                  ; $1FF1CA |\ use explosion sprite def $AF
+  BNE .write_oam                            ; $1FF1CC |/ (always branches)
+.get_sprite_def:
+  LDA $05A0,x                               ; $1FF1CE |\ current frame index (strip bit 7)
+  AND #$7F                                  ; $1FF1D1 | |
+  CLC                                       ; $1FF1D3 | | +2 to skip header bytes (count, duration)
+  ADC #$02                                  ; $1FF1D4 | |
+  TAY                                       ; $1FF1D6 | |
+  LDA ($00),y                               ; $1FF1D7 | | load sprite def ID from sequence
+  BNE .write_oam                            ; $1FF1D9 |/ nonzero? go draw it
+  STA $0300,x                               ; $1FF1DB |\ def ID = 0: deactivate entity
+  LDA #$FF                                  ; $1FF1DE | | mark as despawned
+  STA $04C0,x                               ; $1FF1E0 |/
+.ret:
   RTS                                       ; $1FF1E3 |
 
-code_1FF1E4:
-  TAY                                       ; $1FF1E4 |
-  LDA $8100,y                               ; $1FF1E5 |
-  STA $02                                   ; $1FF1E8 |
-  LDA $8200,y                               ; $1FF1EA |
-  STA $03                                   ; $1FF1ED |
-  LDY #$00                                  ; $1FF1EF |
-  LDA ($02),y                               ; $1FF1F1 |
-  PHA                                       ; $1FF1F3 |
-  LDY #$19                                  ; $1FF1F4 |
-  PLA                                       ; $1FF1F6 |
-  BPL code_1FF1FD                           ; $1FF1F7 |
-  AND #$7F                                  ; $1FF1F9 |
-  LDY #$14                                  ; $1FF1FB |
-code_1FF1FD:
-  STA $04                                   ; $1FF1FD |
-  CPY $F5                                   ; $1FF1FF |
-  BEQ code_1FF20C                           ; $1FF201 |
-  STY $F5                                   ; $1FF203 |
-  STX $05                                   ; $1FF205 |
-  JSR select_PRG_banks                      ; $1FF207 |
-  LDX $05                                   ; $1FF20A |
-code_1FF20C:
-  LDY #$01                                  ; $1FF20C |
-  LDA ($02),y                               ; $1FF20E |
-  CLC                                       ; $1FF210 |
-  ADC $11                                   ; $1FF211 |
+; -----------------------------------------------
+; write_entity_oam — assembles OAM entries from sprite definition
+; -----------------------------------------------
+; Entry: A = sprite definition ID
+;   $10 = H-flip mask ($40 or $00)
+;   $11 = flip table offset (0=normal, 1=flipped)
+;   $12 = entity screen Y position
+;   $13 = entity screen X position
+;   $97 = OAM buffer write pointer
+; Sprite definition format:
+;   byte 0 = sprite count (bit 7: use CHR bank $14 instead of $19)
+;   byte 1 = position offset table index (for Y/X offsets)
+;   byte 2+ = pairs of (CHR tile, OAM attribute) per sprite
+; Position offset table at ($05/$06): Y offset, X offset per sprite
+write_entity_oam:
+  TAY                                       ; $1FF1E4 |\ sprite def ID → index
+  LDA $8100,y                               ; $1FF1E5 | | $02/$03 = pointer to sprite definition
+  STA $02                                   ; $1FF1E8 | | (low bytes at $8100+ID,
+  LDA $8200,y                               ; $1FF1EA | |  high bytes at $8200+ID)
+  STA $03                                   ; $1FF1ED |/
+  LDY #$00                                  ; $1FF1EF |\
+  LDA ($02),y                               ; $1FF1F1 | | byte 0 = sprite count + bank flag
+  PHA                                       ; $1FF1F3 |/
+  LDY #$19                                  ; $1FF1F4 |\ default CHR bank = $19
+  PLA                                       ; $1FF1F6 | |
+  BPL .chr_bank_ok                          ; $1FF1F7 | | bit 7 set? use bank $14
+  AND #$7F                                  ; $1FF1F9 | |
+  LDY #$14                                  ; $1FF1FB |/
+.chr_bank_ok:
+  STA $04                                   ; $1FF1FD | $04 = sprite count (0-based loop counter)
+  CPY $F5                                   ; $1FF1FF |\ $F5 = currently selected CHR bank
+  BEQ .chr_ready                            ; $1FF201 |/ already selected? skip
+  STY $F5                                   ; $1FF203 |\ select CHR bank via $A000/$A001
+  STX $05                                   ; $1FF205 | |
+  JSR select_PRG_banks                      ; $1FF207 | |
+  LDX $05                                   ; $1FF20A |/  restore temp
+.chr_ready:
+  LDY #$01                                  ; $1FF20C |\ byte 1 = position offset table index
+  LDA ($02),y                               ; $1FF20E | | add flip offset ($11=0 or 1)
+  CLC                                       ; $1FF210 | | to select normal/flipped offsets
+  ADC $11                                   ; $1FF211 |/
   PHA                                       ; $1FF213 |
-  LDA $0580,x                               ; $1FF214 |
-  AND #$20                                  ; $1FF217 |
-  STA $11                                   ; $1FF219 |
-  PLA                                       ; $1FF21B |
-  TAX                                       ; $1FF21C |
-  LDA $BE00,x                               ; $1FF21D |
-  SEC                                       ; $1FF220 |
-  SBC #$02                                  ; $1FF221 |
-  STA $05                                   ; $1FF223 |
-  LDA $BF00,x                               ; $1FF225 |
-  SBC #$00                                  ; $1FF228 |
-  STA $06                                   ; $1FF22A |
-  LDX $97                                   ; $1FF22C |
-  BEQ code_1FF28F                           ; $1FF22E |
-code_1FF230:
-  LDA #$F0                                  ; $1FF230 |
-  STA $00                                   ; $1FF232 |
-  LDA $22                                   ; $1FF234 |
-  CMP #$08                                  ; $1FF236 |
-  BNE code_1FF248                           ; $1FF238 |
-  LDA $F9                                   ; $1FF23A |
-  CMP #$15                                  ; $1FF23C |
-  BEQ code_1FF244                           ; $1FF23E |
-  CMP #$1A                                  ; $1FF240 |
-  BNE code_1FF248                           ; $1FF242 |
-code_1FF244:
-  LDA #$B0                                  ; $1FF244 |
-  STA $00                                   ; $1FF246 |
-code_1FF248:
-  INY                                       ; $1FF248 |
-  LDA ($02),y                               ; $1FF249 |
-  STA $0201,x                               ; $1FF24B |
-  LDA $12                                   ; $1FF24E |
-  CLC                                       ; $1FF250 |
-  ADC ($05),y                               ; $1FF251 |
-  STA $0200,x                               ; $1FF253 |
-  LDA ($05),y                               ; $1FF256 |
-  BMI code_1FF25E                           ; $1FF258 |
-  BCC code_1FF260                           ; $1FF25A |
-  BCS code_1FF290                           ; $1FF25C |
-code_1FF25E:
-  BCC code_1FF290                           ; $1FF25E |
-code_1FF260:
-  LDA $0200,x                               ; $1FF260 |
-  CMP $00                                   ; $1FF263 |
-  BCS code_1FF290                           ; $1FF265 |
-  INY                                       ; $1FF267 |
-  LDA ($02),y                               ; $1FF268 |
-  EOR $10                                   ; $1FF26A |
-  ORA $11                                   ; $1FF26C |
-  STA $0202,x                               ; $1FF26E |
-  LDA $13                                   ; $1FF271 |
-  CLC                                       ; $1FF273 |
-  ADC ($05),y                               ; $1FF274 |
-  STA $0203,x                               ; $1FF276 |
-  LDA ($05),y                               ; $1FF279 |
-  BMI code_1FF281                           ; $1FF27B |
-  BCC code_1FF283                           ; $1FF27D |
-  BCS code_1FF291                           ; $1FF27F |
-code_1FF281:
-  BCC code_1FF291                           ; $1FF281 |
-code_1FF283:
-  INX                                       ; $1FF283 |
-  INX                                       ; $1FF284 |
-  INX                                       ; $1FF285 |
-  INX                                       ; $1FF286 |
-  STX $97                                   ; $1FF287 |
-  BEQ code_1FF28F                           ; $1FF289 |
-code_1FF28B:
-  DEC $04                                   ; $1FF28B |
-  BPL code_1FF230                           ; $1FF28D |
-code_1FF28F:
+  LDA $0580,x                               ; $1FF214 |\ bit 5 = on-ladder flag
+  AND #$20                                  ; $1FF217 | | stored to $11 for OAM attr overlay
+  STA $11                                   ; $1FF219 |/ (behind-background priority)
+  PLA                                       ; $1FF21B |\ offset table index → X
+  TAX                                       ; $1FF21C | |
+  LDA $BE00,x                               ; $1FF21D | | $BE00/$BF00 = pointer table for
+  SEC                                       ; $1FF220 | | sprite position offsets
+  SBC #$02                                  ; $1FF221 | | subtract 2 to align with def bytes
+  STA $05                                   ; $1FF223 | | $05/$06 = offset data pointer
+  LDA $BF00,x                               ; $1FF225 | |
+  SBC #$00                                  ; $1FF228 | |
+  STA $06                                   ; $1FF22A |/
+  LDX $97                                   ; $1FF22C |\ X = OAM write position
+  BEQ .oam_full                             ; $1FF22E |/ 0 = buffer wrapped, full
+.sprite_loop:
+  LDA #$F0                                  ; $1FF230 |\ default Y clip boundary = $F0
+  STA $00                                   ; $1FF232 |/
+  LDA $22                                   ; $1FF234 |\ stage $08 = Rush Marine underwater?
+  CMP #$08                                  ; $1FF236 | |
+  BNE .no_clip_override                     ; $1FF238 |/
+  LDA $F9                                   ; $1FF23A |\ check specific screens ($15 or $1A)
+  CMP #$15                                  ; $1FF23C | | for reduced Y clip boundary
+  BEQ .set_b0_clip                          ; $1FF23E | |
+  CMP #$1A                                  ; $1FF240 | |
+  BNE .no_clip_override                     ; $1FF242 |/
+.set_b0_clip:
+  LDA #$B0                                  ; $1FF244 |\ Y clip = $B0 for these screens
+  STA $00                                   ; $1FF246 |/
+.no_clip_override:
+  INY                                       ; $1FF248 |\ read CHR tile from def
+  LDA ($02),y                               ; $1FF249 | |
+  STA $0201,x                               ; $1FF24B |/ OAM byte 1 = tile index
+  LDA $12                                   ; $1FF24E |\ screen Y + offset Y
+  CLC                                       ; $1FF250 | |
+  ADC ($05),y                               ; $1FF251 | |
+  STA $0200,x                               ; $1FF253 |/ OAM byte 0 = Y position
+  LDA ($05),y                               ; $1FF256 |\ overflow detection:
+  BMI .y_overflow_neg                       ; $1FF258 | | if offset negative and result didn't
+  BCC .y_in_range                           ; $1FF25A | | underflow, it's OK
+  BCS .y_offscreen                          ; $1FF25C |/ positive offset + carry = overflow
+.y_overflow_neg:
+  BCC .y_offscreen                          ; $1FF25E | negative offset without borrow = underflow
+.y_in_range:
+  LDA $0200,x                               ; $1FF260 |\ check Y against clip boundary
+  CMP $00                                   ; $1FF263 | |
+  BCS .y_offscreen                          ; $1FF265 |/ Y >= clip? hide sprite
+  INY                                       ; $1FF267 |\ read OAM attribute from def
+  LDA ($02),y                               ; $1FF268 | | EOR with flip flag ($10)
+  EOR $10                                   ; $1FF26A | | ORA with ladder priority ($11)
+  ORA $11                                   ; $1FF26C | |
+  STA $0202,x                               ; $1FF26E |/ OAM byte 2 = attribute
+  LDA $13                                   ; $1FF271 |\ screen X + offset X
+  CLC                                       ; $1FF273 | |
+  ADC ($05),y                               ; $1FF274 | |
+  STA $0203,x                               ; $1FF276 |/ OAM byte 3 = X position
+  LDA ($05),y                               ; $1FF279 |\ overflow detection for X
+  BMI .x_overflow_neg                       ; $1FF27B | |
+  BCC .x_in_range                           ; $1FF27D | |
+  BCS .x_hide                               ; $1FF27F |/
+.x_overflow_neg:
+  BCC .x_hide                               ; $1FF281 |
+.x_in_range:
+  INX                                       ; $1FF283 |\ advance OAM pointer by 4 bytes
+  INX                                       ; $1FF284 | |
+  INX                                       ; $1FF285 | |
+  INX                                       ; $1FF286 | |
+  STX $97                                   ; $1FF287 | | update write position
+  BEQ .oam_full                             ; $1FF289 |/ wrapped to 0? buffer full
+.next_sprite:
+  DEC $04                                   ; $1FF28B |\ decrement sprite count
+  BPL .sprite_loop                          ; $1FF28D |/ more sprites? continue
+.oam_full:
   RTS                                       ; $1FF28F |
 
-code_1FF290:
-  INY                                       ; $1FF290 |
-code_1FF291:
-  LDA #$F8                                  ; $1FF291 |
-  STA $0200,x                               ; $1FF293 |
-  BNE code_1FF28B                           ; $1FF296 |
-code_1FF298:
-  LDA $95                                   ; $1FF298 |
-  LSR                                       ; $1FF29A |
-  BCS code_1FF2AD                           ; $1FF29B |
-  LDX #$00                                  ; $1FF29D |
-  STX $10                                   ; $1FF29F |
-code_1FF2A1:
-  JSR code_1FF2BB                           ; $1FF2A1 |
+.y_offscreen:
+  INY                                       ; $1FF290 | skip attribute byte
+.x_hide:
+  LDA #$F8                                  ; $1FF291 |\ hide sprite (Y=$F8 = below screen)
+  STA $0200,x                               ; $1FF293 | |
+  BNE .next_sprite                          ; $1FF296 |/ (always branches)
+; -----------------------------------------------
+; draw_energy_bars — draws up to 3 HUD energy meters
+; -----------------------------------------------
+; $B1-$B3 = bar slot IDs (bit 7 = active, bits 0-6 = energy index)
+; $A2+Y = energy value ($80=empty, $9C=full, 28 units)
+; Alternates iteration direction each frame for OAM priority fairness.
+; Each bar draws 7 sprites vertically: tile selected from $F313 table,
+; position from $F318 (OAM attr) and $F31B (X position).
+draw_energy_bars:
+  LDA $95                                   ; $1FF298 |\ alternate direction each frame
+  LSR                                       ; $1FF29A | |
+  BCS .bars_reverse                         ; $1FF29B |/ odd = reverse
+  LDX #$00                                  ; $1FF29D |\ forward: bar 0, 1, 2
+  STX $10                                   ; $1FF29F |/
+.bars_fwd:
+  JSR .draw_one_bar                         ; $1FF2A1 |
   INC $10                                   ; $1FF2A4 |
   LDX $10                                   ; $1FF2A6 |
   CPX #$03                                  ; $1FF2A8 |
-  BNE code_1FF2A1                           ; $1FF2AA |
+  BNE .bars_fwd                             ; $1FF2AA |
   RTS                                       ; $1FF2AC |
 
-code_1FF2AD:
-  LDX #$02                                  ; $1FF2AD |
-  STX $10                                   ; $1FF2AF |
-code_1FF2B1:
-  JSR code_1FF2BB                           ; $1FF2B1 |
+.bars_reverse:
+  LDX #$02                                  ; $1FF2AD |\ reverse: bar 2, 1, 0
+  STX $10                                   ; $1FF2AF |/
+.bars_rev:
+  JSR .draw_one_bar                         ; $1FF2B1 |
   DEC $10                                   ; $1FF2B4 |
   LDX $10                                   ; $1FF2B6 |
-  BPL code_1FF2B1                           ; $1FF2B8 |
-code_1FF2BA:
+  BPL .bars_rev                             ; $1FF2B8 |
+.bar_inactive:
   RTS                                       ; $1FF2BA |
 
-code_1FF2BB:
-  LDA $B1,x                                 ; $1FF2BB |
-  BPL code_1FF2BA                           ; $1FF2BD |
-  AND #$7F                                  ; $1FF2BF |
-  TAY                                       ; $1FF2C1 |
-  LDA $00A2,y                               ; $1FF2C2 |
-  AND #$7F                                  ; $1FF2C5 |
-  STA $00                                   ; $1FF2C7 |
-  LDA $F318,x                               ; $1FF2C9 |
-  STA $01                                   ; $1FF2CC |
-  LDA $F31B,x                               ; $1FF2CE |
-  STA $02                                   ; $1FF2D1 |
-  LDX $97                                   ; $1FF2D3 |
-  BEQ code_1FF310                           ; $1FF2D5 |
-  LDA #$48                                  ; $1FF2D7 |
-  STA $03                                   ; $1FF2D9 |
-code_1FF2DB:
-  LDA $01                                   ; $1FF2DB |
-  STA $0202,x                               ; $1FF2DD |
-  LDA $02                                   ; $1FF2E0 |
-  STA $0203,x                               ; $1FF2E2 |
-  LDA $03                                   ; $1FF2E5 |
-  STA $0200,x                               ; $1FF2E7 |
-  LDY #$04                                  ; $1FF2EA |
-  LDA $00                                   ; $1FF2EC |
-  SEC                                       ; $1FF2EE |
-  SBC #$04                                  ; $1FF2EF |
-  BCS code_1FF2F7                           ; $1FF2F1 |
-  LDY $00                                   ; $1FF2F3 |
-  LDA #$00                                  ; $1FF2F5 |
-code_1FF2F7:
-  STA $00                                   ; $1FF2F7 |
-  LDA $F313,y                               ; $1FF2F9 |
-  STA $0201,x                               ; $1FF2FC |
-  INX                                       ; $1FF2FF |
-  INX                                       ; $1FF300 |
-  INX                                       ; $1FF301 |
-  INX                                       ; $1FF302 |
-  BEQ code_1FF310                           ; $1FF303 |
-  LDA $03                                   ; $1FF305 |
-  SEC                                       ; $1FF307 |
-  SBC #$08                                  ; $1FF308 |
-  STA $03                                   ; $1FF30A |
-  CMP #$10                                  ; $1FF30C |
-  BNE code_1FF2DB                           ; $1FF30E |
-code_1FF310:
-  STX $97                                   ; $1FF310 |
+; draw_one_bar — draws a single energy meter
+; X = bar index (0-2), $B1+X = slot ID
+.draw_one_bar:
+  LDA $B1,x                                 ; $1FF2BB |\ bit 7 = bar active?
+  BPL .bar_inactive                         ; $1FF2BD |/ not active? skip
+  AND #$7F                                  ; $1FF2BF |\ energy index (Y into $A2 table)
+  TAY                                       ; $1FF2C1 | |
+  LDA $00A2,y                               ; $1FF2C2 | | read energy value
+  AND #$7F                                  ; $1FF2C5 | | strip bit 7 (display flag)
+  STA $00                                   ; $1FF2C7 |/ $00 = energy remaining (0-28)
+  LDA $F318,x                               ; $1FF2C9 |\ $01 = OAM attribute (palette)
+  STA $01                                   ; $1FF2CC |/  bar 0=$00, 1=$01, 2=$02
+  LDA $F31B,x                               ; $1FF2CE |\ $02 = X position
+  STA $02                                   ; $1FF2D1 |/  bar 0=$10, 1=$18, 2=$28
+  LDX $97                                   ; $1FF2D3 |\ X = OAM write pointer
+  BEQ .bar_done                             ; $1FF2D5 |/ 0 = full, skip
+  LDA #$48                                  ; $1FF2D7 |\ $03 = starting Y position ($48)
+  STA $03                                   ; $1FF2D9 |/  draws upward 7 segments
+.bar_segment:
+  LDA $01                                   ; $1FF2DB |\ write OAM attribute
+  STA $0202,x                               ; $1FF2DD |/
+  LDA $02                                   ; $1FF2E0 |\ write X position
+  STA $0203,x                               ; $1FF2E2 |/
+  LDA $03                                   ; $1FF2E5 |\ write Y position
+  STA $0200,x                               ; $1FF2E7 |/
+  LDY #$04                                  ; $1FF2EA |\ each segment = 4 units of energy
+  LDA $00                                   ; $1FF2EC | |
+  SEC                                       ; $1FF2EE | | subtract 4 from remaining
+  SBC #$04                                  ; $1FF2EF | |
+  BCS .segment_full                         ; $1FF2F1 |/ still >= 0? full segment
+  LDY $00                                   ; $1FF2F3 |\ partial: Y = remaining 0-3
+  LDA #$00                                  ; $1FF2F5 |/  energy = 0
+.segment_full:
+  STA $00                                   ; $1FF2F7 | update remaining energy
+  LDA $F313,y                               ; $1FF2F9 |\ tile from fill table: 4=$6B 3=$6A 2=$69 1=$68 0=$67
+  STA $0201,x                               ; $1FF2FC |/ OAM tile
+  INX                                       ; $1FF2FF |\ advance OAM by 4
+  INX                                       ; $1FF300 | |
+  INX                                       ; $1FF301 | |
+  INX                                       ; $1FF302 | |
+  BEQ .bar_done                             ; $1FF303 |/ OAM buffer full?
+  LDA $03                                   ; $1FF305 |\ Y -= 8 (move up one tile)
+  SEC                                       ; $1FF307 | |
+  SBC #$08                                  ; $1FF308 | |
+  STA $03                                   ; $1FF30A | |
+  CMP #$10                                  ; $1FF30C | | stop at Y=$10 (7 segments: $48→$10)
+  BNE .bar_segment                          ; $1FF30E |/
+.bar_done:
+  STX $97                                   ; $1FF310 | update OAM pointer
   RTS                                       ; $1FF312 |
 
+; energy bar tile table: index=fill level (0=empty, 4=full)
+bar_fill_tiles:
   db $6B, $6A, $69, $68, $67                ; $1FF313 |
 
+; energy bar OAM attributes (palette): bar 0, 1, 2
+bar_attributes:
   db $00, $01, $02                          ; $1FF318 |
 
+; energy bar X positions: bar 0=$10, 1=$18, 2=$28
+bar_x_positions:
   db $10, $18, $28                          ; $1FF31B |
 
 ; freespace
@@ -7402,245 +7536,275 @@ code_1FF310:
   db $01, $E0, $54, $2A, $45, $4A, $51, $6D ; $1FF573 |
   db $15, $38, $14, $E2, $50                ; $1FF57B |
 
-code_1FF580:
-  LDA $0580,x                               ; $1FF580 |
-  ORA #$40                                  ; $1FF583 |
-  STA $0580,x                               ; $1FF585 |
-code_1FF588:
-  CPX #$00                                  ; $1FF588 |
-  BNE code_1FF596                           ; $1FF58A |
-  LDA $0360                                 ; $1FF58C |
-  STA $02                                   ; $1FF58F |
-  LDA $0380                                 ; $1FF591 |
-  STA $03                                   ; $1FF594 |
-code_1FF596:
+; -----------------------------------------------
+; move_right_collide — move right + set facing + tile collision
+; -----------------------------------------------
+; Sets H-flip flag (facing right), saves pre-move X for player,
+; moves right, checks screen boundary (player only), checks tile collision.
+; Returns: C=1 if hit solid tile, C=0 if clear
+move_right_collide:
+  LDA $0580,x                               ; $1FF580 |\ set bit 6 = facing right (no H-flip)
+  ORA #$40                                  ; $1FF583 | |
+  STA $0580,x                               ; $1FF585 |/
+move_right_collide_no_face:
+  CPX #$00                                  ; $1FF588 |\ player (slot 0)?
+  BNE .mr_do_move                           ; $1FF58A |/ non-player: skip pre-move save
+  LDA $0360                                 ; $1FF58C |\ save player X before move
+  STA $02                                   ; $1FF58F | | (for screen boundary detection)
+  LDA $0380                                 ; $1FF591 | |
+  STA $03                                   ; $1FF594 |/
+.mr_do_move:
   JSR move_sprite_right                     ; $1FF596 |
-  CPX #$00                                  ; $1FF599 |
-  BNE code_1FF5B2                           ; $1FF59B |
-  JSR code_1FFA00                           ; $1FF59D |
-  BCC code_1FF5B2                           ; $1FF5A0 |
-  JSR code_1FFA7D                           ; $1FF5A2 |
-  JSR code_1FF5AA                           ; $1FF5A5 |
+  CPX #$00                                  ; $1FF599 |\ player?
+  BNE mr_tile_check                        ; $1FF59B |/ non-player: just check tile
+  JSR check_platform_horizontal              ; $1FF59D |\ player overlapping horiz platform?
+  BCC mr_tile_check                         ; $1FF5A0 |/ no → normal tile check
+  JSR platform_push_x_left                  ; $1FF5A2 |  push player left (away from platform)
+  JSR .mr_boundary_adj                      ; $1FF5A5 |
   SEC                                       ; $1FF5A8 |
   RTS                                       ; $1FF5A9 |
 
-code_1FF5AA:
-  BEQ code_1FF5B2                           ; $1FF5AA |
-  BCC code_1FF5B2                           ; $1FF5AC |
+.mr_boundary_adj:
+  BEQ mr_tile_check                        ; $1FF5AA |
+  BCC mr_tile_check                        ; $1FF5AC |
   INY                                       ; $1FF5AE |
-  JMP code_1FF5F4                           ; $1FF5AF |
+  JMP ml_tile_check                        ; $1FF5AF |
 
-code_1FF5B2:
-  JSR check_tile_collision                           ; $1FF5B2 |
-  JSR code_1FF700                           ; $1FF5B5 |
+mr_tile_check:
+  JSR check_tile_collision                   ; $1FF5B2 |
+  JSR update_collision_flags                 ; $1FF5B5 |
   CLC                                       ; $1FF5B8 |
-  LDA $10                                   ; $1FF5B9 |
-  AND #$10                                  ; $1FF5BB |
-  BEQ code_1FF5C3                           ; $1FF5BD |
-  JSR code_1FEDCB                           ; $1FF5BF |
-  SEC                                       ; $1FF5C2 |
-code_1FF5C3:
+  LDA $10                                   ; $1FF5B9 |\ bit 4 = solid tile?
+  AND #$10                                  ; $1FF5BB | |
+  BEQ .mr_ret                               ; $1FF5BD |/ no? clear carry, return
+  JSR snap_x_to_wall_right                           ; $1FF5BF | snap to tile boundary (right)
+  SEC                                       ; $1FF5C2 | set carry = hit solid
+.mr_ret:
   RTS                                       ; $1FF5C3 |
 
-code_1FF5C4:
-  LDA $0580,x                               ; $1FF5C4 |
-  AND #$BF                                  ; $1FF5C7 |
-  STA $0580,x                               ; $1FF5C9 |
-code_1FF5CC:
-  CPX #$00                                  ; $1FF5CC |
-  BNE code_1FF5DA                           ; $1FF5CE |
-  LDA $0360                                 ; $1FF5D0 |
-  STA $02                                   ; $1FF5D3 |
-  LDA $0380                                 ; $1FF5D5 |
-  STA $03                                   ; $1FF5D8 |
-code_1FF5DA:
+; -----------------------------------------------
+; move_left_collide — move left + set facing + tile collision
+; -----------------------------------------------
+move_left_collide:
+  LDA $0580,x                               ; $1FF5C4 |\ clear bit 6 = facing left (H-flip)
+  AND #$BF                                  ; $1FF5C7 | |
+  STA $0580,x                               ; $1FF5C9 |/
+move_left_collide_no_face:
+  CPX #$00                                  ; $1FF5CC |\ player (slot 0)?
+  BNE .ml_do_move                           ; $1FF5CE |/
+  LDA $0360                                 ; $1FF5D0 |\ save player X before move
+  STA $02                                   ; $1FF5D3 | |
+  LDA $0380                                 ; $1FF5D5 | |
+  STA $03                                   ; $1FF5D8 |/
+.ml_do_move:
   JSR move_sprite_left                      ; $1FF5DA |
-  CPX #$00                                  ; $1FF5DD |
-  BNE code_1FF5F4                           ; $1FF5DF |
-  JSR code_1FFA00                           ; $1FF5E1 |
-  BCC code_1FF5F4                           ; $1FF5E4 |
-  JSR code_1FFA91                           ; $1FF5E6 |
-  JSR code_1FF5EE                           ; $1FF5E9 |
+  CPX #$00                                  ; $1FF5DD |\ player?
+  BNE ml_tile_check                        ; $1FF5DF |/
+  JSR check_platform_horizontal              ; $1FF5E1 |\ player overlapping horiz platform?
+  BCC ml_tile_check                         ; $1FF5E4 |/ no → normal tile check
+  JSR platform_push_x_right                 ; $1FF5E6 |  push player right (away from platform)
+  JSR .ml_boundary_adj                      ; $1FF5E9 |
   SEC                                       ; $1FF5EC |
   RTS                                       ; $1FF5ED |
 
-code_1FF5EE:
-  BCS code_1FF5F4                           ; $1FF5EE |
+.ml_boundary_adj:
+  BCS ml_tile_check                        ; $1FF5EE |
   DEY                                       ; $1FF5F0 |
-  JMP code_1FF5B2                           ; $1FF5F1 |
+  JMP mr_tile_check                        ; $1FF5F1 |
 
-code_1FF5F4:
-  JSR check_tile_collision                           ; $1FF5F4 |
-  JSR code_1FF700                           ; $1FF5F7 |
+ml_tile_check:
+  JSR check_tile_collision                   ; $1FF5F4 |
+  JSR update_collision_flags                 ; $1FF5F7 |
   CLC                                       ; $1FF5FA |
-  LDA $10                                   ; $1FF5FB |
-  AND #$10                                  ; $1FF5FD |
-  BEQ code_1FF605                           ; $1FF5FF |
-  JSR code_1FEDE3                           ; $1FF601 |
+  LDA $10                                   ; $1FF5FB |\ bit 4 = solid?
+  AND #$10                                  ; $1FF5FD | |
+  BEQ .ml_ret                               ; $1FF5FF |/
+  JSR snap_x_to_wall_left                           ; $1FF601 | snap to tile boundary (left)
   SEC                                       ; $1FF604 |
-code_1FF605:
+.ml_ret:
   RTS                                       ; $1FF605 |
 
-code_1FF606:
-  CPX #$00                                  ; $1FF606 |
-  BNE code_1FF614                           ; $1FF608 |
-  LDA $03C0                                 ; $1FF60A |
-  STA $02                                   ; $1FF60D |
-  LDA $0380                                 ; $1FF60F |
-  STA $03                                   ; $1FF612 |
-code_1FF614:
+; -----------------------------------------------
+; move_down_collide — move down + tile collision
+; -----------------------------------------------
+move_down_collide:
+  CPX #$00                                  ; $1FF606 |\ player?
+  BNE .md_do_move                           ; $1FF608 |/
+  LDA $03C0                                 ; $1FF60A |\ save player Y before move
+  STA $02                                   ; $1FF60D | |
+  LDA $0380                                 ; $1FF60F | |
+  STA $03                                   ; $1FF612 |/
+.md_do_move:
   JSR move_sprite_down                      ; $1FF614 |
-  CPX #$00                                  ; $1FF617 |
-  BNE code_1FF630                           ; $1FF619 |
-  JSR code_1FF97E                           ; $1FF61B |
-  BCC code_1FF630                           ; $1FF61E |
-  JSR code_1FFAAE                           ; $1FF620 |
-  JSR code_1FF628                           ; $1FF623 |
+  CPX #$00                                  ; $1FF617 |\ player?
+  BNE md_tile_check                        ; $1FF619 |/
+  JSR check_platform_vertical                ; $1FF61B |\ player standing on vert platform?
+  BCC md_tile_check                         ; $1FF61E |/ no → normal tile check
+  JSR platform_push_y_up                    ; $1FF620 |  push player up (onto platform)
+  JSR .md_boundary_adj                      ; $1FF623 |
   SEC                                       ; $1FF626 |
   RTS                                       ; $1FF627 |
 
-code_1FF628:
-  BEQ code_1FF630                           ; $1FF628 |
-  BCC code_1FF630                           ; $1FF62A |
+.md_boundary_adj:
+  BEQ md_tile_check                        ; $1FF628 |
+  BCC md_tile_check                        ; $1FF62A |
   INY                                       ; $1FF62C |
-  JMP code_1FF66A                           ; $1FF62D |
+  JMP mu_tile_check                        ; $1FF62D |
 
-code_1FF630:
-  JSR code_1FE8D6                           ; $1FF630 |
-  JSR code_1FF700                           ; $1FF633 |
+md_tile_check:
+  JSR check_tile_horiz                           ; $1FF630 |\ vertical tile collision check
+  JSR update_collision_flags                 ; $1FF633 |
   CLC                                       ; $1FF636 |
-  LDA $10                                   ; $1FF637 |
-  AND #$10                                  ; $1FF639 |
-  BEQ code_1FF641                           ; $1FF63B |
-  JSR code_1FEE13                           ; $1FF63D |
+  LDA $10                                   ; $1FF637 |\ bit 4 = solid?
+  AND #$10                                  ; $1FF639 | |
+  BEQ .md_ret                               ; $1FF63B |/
+  JSR snap_y_to_floor                           ; $1FF63D | snap to tile boundary (down)
   SEC                                       ; $1FF640 |
-code_1FF641:
+.md_ret:
   RTS                                       ; $1FF641 |
 
-code_1FF642:
-  CPX #$00                                  ; $1FF642 |
-  BNE code_1FF650                           ; $1FF644 |
-  LDA $03C0                                 ; $1FF646 |
-  STA $02                                   ; $1FF649 |
-  LDA $0380                                 ; $1FF64B |
-  STA $03                                   ; $1FF64E |
-code_1FF650:
+; -----------------------------------------------
+; move_up_collide — move up + tile collision
+; -----------------------------------------------
+move_up_collide:
+  CPX #$00                                  ; $1FF642 |\ player?
+  BNE .mu_do_move                           ; $1FF644 |/
+  LDA $03C0                                 ; $1FF646 |\ save player Y
+  STA $02                                   ; $1FF649 | |
+  LDA $0380                                 ; $1FF64B | |
+  STA $03                                   ; $1FF64E |/
+.mu_do_move:
   JSR move_sprite_up                        ; $1FF650 |
-  CPX #$00                                  ; $1FF653 |
-  BNE code_1FF66A                           ; $1FF655 |
-  JSR code_1FF97E                           ; $1FF657 |
-  BCC code_1FF66A                           ; $1FF65A |
-  JSR code_1FFABF                           ; $1FF65C |
-  JSR code_1FF664                           ; $1FF65F |
+  CPX #$00                                  ; $1FF653 |\ player?
+  BNE mu_tile_check                        ; $1FF655 |/
+  JSR check_platform_vertical                ; $1FF657 |\ player touching vert platform?
+  BCC mu_tile_check                         ; $1FF65A |/ no → normal tile check
+  JSR platform_push_y_down                  ; $1FF65C |  push player down (below platform)
+  JSR .mu_boundary_adj                      ; $1FF65F |
   SEC                                       ; $1FF662 |
   RTS                                       ; $1FF663 |
 
-code_1FF664:
-  BCS code_1FF66A                           ; $1FF664 |
+.mu_boundary_adj:
+  BCS mu_tile_check                        ; $1FF664 |
   DEY                                       ; $1FF666 |
-  JMP code_1FF630                           ; $1FF667 |
+  JMP md_tile_check                        ; $1FF667 |
 
-code_1FF66A:
-  JSR code_1FE8D6                           ; $1FF66A |
-  JSR code_1FF700                           ; $1FF66D |
+mu_tile_check:
+  JSR check_tile_horiz                           ; $1FF66A |\ vertical tile collision check
+  JSR update_collision_flags                 ; $1FF66D |
   CLC                                       ; $1FF670 |
-  LDA $10                                   ; $1FF671 |
-  AND #$10                                  ; $1FF673 |
-  BEQ code_1FF67B                           ; $1FF675 |
-  JSR code_1FEDF9                           ; $1FF677 |
+  LDA $10                                   ; $1FF671 |\ bit 4 = solid?
+  AND #$10                                  ; $1FF673 | |
+  BEQ .mu_ret                               ; $1FF675 |/
+  JSR snap_y_to_ceil                           ; $1FF677 | snap to tile boundary (up)
   SEC                                       ; $1FF67A |
-code_1FF67B:
+.mu_ret:
   RTS                                       ; $1FF67B |
 
-code_1FF67C:
-  CPX #$00                                  ; $1FF67C |
-  BNE code_1FF68A                           ; $1FF67E |
-  LDA $03C0                                 ; $1FF680 |
-  STA $02                                   ; $1FF683 |
-  LDA $0380                                 ; $1FF685 |
-  STA $03                                   ; $1FF688 |
-code_1FF68A:
-  LDA $0460,x                               ; $1FF68A |
-  BPL code_1FF6CD                           ; $1FF68D |
-  JSR code_1FF7A8                           ; $1FF68F |
-  CPX #$00                                  ; $1FF692 |
-  BNE code_1FF6AC                           ; $1FF694 |
-  JSR code_1FF97E                           ; $1FF696 |
-  BCC code_1FF6AC                           ; $1FF699 |
-  JSR code_1FFAAE                           ; $1FF69B |
-  JSR code_1FF6A4                           ; $1FF69E |
-  JMP code_1FF6C8                           ; $1FF6A1 |
+; -----------------------------------------------
+; move_vertical_gravity — gravity-based vertical movement with collision
+; -----------------------------------------------
+; Combines velocity application, gravity, screen boundary handling,
+; and tile collision for entities affected by gravity.
+; Y velocity convention: positive = rising, negative = falling.
+; Returns: C=1 if landed on solid ground, C=0 if airborne.
+move_vertical_gravity:
+  CPX #$00                                  ; $1FF67C |\ player?
+  BNE .mvg_start                            ; $1FF67E |/
+  LDA $03C0                                 ; $1FF680 |\ save player Y before move
+  STA $02                                   ; $1FF683 | |
+  LDA $0380                                 ; $1FF685 | |
+  STA $03                                   ; $1FF688 |/
+.mvg_start:
+  LDA $0460,x                               ; $1FF68A |\ Y velocity whole byte
+  BPL .mvg_rising                           ; $1FF68D |/ positive = rising
+  ; --- falling (Y velocity negative) ---
+  JSR apply_y_velocity_fall                  ; $1FF68F | pos -= vel (moves down)
+  CPX #$00                                  ; $1FF692 |\ player?
+  BNE .mvg_fall_collide                     ; $1FF694 |/
+  JSR check_platform_vertical                ; $1FF696 |\ player landing on platform?
+  BCC .mvg_fall_collide                     ; $1FF699 |/ no → normal tile collision
+  JSR platform_push_y_up                    ; $1FF69B |  push player up (onto platform)
+  JSR .mvg_fall_adj                         ; $1FF69E |
+  JMP .mvg_landed                           ; $1FF6A1 |
 
-code_1FF6A4:
-  BEQ code_1FF6AC                           ; $1FF6A4 |
-  BCC code_1FF6AC                           ; $1FF6A6 |
-  INY                                       ; $1FF6A8 |
-  JMP code_1FF66A                           ; $1FF6A9 |
+.mvg_fall_adj:
+  BEQ .mvg_fall_collide                     ; $1FF6A4 |\ boundary adj: if crossed screen
+  BCC .mvg_fall_collide                     ; $1FF6A6 | | may need opposite tile check
+  INY                                       ; $1FF6A8 | |
+  JMP mu_tile_check                         ; $1FF6A9 |/ → upward tile check on new screen
 
-code_1FF6AC:
-  JSR code_1FF7E6                           ; $1FF6AC |
-  JSR code_1FE8D6                           ; $1FF6AF |
-  JSR code_1FF700                           ; $1FF6B2 |
-  CPX #$00                                  ; $1FF6B5 |
-  BNE code_1FF6BF                           ; $1FF6B7 |
-  LDA $41                                   ; $1FF6B9 |
-  CMP #$40                                  ; $1FF6BB |
-  BEQ code_1FF6C5                           ; $1FF6BD |
-code_1FF6BF:
-  LDA $10                                   ; $1FF6BF |
-  AND #$10                                  ; $1FF6C1 |
-  BEQ code_1FF6FE                           ; $1FF6C3 |
-code_1FF6C5:
-  JSR code_1FEE13                           ; $1FF6C5 |
-code_1FF6C8:
-  JSR reset_gravity                         ; $1FF6C8 |
-  SEC                                       ; $1FF6CB |
+.mvg_fall_collide:
+  JSR apply_gravity                         ; $1FF6AC | increase downward velocity
+  JSR check_tile_horiz                           ; $1FF6AF | vertical tile collision check
+  JSR update_collision_flags                 ; $1FF6B2 |
+  CPX #$00                                  ; $1FF6B5 |\ player?
+  BNE .mvg_fall_solid                       ; $1FF6B7 |/
+  LDA $41                                   ; $1FF6B9 |\ tile type = ladder top ($40)?
+  CMP #$40                                  ; $1FF6BB | | player lands on ladder top
+  BEQ .mvg_snap_down                        ; $1FF6BD |/
+.mvg_fall_solid:
+  LDA $10                                   ; $1FF6BF |\ bit 4 = solid tile?
+  AND #$10                                  ; $1FF6C1 | |
+  BEQ .mvg_airborne                         ; $1FF6C3 |/ no solid? still falling
+.mvg_snap_down:
+  JSR snap_y_to_floor                           ; $1FF6C5 | snap to tile boundary (down)
+.mvg_landed:
+  JSR reset_gravity                         ; $1FF6C8 | reset velocity to rest value
+  SEC                                       ; $1FF6CB | C=1: landed
   RTS                                       ; $1FF6CC |
 
-code_1FF6CD:
-  INY                                       ; $1FF6CD |
-  JSR code_1FF7C8                           ; $1FF6CE |
-  CPX #$00                                  ; $1FF6D1 |
-  BNE code_1FF6E9                           ; $1FF6D3 |
-  JSR code_1FF97E                           ; $1FF6D5 |
-  BCC code_1FF6E9                           ; $1FF6D8 |
-  JSR code_1FFABF                           ; $1FF6DA |
-  JSR code_1FF6E3                           ; $1FF6DD |
-  JMP code_1FF6FB                           ; $1FF6E0 |
+.mvg_rising:
+  ; --- rising (Y velocity positive) ---
+  INY                                       ; $1FF6CD | adjust collision check direction
+  JSR apply_y_velocity_rise                  ; $1FF6CE | pos -= vel (moves up)
+  CPX #$00                                  ; $1FF6D1 |\ player?
+  BNE .mvg_rise_collide                     ; $1FF6D3 |/
+  JSR check_platform_vertical                ; $1FF6D5 |\ player hitting platform from below?
+  BCC .mvg_rise_collide                     ; $1FF6D8 |/ no → normal tile collision
+  JSR platform_push_y_down                  ; $1FF6DA |  push player down (below platform)
+  JSR .mvg_rise_adj                         ; $1FF6DD |
+  JMP .mvg_rise_landed                      ; $1FF6E0 |
 
-code_1FF6E3:
-  BCS code_1FF6E9                           ; $1FF6E3 |
-  DEY                                       ; $1FF6E5 |
-  JMP code_1FF630                           ; $1FF6E6 |
+.mvg_rise_adj:
+  BCS .mvg_rise_collide                     ; $1FF6E3 |\ boundary adj: if crossed screen
+  DEY                                       ; $1FF6E5 | | may need opposite tile check
+  JMP md_tile_check                         ; $1FF6E6 |/ → downward tile check on new screen
 
-code_1FF6E9:
-  JSR code_1FF7E6                           ; $1FF6E9 |
-  JSR code_1FE8D6                           ; $1FF6EC |
-  JSR code_1FF700                           ; $1FF6EF |
-  LDA $10                                   ; $1FF6F2 |
-  AND #$10                                  ; $1FF6F4 |
-  BEQ code_1FF6FE                           ; $1FF6F6 |
-  JSR code_1FEDF9                           ; $1FF6F8 |
-code_1FF6FB:
-  JSR reset_gravity                         ; $1FF6FB |
-code_1FF6FE:
-  CLC                                       ; $1FF6FE |
+.mvg_rise_collide:
+  JSR apply_gravity                         ; $1FF6E9 | apply gravity (slows rise)
+  JSR check_tile_horiz                           ; $1FF6EC | vertical tile collision check
+  JSR update_collision_flags                 ; $1FF6EF |
+  LDA $10                                   ; $1FF6F2 |\ bit 4 = solid tile?
+  AND #$10                                  ; $1FF6F4 | |
+  BEQ .mvg_airborne                         ; $1FF6F6 |/ no solid? continue rising
+  JSR snap_y_to_ceil                           ; $1FF6F8 | snap to tile boundary (up)
+.mvg_rise_landed:
+  JSR reset_gravity                         ; $1FF6FB | reset velocity
+.mvg_airborne:
+  CLC                                       ; $1FF6FE | C=0: airborne
   RTS                                       ; $1FF6FF |
 
-code_1FF700:
-  LDA $10                                   ; $1FF700 |
-  AND #$10                                  ; $1FF702 |
-  BNE code_1FF71C                           ; $1FF704 |
-  LDA $0580,x                               ; $1FF706 |
-  AND #$DF                                  ; $1FF709 |
-  STA $0580,x                               ; $1FF70B |
-  LDA $41                                   ; $1FF70E |
-  CMP #$60                                  ; $1FF710 |
-  BNE code_1FF71C                           ; $1FF712 |
-  LDA $0580,x                               ; $1FF714 |
-  ORA #$20                                  ; $1FF717 |
-  STA $0580,x                               ; $1FF719 |
-code_1FF71C:
+; -----------------------------------------------
+; update_collision_flags — update entity collision flags from tile check
+; -----------------------------------------------
+; $10 = tile collision result from check_tile_collision
+; $41 = tile type from last collision (upper nibble of $BF00)
+; Updates $0580 bit 5 (on-ladder) based on tile type $60 (ladder).
+update_collision_flags:
+  LDA $10                                   ; $1FF700 |\ bit 4 = solid tile hit?
+  AND #$10                                  ; $1FF702 | |
+  BNE .done                                 ; $1FF704 |/ solid? keep existing flags
+  LDA $0580,x                               ; $1FF706 |\ clear on-ladder flag (bit 5)
+  AND #$DF                                  ; $1FF709 | |
+  STA $0580,x                               ; $1FF70B |/
+  LDA $41                                   ; $1FF70E |\ $41 = tile type
+  CMP #$60                                  ; $1FF710 | | $60 = ladder tile? (was $40 top + $20 body)
+  BNE .done                                 ; $1FF712 |/ not ladder? done
+  LDA $0580,x                               ; $1FF714 |\ set on-ladder flag (bit 5)
+  ORA #$20                                  ; $1FF717 | | (used by OAM: behind-background priority)
+  STA $0580,x                               ; $1FF719 |/
+.done:
   RTS                                       ; $1FF71C |
 
 ; moves sprite right by its X speeds
@@ -7716,73 +7880,97 @@ move_sprite_up:
 .ret:
   RTS                                       ; $1FF796 |
 
-code_1FF797:
-  LDA $0460,x                               ; $1FF797 |
-  BPL code_1FF7A2                           ; $1FF79A |
-  JSR code_1FF7A8                           ; $1FF79C |
-  JMP code_1FF7E6                           ; $1FF79F |
+; -----------------------------------------------
+; apply_y_speed — apply Y velocity + gravity (no collision)
+; -----------------------------------------------
+; Dispatches to fall/rise velocity application based on sign,
+; then applies gravity. Used by entities without tile collision.
+apply_y_speed:
+  LDA $0460,x                               ; $1FF797 |\ Y velocity sign check
+  BPL .rising                               ; $1FF79A |/
+  JSR apply_y_velocity_fall                  ; $1FF79C | falling: apply downward velocity
+  JMP apply_gravity                          ; $1FF79F | then apply gravity
 
-code_1FF7A2:
-  JSR code_1FF7C8                           ; $1FF7A2 |
-  JMP code_1FF7E6                           ; $1FF7A5 |
+.rising:
+  JSR apply_y_velocity_rise                  ; $1FF7A2 | rising: apply upward velocity
+  JMP apply_gravity                          ; $1FF7A5 | then apply gravity
 
-code_1FF7A8:
-  LDA $03A0,x                               ; $1FF7A8 |
-  SEC                                       ; $1FF7AB |
-  SBC $0440,x                               ; $1FF7AC |
-  STA $03A0,x                               ; $1FF7AF |
-  LDA $03C0,x                               ; $1FF7B2 |
-  SBC $0460,x                               ; $1FF7B5 |
-  STA $03C0,x                               ; $1FF7B8 |
-  CMP #$F0                                  ; $1FF7BB |
-  BCC code_1FF7C7                           ; $1FF7BD |
-  ADC #$0F                                  ; $1FF7BF |
-  STA $03C0,x                               ; $1FF7C1 |
-  INC $03E0,x                               ; $1FF7C4 |
-code_1FF7C7:
+; -----------------------------------------------
+; apply_y_velocity_fall — apply Y velocity when falling
+; -----------------------------------------------
+; Position -= velocity. When velocity is negative (falling),
+; subtracting negative = adding to Y = moving down on screen.
+; Handles downward screen wrap at Y=$F0.
+apply_y_velocity_fall:
+  LDA $03A0,x                               ; $1FF7A8 |\ Y subpixel -= Y sub velocity
+  SEC                                       ; $1FF7AB | |
+  SBC $0440,x                               ; $1FF7AC | |
+  STA $03A0,x                               ; $1FF7AF |/
+  LDA $03C0,x                               ; $1FF7B2 |\ Y pixel -= Y velocity
+  SBC $0460,x                               ; $1FF7B5 | | (negative vel → Y increases)
+  STA $03C0,x                               ; $1FF7B8 |/
+  CMP #$F0                                  ; $1FF7BB |\ screen height = $F0
+  BCC .done                                 ; $1FF7BD |/ within screen? done
+  ADC #$0F                                  ; $1FF7BF |\ wrap to next screen
+  STA $03C0,x                               ; $1FF7C1 | |
+  INC $03E0,x                               ; $1FF7C4 |/ increment Y screen
+.done:
   RTS                                       ; $1FF7C7 |
 
-code_1FF7C8:
-  LDA $03A0,x                               ; $1FF7C8 |
-  SEC                                       ; $1FF7CB |
-  SBC $0440,x                               ; $1FF7CC |
-  STA $03A0,x                               ; $1FF7CF |
-  LDA $03C0,x                               ; $1FF7D2 |
-  SBC $0460,x                               ; $1FF7D5 |
-  STA $03C0,x                               ; $1FF7D8 |
-  BCS code_1FF7E5                           ; $1FF7DB |
-  SBC #$0F                                  ; $1FF7DD |
-  STA $03C0,x                               ; $1FF7DF |
-  DEC $03E0,x                               ; $1FF7E2 |
-code_1FF7E5:
+; -----------------------------------------------
+; apply_y_velocity_rise — apply Y velocity when rising
+; -----------------------------------------------
+; Position -= velocity. When velocity is positive (rising),
+; subtracting positive = decreasing Y = moving up on screen.
+; Handles upward screen wrap (underflow).
+apply_y_velocity_rise:
+  LDA $03A0,x                               ; $1FF7C8 |\ Y subpixel -= Y sub velocity
+  SEC                                       ; $1FF7CB | |
+  SBC $0440,x                               ; $1FF7CC | |
+  STA $03A0,x                               ; $1FF7CF |/
+  LDA $03C0,x                               ; $1FF7D2 |\ Y pixel -= Y velocity
+  SBC $0460,x                               ; $1FF7D5 | | (positive vel → Y decreases)
+  STA $03C0,x                               ; $1FF7D8 |/
+  BCS .done                                 ; $1FF7DB |\ no underflow? done
+  SBC #$0F                                  ; $1FF7DD |\ wrap to previous screen
+  STA $03C0,x                               ; $1FF7DF | |
+  DEC $03E0,x                               ; $1FF7E2 |/ decrement Y screen
+.done:
   RTS                                       ; $1FF7E5 |
 
-code_1FF7E6:
-  CPX #$00                                  ; $1FF7E6 |
-  BNE code_1FF7F2                           ; $1FF7E8 |
-  LDA $B9                                   ; $1FF7EA |
-  BEQ code_1FF7F2                           ; $1FF7EC |
-  DEC $B9                                   ; $1FF7EE |
-  BNE code_1FF81A                           ; $1FF7F0 |
-code_1FF7F2:
-  LDA $0440,x                               ; $1FF7F2 |
-  SEC                                       ; $1FF7F5 |
-  SBC $99                                   ; $1FF7F6 |
-  STA $0440,x                               ; $1FF7F8 |
-  LDA $0460,x                               ; $1FF7FB |
-  SBC #$00                                  ; $1FF7FE |
-  STA $0460,x                               ; $1FF800 |
-  BPL code_1FF81A                           ; $1FF803 |
-  CMP #$F9                                  ; $1FF805 |
-  BCS code_1FF81A                           ; $1FF807 |
-  LDA $05C0,x                               ; $1FF809 |
-  CMP #$13                                  ; $1FF80C |
-  BEQ code_1FF81A                           ; $1FF80E |
-  LDA #$F9                                  ; $1FF810 |
-  STA $0460,x                               ; $1FF812 |
-  LDA #$00                                  ; $1FF815 |
-  STA $0440,x                               ; $1FF817 |
-code_1FF81A:
+; -----------------------------------------------
+; apply_gravity — subtract gravity from Y velocity
+; -----------------------------------------------
+; Gravity ($99) subtracted from velocity each frame, making it
+; more negative over time (falling faster). Clamps at terminal
+; velocity $F9.00 (-7 px/frame). Player float timer ($B9) delays
+; gravity while active.
+apply_gravity:
+  CPX #$00                                  ; $1FF7E6 |\ player?
+  BNE .do_gravity                           ; $1FF7E8 |/
+  LDA $B9                                   ; $1FF7EA |\ $B9 = player float timer
+  BEQ .do_gravity                           ; $1FF7EC |/ 0 = not floating
+  DEC $B9                                   ; $1FF7EE |\ decrement float timer
+  BNE .ret                                  ; $1FF7F0 |/ still floating? skip gravity
+.do_gravity:
+  LDA $0440,x                               ; $1FF7F2 |\ Y sub velocity -= gravity ($99)
+  SEC                                       ; $1FF7F5 | |
+  SBC $99                                   ; $1FF7F6 | |
+  STA $0440,x                               ; $1FF7F8 |/
+  LDA $0460,x                               ; $1FF7FB |\ Y whole velocity -= borrow
+  SBC #$00                                  ; $1FF7FE | |
+  STA $0460,x                               ; $1FF800 |/
+  BPL .ret                                  ; $1FF803 |\ still positive (rising)? done
+  CMP #$F9                                  ; $1FF805 | | terminal velocity = $F9 = -7
+  BCS .ret                                  ; $1FF807 |/ >= $F9 (-7 to -1)? within limit
+  LDA $05C0,x                               ; $1FF809 |\ OAM ID check
+  CMP #$13                                  ; $1FF80C | | $13 = exempt from terminal vel
+  BEQ .ret                                  ; $1FF80E |/ (special entity, unlimited fall)
+  LDA #$F9                                  ; $1FF810 |\ clamp to terminal velocity
+  STA $0460,x                               ; $1FF812 | | $F9.00 = -7.0 px/frame
+  LDA #$00                                  ; $1FF815 | |
+  STA $0440,x                               ; $1FF817 |/
+.ret:
   RTS                                       ; $1FF81A |
 
 ; resets a sprite's gravity/downward Y velocity
@@ -7817,20 +8005,37 @@ reset_sprite_anim:
   STA $05E0,x                               ; $1FF842 |/
   RTS                                       ; $1FF845 |
 
-code_1FF846:
-  STA $05C0,y                               ; $1FF846 |
-  LDA #$00                                  ; $1FF849 |
-  STA $05A0,y                               ; $1FF84B |
-  STA $03E0,y                               ; $1FF84E |
-  LDA $0580,x                               ; $1FF851 |
-  AND #$40                                  ; $1FF854 |
-  ORA #$90                                  ; $1FF856 |
-  STA $0580,y                               ; $1FF858 |
-  LDA #$80                                  ; $1FF85B |
-  STA $0300,y                               ; $1FF85D |
-  LDA $05E0,y                               ; $1FF860 |
-  AND #$80                                  ; $1FF863 |
-  STA $05E0,y                               ; $1FF865 |
+; -----------------------------------------------
+; init_child_entity — initialize a new child entity in slot Y
+; -----------------------------------------------
+; Sets up a child entity spawned by parent entity in slot X.
+; Inherits the parent's horizontal flip for facing direction.
+;
+; parameters:
+;   X = parent entity slot
+;   Y = child entity slot (from find_enemy_freeslot_y)
+;   A = child entity shape/type value (stored to $05C0,y)
+; modifies:
+;   $0300,y = $80 (active)
+;   $0580,y = parent's hflip | $90 (active + flags)
+;   $03E0,y = 0 (Y screen)
+;   $05A0,y = 0 (timer/counter cleared)
+;   $05E0,y = bit 7 only preserved
+; -----------------------------------------------
+init_child_entity:
+  STA $05C0,y                               ; $1FF846 |  child shape/type
+  LDA #$00                                  ; $1FF849 |\
+  STA $05A0,y                               ; $1FF84B | | clear timer and Y screen
+  STA $03E0,y                               ; $1FF84E |/
+  LDA $0580,x                               ; $1FF851 |\ inherit parent's horizontal flip
+  AND #$40                                  ; $1FF854 | | (bit 6) and combine with $90
+  ORA #$90                                  ; $1FF856 | |
+  STA $0580,y                               ; $1FF858 |/
+  LDA #$80                                  ; $1FF85B |\ mark entity as active
+  STA $0300,y                               ; $1FF85D |/
+  LDA $05E0,y                               ; $1FF860 |\ preserve only bit 7 of $05E0
+  AND #$80                                  ; $1FF863 | |
+  STA $05E0,y                               ; $1FF865 |/
   RTS                                       ; $1FF868 |
 
 ; faces a sprite toward the player
@@ -7850,17 +8055,29 @@ face_player:
 .ret:
   RTS                                       ; $1FF882 |
 
-code_1FF883:
-  LDA $04A0,x                               ; $1FF883 |
-  ROR                                       ; $1FF886 |
-  ROR                                       ; $1FF887 |
-  ROR                                       ; $1FF888 |
-  AND #$40                                  ; $1FF889 |
+; -----------------------------------------------
+; set_sprite_hflip — set horizontal flip from facing direction
+; -----------------------------------------------
+; Converts $04A0,x bit 0 (facing right) into $0580,x bit 6
+; (NES horizontal flip). Three ROR shifts move bit 0 → bit 6.
+; Sprites face left by default; bit 6 set = flip to face right.
+;
+; parameters:
+;   X = entity slot
+; modifies:
+;   $0580,x bit 6 = set if facing right ($04A0,x bit 0)
+; -----------------------------------------------
+set_sprite_hflip:
+  LDA $04A0,x                               ; $1FF883 |  load facing direction
+  ROR                                       ; $1FF886 |\ 3x ROR: bit 0 → bit 6
+  ROR                                       ; $1FF887 | |
+  ROR                                       ; $1FF888 |/
+  AND #$40                                  ; $1FF889 |  isolate bit 6 (was bit 0)
   STA $00                                   ; $1FF88B |
-  LDA $0580,x                               ; $1FF88D |
-  AND #$BF                                  ; $1FF890 |
-  ORA $00                                   ; $1FF892 |
-  STA $0580,x                               ; $1FF894 |
+  LDA $0580,x                               ; $1FF88D |\ clear old hflip, set new
+  AND #$BF                                  ; $1FF890 | |
+  ORA $00                                   ; $1FF892 | |
+  STA $0580,x                               ; $1FF894 |/
   RTS                                       ; $1FF897 |
 
 ; submit a sound ID to global buffer for playing
@@ -7888,317 +8105,463 @@ submit_sound_ID:
   LDX $00                                   ; $1FF8B0 | restore X
   RTS                                       ; $1FF8B2 |
 
-code_1FF8B3:
-  LDA $03C0                                 ; $1FF8B3 |
-  SEC                                       ; $1FF8B6 |
-  SBC $03C0,x                               ; $1FF8B7 |
-  BCS code_1FF8C1                           ; $1FF8BA |
-  EOR #$FF                                  ; $1FF8BC |
-  ADC #$01                                  ; $1FF8BE |
-  CLC                                       ; $1FF8C0 |
-code_1FF8C1:
+; -----------------------------------------------
+; entity_y_dist_to_player — |player_Y - entity_Y|
+; -----------------------------------------------
+; parameters:
+;   X = entity slot
+; results:
+;   A = abs(player_Y - entity[X]_Y) (pixel portion, single screen)
+;   carry = set if player is below entity, clear if above
+; -----------------------------------------------
+entity_y_dist_to_player:
+  LDA $03C0                                 ; $1FF8B3 |\ player_Y - entity_Y
+  SEC                                       ; $1FF8B6 | |
+  SBC $03C0,x                               ; $1FF8B7 |/
+  BCS .player_below                         ; $1FF8BA |  positive → player is below
+  EOR #$FF                                  ; $1FF8BC |\ negate: player is above entity
+  ADC #$01                                  ; $1FF8BE | |
+  CLC                                       ; $1FF8C0 |/ C=0 means player is above
+.player_below:
   RTS                                       ; $1FF8C1 |
 
-code_1FF8C2:
-  LDA $0360                                 ; $1FF8C2 |
-  SEC                                       ; $1FF8C5 |
-  SBC $0360,x                               ; $1FF8C6 |
-  PHA                                       ; $1FF8C9 |
-  LDA $0380                                 ; $1FF8CA |
-  SBC $0380,x                               ; $1FF8CD |
-  PLA                                       ; $1FF8D0 |
-  BCS code_1FF8D8                           ; $1FF8D1 |
-  EOR #$FF                                  ; $1FF8D3 |
-  ADC #$01                                  ; $1FF8D5 |
-  CLC                                       ; $1FF8D7 |
-code_1FF8D8:
+; -----------------------------------------------
+; entity_x_dist_to_player — |player_X - entity_X|
+; -----------------------------------------------
+; 16-bit subtraction (pixel + screen), returns pixel portion only.
+; parameters:
+;   X = entity slot
+; results:
+;   A = abs(player_X - entity[X]_X) (pixel portion)
+;   carry = set if player is to the right, clear if left
+; -----------------------------------------------
+entity_x_dist_to_player:
+  LDA $0360                                 ; $1FF8C2 |\ player_X_pixel - entity_X_pixel
+  SEC                                       ; $1FF8C5 | |
+  SBC $0360,x                               ; $1FF8C6 | |
+  PHA                                       ; $1FF8C9 | | save low byte
+  LDA $0380                                 ; $1FF8CA | | player_X_screen - entity_X_screen
+  SBC $0380,x                               ; $1FF8CD | | (borrow propagates from pixel sub)
+  PLA                                       ; $1FF8D0 |/ recover pixel difference
+  BCS .player_right                         ; $1FF8D1 |  positive → player is to the right
+  EOR #$FF                                  ; $1FF8D3 |\ negate: player is to the left
+  ADC #$01                                  ; $1FF8D5 | |
+  CLC                                       ; $1FF8D7 |/ C=0 means player is left
+.player_right:
   RTS                                       ; $1FF8D8 |
 
-code_1FF8D9:
-  LDY #$00                                  ; $1FF8D9 |
-  LDA $03C0                                 ; $1FF8DB |
-  SEC                                       ; $1FF8DE |
-  SBC $03C0,x                               ; $1FF8DF |
-  LDY #$00                                  ; $1FF8E2 |
-  BCS code_1FF8EC                           ; $1FF8E4 |
-  EOR #$FF                                  ; $1FF8E6 |
-  ADC #$01                                  ; $1FF8E8 |
-  LDY #$04                                  ; $1FF8EA |
-code_1FF8EC:
-  STA $00                                   ; $1FF8EC |
-  LDA $0360                                 ; $1FF8EE |
-  SEC                                       ; $1FF8F1 |
-  SBC $0360,x                               ; $1FF8F2 |
-  PHA                                       ; $1FF8F5 |
-  LDA $0380                                 ; $1FF8F6 |
-  SBC $0380,x                               ; $1FF8F9 |
-  PLA                                       ; $1FF8FC |
-  BCS code_1FF905                           ; $1FF8FD |
-  EOR #$FF                                  ; $1FF8FF |
-  ADC #$01                                  ; $1FF901 |
-  INY                                       ; $1FF903 |
-  INY                                       ; $1FF904 |
-code_1FF905:
-  STA $01                                   ; $1FF905 |
-  CMP $00                                   ; $1FF907 |
-  BCS code_1FF914                           ; $1FF909 |
-  PHA                                       ; $1FF90B |
-  LDA $00                                   ; $1FF90C |
-  STA $01                                   ; $1FF90E |
-  PLA                                       ; $1FF910 |
-  STA $00                                   ; $1FF911 |
-  INY                                       ; $1FF913 |
-code_1FF914:
-  LDA #$00                                  ; $1FF914 |
-  STA $02                                   ; $1FF916 |
-  LDA $01                                   ; $1FF918 |
-  LSR                                       ; $1FF91A |
-  LSR                                       ; $1FF91B |
-  CMP $00                                   ; $1FF91C |
-  BCS code_1FF929                           ; $1FF91E |
-  INC $02                                   ; $1FF920 |
-  ASL                                       ; $1FF922 |
-  CMP $00                                   ; $1FF923 |
-  BCS code_1FF929                           ; $1FF925 |
-  INC $02                                   ; $1FF927 |
-code_1FF929:
-  TYA                                       ; $1FF929 |
-  ASL                                       ; $1FF92A |
-  ASL                                       ; $1FF92B |
-  CLC                                       ; $1FF92C |
-  ADC $02                                   ; $1FF92D |
-  TAY                                       ; $1FF92F |
-  LDA $F934,y                               ; $1FF930 |
+; -----------------------------------------------
+; calc_direction_to_player — 16-direction angle from entity to player
+; -----------------------------------------------
+; Computes the direction from entity X to the player as a 16-step
+; compass index (0-15). Used by entity AI for homing/tracking.
+;
+; Direction values (clockwise from north):
+;   $00=N  $01=NNE $02=NE  $03=ENE $04=E  $05=ESE $06=SE  $07=SSE
+;   $08=S  $09=SSW $0A=SW  $0B=WSW $0C=W  $0D=WNW $0E=NW  $0F=NNW
+;
+; Algorithm:
+;   1. Compute abs Y and X distances, track quadrant in Y register:
+;      bit 2 = player above entity, bit 1 = player left of entity
+;   2. Sort distances: $01 = larger, $00 = smaller (bit 0 = swapped)
+;   3. Compute sub-angle from slope ratio:
+;      larger/4 >= smaller → 0 (nearly axial)
+;      larger/2 >= smaller → 1 (moderate)
+;      else               → 2 (nearly diagonal)
+;   4. Look up final direction from table: [quadrant*4 + sub-angle]
+;
+; parameters:
+;   X = entity slot
+; results:
+;   A = direction index (0-15)
+; -----------------------------------------------
+calc_direction_to_player:
+  LDY #$00                                  ; $1FF8D9 |  Y = quadrant bits
+  LDA $03C0                                 ; $1FF8DB |\ player_Y - entity_Y
+  SEC                                       ; $1FF8DE | |
+  SBC $03C0,x                               ; $1FF8DF | |
+  LDY #$00                                  ; $1FF8E2 | | (clear Y again — assembler artifact)
+  BCS .y_positive                           ; $1FF8E4 |/ player below or same → skip
+  EOR #$FF                                  ; $1FF8E6 |\ negate: player is above
+  ADC #$01                                  ; $1FF8E8 | |
+  LDY #$04                                  ; $1FF8EA |/ Y bit 2 = player above
+.y_positive:
+  STA $00                                   ; $1FF8EC |  $00 = abs(Y distance)
+  LDA $0360                                 ; $1FF8EE |\ player_X - entity_X (16-bit)
+  SEC                                       ; $1FF8F1 | |
+  SBC $0360,x                               ; $1FF8F2 | |
+  PHA                                       ; $1FF8F5 | |
+  LDA $0380                                 ; $1FF8F6 | | screen portion
+  SBC $0380,x                               ; $1FF8F9 | |
+  PLA                                       ; $1FF8FC |/
+  BCS .x_positive                           ; $1FF8FD |  player right or same → skip
+  EOR #$FF                                  ; $1FF8FF |\ negate: player is left
+  ADC #$01                                  ; $1FF901 | |
+  INY                                       ; $1FF903 | | Y bit 1 = player left
+  INY                                       ; $1FF904 |/
+.x_positive:
+  STA $01                                   ; $1FF905 |  $01 = abs(X distance)
+  CMP $00                                   ; $1FF907 |\ if X_dist >= Y_dist, no swap needed
+  BCS .no_swap                              ; $1FF909 |/
+  PHA                                       ; $1FF90B |\ swap so $01=larger, $00=smaller
+  LDA $00                                   ; $1FF90C | |
+  STA $01                                   ; $1FF90E | |
+  PLA                                       ; $1FF910 | |
+  STA $00                                   ; $1FF911 | |
+  INY                                       ; $1FF913 |/ Y bit 0 = axes swapped (Y dominant)
+.no_swap:
+  LDA #$00                                  ; $1FF914 |\ $02 = sub-angle (0-2)
+  STA $02                                   ; $1FF916 |/
+  LDA $01                                   ; $1FF918 |\ larger_dist / 4
+  LSR                                       ; $1FF91A | |
+  LSR                                       ; $1FF91B |/
+  CMP $00                                   ; $1FF91C |  if larger/4 >= smaller → nearly axial
+  BCS .lookup                               ; $1FF91E |
+  INC $02                                   ; $1FF920 |  sub-angle = 1 (moderate)
+  ASL                                       ; $1FF922 |  larger/4 * 2 = larger/2
+  CMP $00                                   ; $1FF923 |  if larger/2 >= smaller → moderate
+  BCS .lookup                               ; $1FF925 |
+  INC $02                                   ; $1FF927 |  sub-angle = 2 (nearly diagonal)
+.lookup:
+  TYA                                       ; $1FF929 |\ table index = quadrant * 4 + sub-angle
+  ASL                                       ; $1FF92A | |
+  ASL                                       ; $1FF92B | |
+  CLC                                       ; $1FF92C | |
+  ADC $02                                   ; $1FF92D | |
+  TAY                                       ; $1FF92F |/
+  LDA direction_lookup_table,y              ; $1FF930 |  A = direction (0-15)
   RTS                                       ; $1FF933 |
 
-  db $04, $05, $06, $04, $08, $07, $06, $04 ; $1FF934 |
-  db $0C, $0B, $0A, $04, $08, $09, $0A, $04 ; $1FF93C |
-  db $04, $03, $02, $04, $00, $01, $02, $04 ; $1FF944 |
-  db $0C, $0D, $0E, $04, $00, $0F, $0E, $04 ; $1FF94C |
+; 16-direction lookup table indexed by [quadrant*4 + sub-angle]
+; quadrant bits: bit2=above, bit1=left, bit0=Y-dominant
+; sub-angle: 0=axial, 1=moderate, 2=diagonal
+direction_lookup_table:
+  db $04, $05, $06, $04                     ; $1FF934 | below+right, X-dom: E, ESE, SE, (pad)
+  db $08, $07, $06, $04                     ; $1FF938 | below+right, Y-dom: S, SSE, SE, (pad)
+  db $0C, $0B, $0A, $04                     ; $1FF93C | below+left,  X-dom: W, WSW, SW, (pad)
+  db $08, $09, $0A, $04                     ; $1FF940 | below+left,  Y-dom: S, SSW, SW, (pad)
+  db $04, $03, $02, $04                     ; $1FF944 | above+right, X-dom: E, ENE, NE, (pad)
+  db $00, $01, $02, $04                     ; $1FF948 | above+right, Y-dom: N, NNE, NE, (pad)
+  db $0C, $0D, $0E, $04                     ; $1FF94C | above+left,  X-dom: W, WNW, NW, (pad)
+  db $00, $0F, $0E, $04                     ; $1FF950 | above+left,  Y-dom: N, NNW, NW, (pad)
 
-code_1FF954:
-  JSR code_1FF8D9                           ; $1FF954 |
-  STA $00                                   ; $1FF957 |
-  LDA $04A0,x                               ; $1FF959 |
-  CLC                                       ; $1FF95C |
-  ADC #$08                                  ; $1FF95D |
-  AND #$0F                                  ; $1FF95F |
-  SEC                                       ; $1FF961 |
-  SBC $00                                   ; $1FF962 |
-  AND #$0F                                  ; $1FF964 |
-  SEC                                       ; $1FF966 |
-  SBC #$08                                  ; $1FF967 |
-  BEQ code_1FF97D                           ; $1FF969 |
-  BCS code_1FF972                           ; $1FF96B |
-  INC $04A0,x                               ; $1FF96D |
-  BNE code_1FF975                           ; $1FF970 |
-code_1FF972:
+; -----------------------------------------------
+; track_direction_to_player — smoothly rotate entity toward player
+; -----------------------------------------------
+; Computes target direction via calc_direction_to_player, then
+; adjusts entity's current direction ($04A0,x) by ±1 step toward
+; the target using the shortest rotation path. Called once per
+; frame for homing entities.
+;
+; parameters:
+;   X = entity slot
+; modifies:
+;   $04A0,x = entity direction (0-15), adjusted by 1 toward player
+; -----------------------------------------------
+track_direction_to_player:
+  JSR calc_direction_to_player              ; $1FF954 |  A = target direction (0-15)
+  STA $00                                   ; $1FF957 |  $00 = target
+  LDA $04A0,x                               ; $1FF959 |\ signed circular difference:
+  CLC                                       ; $1FF95C | | (current + 8 - target) & $0F - 8
+  ADC #$08                                  ; $1FF95D | | offset by 8 to center range
+  AND #$0F                                  ; $1FF95F | | wrap to 0-15
+  SEC                                       ; $1FF961 | |
+  SBC $00                                   ; $1FF962 | | subtract target
+  AND #$0F                                  ; $1FF964 | | wrap to 0-15
+  SEC                                       ; $1FF966 | |
+  SBC #$08                                  ; $1FF967 |/ remove offset → signed diff (-7..+8)
+  BEQ .already_aligned                      ; $1FF969 |  diff=0: already facing target
+  BCS .turn_clockwise                       ; $1FF96B |  diff>0: target is CCW → turn CW (DEC)
+  INC $04A0,x                               ; $1FF96D |\ diff<0: target is CW → turn CCW (INC)
+  BNE .wrap_direction                       ; $1FF970 |/ (always branches)
+.turn_clockwise:
   DEC $04A0,x                               ; $1FF972 |
-code_1FF975:
-  LDA $04A0,x                               ; $1FF975 |
-  AND #$0F                                  ; $1FF978 |
-  STA $04A0,x                               ; $1FF97A |
-code_1FF97D:
+.wrap_direction:
+  LDA $04A0,x                               ; $1FF975 |\ wrap direction to 0-15
+  AND #$0F                                  ; $1FF978 | |
+  STA $04A0,x                               ; $1FF97A |/
+.already_aligned:
   RTS                                       ; $1FF97D |
 
-code_1FF97E:
-  LDA $0580,x                               ; $1FF97E |
-  BPL code_1FF9FE                           ; $1FF981 |
-  STY $00                                   ; $1FF983 |
-  LDY #$1F                                  ; $1FF985 |
-  STY $01                                   ; $1FF987 |
-code_1FF989:
-  LDA $0300,y                               ; $1FF989 |
-  BPL code_1FF9F6                           ; $1FF98C |
-  LDA $0580,y                               ; $1FF98E |
-  BPL code_1FF9F6                           ; $1FF991 |
-  LDA $0580,y                               ; $1FF993 |
-  AND #$04                                  ; $1FF996 |
-  BNE code_1FF9F6                           ; $1FF998 |
-  LDA $0580,y                               ; $1FF99A |
-  AND #$03                                  ; $1FF99D |
-  BEQ code_1FF9F6                           ; $1FF99F |
-  AND #$01                                  ; $1FF9A1 |
-  BEQ code_1FF9AA                           ; $1FF9A3 |
-  LDA $0460,x                               ; $1FF9A5 |
-  BPL code_1FF9F6                           ; $1FF9A8 |
-code_1FF9AA:
-  JSR code_1FFA53                           ; $1FF9AA |
-  JSR code_1FFA6C                           ; $1FF9AD |
-  BCC code_1FF9B9                           ; $1FF9B0 |
-  LDA $0580,y                               ; $1FF9B2 |
-  AND #$01                                  ; $1FF9B5 |
-  BNE code_1FF9F6                           ; $1FF9B7 |
-code_1FF9B9:
-  LDA $0480,y                               ; $1FF9B9 |
-  AND #$1F                                  ; $1FF9BC |
-  TAY                                       ; $1FF9BE |
-  LDA $10                                   ; $1FF9BF |
-  CMP $FB5B,y                               ; $1FF9C1 |
-  BCS code_1FF9F6                           ; $1FF9C4 |
-  SEC                                       ; $1FF9C6 |
-  LDA $FB3B,y                               ; $1FF9C7 |
-  SBC $11                                   ; $1FF9CA |
-  BCC code_1FF9F6                           ; $1FF9CC |
-  STA $11                                   ; $1FF9CE |
-  CMP #$08                                  ; $1FF9D0 |
-  BCC code_1FF9D8                           ; $1FF9D2 |
-  LDA #$08                                  ; $1FF9D4 |
-  STA $11                                   ; $1FF9D6 |
-code_1FF9D8:
-  LDY $01                                   ; $1FF9D8 |
-  LDA $0320,y                               ; $1FF9DA |
-  CMP #$14                                  ; $1FF9DD |
-  BNE code_1FF9F0                           ; $1FF9DF |
-  LDA $04A0,y                               ; $1FF9E1 |
-  STA $36                                   ; $1FF9E4 |
-  LDA $0400,y                               ; $1FF9E6 |
-  STA $37                                   ; $1FF9E9 |
-  LDA $0420,y                               ; $1FF9EB |
-  STA $38                                   ; $1FF9EE |
-code_1FF9F0:
-  STY $5D                                   ; $1FF9F0 |
-  LDY $00                                   ; $1FF9F2 |
-  SEC                                       ; $1FF9F4 |
+; -----------------------------------------------
+; check_platform_vertical — check if player stands on a platform entity
+; -----------------------------------------------
+; Scans all entity slots ($1F→$01) for platform entities that
+; the player (slot 0) is standing on. Uses hitbox tables at
+; $FB3B (half-heights) and $FB5B (half-widths) indexed by
+; the entity's shape ($0480 & $1F).
+;
+; $0580 flag bits for platform entities:
+;   bit 7 = active/collidable
+;   bit 2 = disabled (skip if set)
+;   bit 1 = horizontal platform flag
+;   bit 0 = vertical platform flag (can stand on)
+;
+; parameters:
+;   X = entity slot (must be player slot 0)
+; results:
+;   carry = set if standing on platform, clear if not
+;   $11 = vertical overlap (clamped to max 8), used as push distance
+;   $5D = platform entity slot
+;   $36/$37/$38 = platform velocity data (if entity type $14)
+; -----------------------------------------------
+check_platform_vertical:
+  LDA $0580,x                               ; $1FF97E |\ entity not active? bail
+  BPL .no_platform                          ; $1FF981 |/
+  STY $00                                   ; $1FF983 |  save caller's Y
+  LDY #$1F                                  ; $1FF985 |\ start scanning from slot $1F
+  STY $01                                   ; $1FF987 |/
+.scan_loop:
+  LDA $0300,y                               ; $1FF989 |\ entity type empty? skip
+  BPL .next_slot                            ; $1FF98C |/
+  LDA $0580,y                               ; $1FF98E |\ entity not active? skip
+  BPL .next_slot                            ; $1FF991 |/
+  LDA $0580,y                               ; $1FF993 |\ bit 2 set = disabled? skip
+  AND #$04                                  ; $1FF996 | |
+  BNE .next_slot                            ; $1FF998 |/
+  LDA $0580,y                               ; $1FF99A |\ bits 0-1 = platform flags
+  AND #$03                                  ; $1FF99D | | neither set? skip
+  BEQ .next_slot                            ; $1FF99F |/
+  AND #$01                                  ; $1FF9A1 |\ bit 0 = vertical platform?
+  BEQ .check_distances                      ; $1FF9A3 |/ not set → check as horiz-only
+  LDA $0460,x                               ; $1FF9A5 |\ player Y velocity positive (rising)?
+  BPL .next_slot                            ; $1FF9A8 |/ can't land while rising → skip
+.check_distances:
+  JSR player_x_distance                     ; $1FF9AA |  $10 = |player_X - entity_X|
+  JSR player_y_distance                     ; $1FF9AD |  $11 = |player_Y - entity_Y|
+  BCC .check_hitbox                         ; $1FF9B0 |  player above entity? check hitbox
+  LDA $0580,y                               ; $1FF9B2 |\ player below + bit0 (vert platform)?
+  AND #$01                                  ; $1FF9B5 | | can't land from below
+  BNE .next_slot                            ; $1FF9B7 |/
+.check_hitbox:
+  LDA $0480,y                               ; $1FF9B9 |\ shape index = $0480 & $1F
+  AND #$1F                                  ; $1FF9BC | |
+  TAY                                       ; $1FF9BE |/
+  LDA $10                                   ; $1FF9BF |\ X distance >= half-width? no overlap
+  CMP hitbox_mega_man_widths,y              ; $1FF9C1 | |
+  BCS .next_slot                            ; $1FF9C4 |/
+  SEC                                       ; $1FF9C6 |\ Y overlap = half-height - Y distance
+  LDA hitbox_mega_man_heights,y             ; $1FF9C7 | |
+  SBC $11                                   ; $1FF9CA | |
+  BCC .next_slot                            ; $1FF9CC |/ negative? no Y overlap
+  STA $11                                   ; $1FF9CE |\ $11 = overlap amount
+  CMP #$08                                  ; $1FF9D0 | | clamp to max 8 pixels
+  BCC .found_platform                       ; $1FF9D2 | |
+  LDA #$08                                  ; $1FF9D4 | |
+  STA $11                                   ; $1FF9D6 |/
+.found_platform:
+  LDY $01                                   ; $1FF9D8 |  Y = platform entity slot
+  LDA $0320,y                               ; $1FF9DA |\ entity type == $14 (moving platform)?
+  CMP #$14                                  ; $1FF9DD | |
+  BNE .not_moving_platform                  ; $1FF9DF |/
+  LDA $04A0,y                               ; $1FF9E1 |\ copy platform velocity to player vars
+  STA $36                                   ; $1FF9E4 | | $36 = platform direction/speed
+  LDA $0400,y                               ; $1FF9E6 | | $37 = platform X velocity
+  STA $37                                   ; $1FF9E9 | | $38 = platform Y velocity
+  LDA $0420,y                               ; $1FF9EB | |
+  STA $38                                   ; $1FF9EE |/
+.not_moving_platform:
+  STY $5D                                   ; $1FF9F0 |  $5D = platform entity slot
+  LDY $00                                   ; $1FF9F2 |  restore caller's Y
+  SEC                                       ; $1FF9F4 |  C=1: standing on platform
   RTS                                       ; $1FF9F5 |
 
-code_1FF9F6:
-  DEC $01                                   ; $1FF9F6 |
-  LDY $01                                   ; $1FF9F8 |
-  BNE code_1FF989                           ; $1FF9FA |
-  LDY $00                                   ; $1FF9FC |
-code_1FF9FE:
-  CLC                                       ; $1FF9FE |
+.next_slot:
+  DEC $01                                   ; $1FF9F6 |\ next slot (decrement $1F→$01)
+  LDY $01                                   ; $1FF9F8 | |
+  BNE .scan_loop                            ; $1FF9FA |/ slot 0 = player, stop there
+  LDY $00                                   ; $1FF9FC |  restore caller's Y
+.no_platform:
+  CLC                                       ; $1FF9FE |  C=0: not on any platform
   RTS                                       ; $1FF9FF |
 
-code_1FFA00:
-  LDA $0580,x                               ; $1FFA00 |
-  BPL code_1FFA51                           ; $1FFA03 |
-  STY $00                                   ; $1FFA05 |
-  LDY #$1F                                  ; $1FFA07 |
-  STY $01                                   ; $1FFA09 |
-code_1FFA0B:
-  LDA $0300,y                               ; $1FFA0B |
-  BPL code_1FFA49                           ; $1FFA0E |
-  LDA $0580,y                               ; $1FFA10 |
-  AND #$04                                  ; $1FFA13 |
-  BNE code_1FFA49                           ; $1FFA15 |
-  LDA $0580,y                               ; $1FFA17 |
-  AND #$02                                  ; $1FFA1A |
-  BEQ code_1FFA49                           ; $1FFA1C |
-  JSR code_1FFA53                           ; $1FFA1E |
-  JSR code_1FFA6C                           ; $1FFA21 |
-  LDA $0480,y                               ; $1FFA24 |
-  AND #$1F                                  ; $1FFA27 |
-  TAY                                       ; $1FFA29 |
-  LDA $11                                   ; $1FFA2A |
-  CMP $FB3B,y                               ; $1FFA2C |
-  BCS code_1FFA49                           ; $1FFA2F |
-  SEC                                       ; $1FFA31 |
-  LDA $FB5B,y                               ; $1FFA32 |
-  SBC $10                                   ; $1FFA35 |
-  BCC code_1FFA49                           ; $1FFA37 |
-  STA $10                                   ; $1FFA39 |
-  CMP #$08                                  ; $1FFA3B |
-  BCC code_1FFA43                           ; $1FFA3D |
-  LDA #$08                                  ; $1FFA3F |
-  STA $10                                   ; $1FFA41 |
-code_1FFA43:
-  STY $5D                                   ; $1FFA43 |
-  LDY $00                                   ; $1FFA45 |
-  SEC                                       ; $1FFA47 |
+; -----------------------------------------------
+; check_platform_horizontal — check if player is pushed by a platform entity
+; -----------------------------------------------
+; Scans all entity slots ($1F→$01) for horizontal platform entities
+; that overlap the player. Uses hitbox tables at $FB3B (half-heights)
+; and $FB5B (half-widths). Unlike vertical check, this only requires
+; bit 1 (horizontal flag) and does not check Y velocity direction.
+;
+; parameters:
+;   X = entity slot (must be player slot 0)
+; results:
+;   carry = set if overlapping platform, clear if not
+;   $10 = horizontal overlap (clamped to max 8), used as push distance
+;   $5D = platform entity slot (shape index, not original slot)
+; -----------------------------------------------
+check_platform_horizontal:
+  LDA $0580,x                               ; $1FFA00 |\ entity not active? bail
+  BPL .no_platform_h                        ; $1FFA03 |/
+  STY $00                                   ; $1FFA05 |  save caller's Y
+  LDY #$1F                                  ; $1FFA07 |\ start scanning from slot $1F
+  STY $01                                   ; $1FFA09 |/
+.scan_loop_h:
+  LDA $0300,y                               ; $1FFA0B |\ entity type empty? skip
+  BPL .next_slot_h                          ; $1FFA0E |/
+  LDA $0580,y                               ; $1FFA10 |\ bit 2 set = disabled? skip
+  AND #$04                                  ; $1FFA13 | |
+  BNE .next_slot_h                          ; $1FFA15 |/
+  LDA $0580,y                               ; $1FFA17 |\ bit 1 = horizontal platform?
+  AND #$02                                  ; $1FFA1A | | not set? skip
+  BEQ .next_slot_h                          ; $1FFA1C |/
+  JSR player_x_distance                     ; $1FFA1E |  $10 = |player_X - entity_X|
+  JSR player_y_distance                     ; $1FFA21 |  $11 = |player_Y - entity_Y|
+  LDA $0480,y                               ; $1FFA24 |\ shape index = $0480 & $1F
+  AND #$1F                                  ; $1FFA27 | |
+  TAY                                       ; $1FFA29 |/
+  LDA $11                                   ; $1FFA2A |\ Y distance >= half-height? no overlap
+  CMP hitbox_mega_man_heights,y             ; $1FFA2C | |
+  BCS .next_slot_h                          ; $1FFA2F |/
+  SEC                                       ; $1FFA31 |\ X overlap = half-width - X distance
+  LDA hitbox_mega_man_widths,y              ; $1FFA32 | |
+  SBC $10                                   ; $1FFA35 | |
+  BCC .next_slot_h                          ; $1FFA37 |/ negative? no X overlap
+  STA $10                                   ; $1FFA39 |\ $10 = overlap amount
+  CMP #$08                                  ; $1FFA3B | | clamp to max 8 pixels
+  BCC .found_platform_h                     ; $1FFA3D | |
+  LDA #$08                                  ; $1FFA3F | |
+  STA $10                                   ; $1FFA41 |/
+.found_platform_h:
+  STY $5D                                   ; $1FFA43 |  $5D = platform shape index
+  LDY $00                                   ; $1FFA45 |  restore caller's Y
+  SEC                                       ; $1FFA47 |  C=1: overlapping platform
   RTS                                       ; $1FFA48 |
 
-code_1FFA49:
-  DEC $01                                   ; $1FFA49 |
-  LDY $01                                   ; $1FFA4B |
-  BNE code_1FFA0B                           ; $1FFA4D |
-  LDY $00                                   ; $1FFA4F |
-code_1FFA51:
-  CLC                                       ; $1FFA51 |
+.next_slot_h:
+  DEC $01                                   ; $1FFA49 |\ next slot (decrement $1F→$01)
+  LDY $01                                   ; $1FFA4B | |
+  BNE .scan_loop_h                          ; $1FFA4D |/
+  LDY $00                                   ; $1FFA4F |  restore caller's Y
+.no_platform_h:
+  CLC                                       ; $1FFA51 |  C=0: not overlapping any platform
   RTS                                       ; $1FFA52 |
 
-code_1FFA53:
-  LDA $0360                                 ; $1FFA53 |
-  SEC                                       ; $1FFA56 |
-  SBC $0360,y                               ; $1FFA57 |
-  PHA                                       ; $1FFA5A |
-  LDA $0380                                 ; $1FFA5B |
-  SBC $0380,y                               ; $1FFA5E |
-  PLA                                       ; $1FFA61 |
-  BCS code_1FFA69                           ; $1FFA62 |
-  EOR #$FF                                  ; $1FFA64 |
-  ADC #$01                                  ; $1FFA66 |
-  CLC                                       ; $1FFA68 |
-code_1FFA69:
-  STA $10                                   ; $1FFA69 |
+; -----------------------------------------------
+; player_x_distance — |player_X - entity_X|
+; -----------------------------------------------
+; Computes absolute X distance between player (slot 0) and entity Y.
+; parameters:
+;   Y = entity slot
+; results:
+;   $10 = abs(player_X - entity[Y]_X) (pixel portion)
+;   carry = set if player is to the right, clear if left
+; -----------------------------------------------
+player_x_distance:
+  LDA $0360                                 ; $1FFA53 |\ player_X_pixel - entity_X_pixel
+  SEC                                       ; $1FFA56 | |
+  SBC $0360,y                               ; $1FFA57 | |
+  PHA                                       ; $1FFA5A | | (16-bit subtract, high byte for sign)
+  LDA $0380                                 ; $1FFA5B | | player_X_screen - entity_X_screen
+  SBC $0380,y                               ; $1FFA5E | |
+  PLA                                       ; $1FFA61 |/
+  BCS .player_right                         ; $1FFA62 |  player >= entity? already positive
+  EOR #$FF                                  ; $1FFA64 |\ negate: entity is right of player
+  ADC #$01                                  ; $1FFA66 | |
+  CLC                                       ; $1FFA68 |/ C=0 means player is to the left
+.player_right:
+  STA $10                                   ; $1FFA69 |  $10 = abs X distance
   RTS                                       ; $1FFA6B |
 
-code_1FFA6C:
-  LDA $03C0                                 ; $1FFA6C |
-  SEC                                       ; $1FFA6F |
-  SBC $03C0,y                               ; $1FFA70 |
-  BCS code_1FFA7A                           ; $1FFA73 |
-  EOR #$FF                                  ; $1FFA75 |
-  ADC #$01                                  ; $1FFA77 |
-  CLC                                       ; $1FFA79 |
-code_1FFA7A:
-  STA $11                                   ; $1FFA7A |
+; -----------------------------------------------
+; player_y_distance — |player_Y - entity_Y|
+; -----------------------------------------------
+; Computes absolute Y distance between player (slot 0) and entity Y.
+; parameters:
+;   Y = entity slot
+; results:
+;   $11 = abs(player_Y - entity[Y]_Y) (pixel portion)
+;   carry = set if player is below entity, clear if above
+; -----------------------------------------------
+player_y_distance:
+  LDA $03C0                                 ; $1FFA6C |\ player_Y - entity_Y
+  SEC                                       ; $1FFA6F | |
+  SBC $03C0,y                               ; $1FFA70 |/
+  BCS .player_below                         ; $1FFA73 |  player >= entity? positive
+  EOR #$FF                                  ; $1FFA75 |\ negate: player is above entity
+  ADC #$01                                  ; $1FFA77 | |
+  CLC                                       ; $1FFA79 |/ C=0 means player is above
+.player_below:
+  STA $11                                   ; $1FFA7A |  $11 = abs Y distance
   RTS                                       ; $1FFA7C |
 
-code_1FFA7D:
-  SEC                                       ; $1FFA7D |
-  LDA $0360,x                               ; $1FFA7E |
-  SBC $10                                   ; $1FFA81 |
-  STA $0360,x                               ; $1FFA83 |
-  LDA $0380,x                               ; $1FFA86 |
-  SBC #$00                                  ; $1FFA89 |
-  STA $0380,x                               ; $1FFA8B |
-  JMP code_1FFAA2                           ; $1FFA8E |
+; -----------------------------------------------
+; platform_push_x_left — push entity X left by $10
+; -----------------------------------------------
+; Subtracts $10 from entity[X] X position, then compares
+; against reference point $02/$03 to determine side.
+; results: carry = set if entity is left of $02/$03
+; -----------------------------------------------
+platform_push_x_left:
+  SEC                                       ; $1FFA7D |\ entity_X -= $10 (push left)
+  LDA $0360,x                               ; $1FFA7E | |
+  SBC $10                                   ; $1FFA81 | |
+  STA $0360,x                               ; $1FFA83 | |
+  LDA $0380,x                               ; $1FFA86 | | (16-bit: X screen)
+  SBC #$00                                  ; $1FFA89 | |
+  STA $0380,x                               ; $1FFA8B |/
+  JMP .compare_x                            ; $1FFA8E |
 
-code_1FFA91:
-  CLC                                       ; $1FFA91 |
-  LDA $0360,x                               ; $1FFA92 |
-  ADC $10                                   ; $1FFA95 |
-  STA $0360,x                               ; $1FFA97 |
-  LDA $0380,x                               ; $1FFA9A |
-  ADC #$00                                  ; $1FFA9D |
-  STA $0380,x                               ; $1FFA9F |
-code_1FFAA2:
-  SEC                                       ; $1FFAA2 |
-  LDA $02                                   ; $1FFAA3 |
-  SBC $0360,x                               ; $1FFAA5 |
-  LDA $03                                   ; $1FFAA8 |
-  SBC $0380,x                               ; $1FFAAA |
+; -----------------------------------------------
+; platform_push_x_right — push entity X right by $10
+; -----------------------------------------------
+platform_push_x_right:
+  CLC                                       ; $1FFA91 |\ entity_X += $10 (push right)
+  LDA $0360,x                               ; $1FFA92 | |
+  ADC $10                                   ; $1FFA95 | |
+  STA $0360,x                               ; $1FFA97 | |
+  LDA $0380,x                               ; $1FFA9A | | (16-bit: X screen)
+  ADC #$00                                  ; $1FFA9D | |
+  STA $0380,x                               ; $1FFA9F |/
+.compare_x:
+  SEC                                       ; $1FFAA2 |\ compare: $02/$03 - entity_X
+  LDA $02                                   ; $1FFAA3 | | result in carry flag
+  SBC $0360,x                               ; $1FFAA5 | | C=1: entity left of ref point
+  LDA $03                                   ; $1FFAA8 | | C=0: entity right of ref point
+  SBC $0380,x                               ; $1FFAAA |/
   RTS                                       ; $1FFAAD |
 
-code_1FFAAE:
-  SEC                                       ; $1FFAAE |
-  LDA $03C0,x                               ; $1FFAAF |
-  SBC $11                                   ; $1FFAB2 |
-  STA $03C0,x                               ; $1FFAB4 |
-  BCS code_1FFAD6                           ; $1FFAB7 |
-  DEC $03E0,x                               ; $1FFAB9 |
-  JMP code_1FFAD6                           ; $1FFABC |
+; -----------------------------------------------
+; platform_push_y_up — push entity Y up by $11
+; -----------------------------------------------
+; Subtracts $11 from entity[X] Y position, with screen
+; underflow handling. Then compares against $02/$03.
+; results: carry = set if entity is above $02/$03
+; -----------------------------------------------
+platform_push_y_up:
+  SEC                                       ; $1FFAAE |\ entity_Y -= $11 (push up)
+  LDA $03C0,x                               ; $1FFAAF | |
+  SBC $11                                   ; $1FFAB2 | |
+  STA $03C0,x                               ; $1FFAB4 |/
+  BCS .compare_y                            ; $1FFAB7 |  no underflow? skip
+  DEC $03E0,x                               ; $1FFAB9 |  underflow: decrement Y screen
+  JMP .compare_y                            ; $1FFABC |
 
-code_1FFABF:
-  CLC                                       ; $1FFABF |
-  LDA $03C0,x                               ; $1FFAC0 |
-  ADC $11                                   ; $1FFAC3 |
-  STA $03C0,x                               ; $1FFAC5 |
-  BCS code_1FFAD3                           ; $1FFAC8 |
-  CMP #$F0                                  ; $1FFACA |
-  BCC code_1FFAD6                           ; $1FFACC |
-  ADC #$0F                                  ; $1FFACE |
-  STA $03C0,x                               ; $1FFAD0 |
-code_1FFAD3:
-  INC $03E0,x                               ; $1FFAD3 |
-code_1FFAD6:
-  SEC                                       ; $1FFAD6 |
-  LDA $02                                   ; $1FFAD7 |
-  SBC $03C0,x                               ; $1FFAD9 |
-  LDA $03                                   ; $1FFADC |
-  SBC $03E0,x                               ; $1FFADE |
+; -----------------------------------------------
+; platform_push_y_down — push entity Y down by $11
+; -----------------------------------------------
+; Adds $11 to entity[X] Y position, with $F0 screen
+; overflow handling. Then compares against $02/$03.
+; results: carry = set if entity is above $02/$03
+; -----------------------------------------------
+platform_push_y_down:
+  CLC                                       ; $1FFABF |\ entity_Y += $11 (push down)
+  LDA $03C0,x                               ; $1FFAC0 | |
+  ADC $11                                   ; $1FFAC3 | |
+  STA $03C0,x                               ; $1FFAC5 |/
+  BCS .y_screen_overflow                    ; $1FFAC8 |  carry? wrapped past $FF
+  CMP #$F0                                  ; $1FFACA |\ below screen bottom ($F0)?
+  BCC .compare_y                            ; $1FFACC |/ no → done
+  ADC #$0F                                  ; $1FFACE |\ wrap Y: $F0+$0F+C = next screen
+  STA $03C0,x                               ; $1FFAD0 |/
+.y_screen_overflow:
+  INC $03E0,x                               ; $1FFAD3 |  increment Y screen
+.compare_y:
+  SEC                                       ; $1FFAD6 |\ compare: $02/$03 - entity_Y
+  LDA $02                                   ; $1FFAD7 | | result in carry flag
+  SBC $03C0,x                               ; $1FFAD9 | | C=1: entity above ref point
+  LDA $03                                   ; $1FFADC | | C=0: entity below ref point
+  SBC $03E0,x                               ; $1FFADE |/
   RTS                                       ; $1FFAE1 |
 
 ; tests if a sprite is colliding
@@ -8422,140 +8785,199 @@ find_enemy_freeslot_y:
   CLC                                       ; $1FFC61 |\ return C=0 slot found
   RTS                                       ; $1FFC62 |/
 
-code_1FFC63:
-  JSR code_1FF8C2                           ; $1FFC63 |
-  STA $0A                                   ; $1FFC66 |
-  LDA #$01                                  ; $1FFC68 |
-  BCS code_1FFC6E                           ; $1FFC6A |
-  LDA #$02                                  ; $1FFC6C |
-code_1FFC6E:
-  STA $0C                                   ; $1FFC6E |
-  JSR code_1FF8B3                           ; $1FFC70 |
-  STA $0B                                   ; $1FFC73 |
-  LDA #$04                                  ; $1FFC75 |
-  BCS code_1FFC7B                           ; $1FFC77 |
-  LDA #$08                                  ; $1FFC79 |
-code_1FFC7B:
-  ORA $0C                                   ; $1FFC7B |
-  STA $0C                                   ; $1FFC7D |
-  LDA $0B                                   ; $1FFC7F |
-  CMP $0A                                   ; $1FFC81 |
-  BCS code_1FFCB8                           ; $1FFC83 |
-  LDA $02                                   ; $1FFC85 |
-  STA $0400,x                               ; $1FFC87 |
-  LDA $03                                   ; $1FFC8A |
-  STA $0420,x                               ; $1FFC8C |
-  LDA $0A                                   ; $1FFC8F |
-  STA $01                                   ; $1FFC91 |
-  LDA #$00                                  ; $1FFC93 |
-  STA $00                                   ; $1FFC95 |
-  JSR code_1FFD11                           ; $1FFC97 |
-  LDA $04                                   ; $1FFC9A |
-  STA $02                                   ; $1FFC9C |
-  LDA $05                                   ; $1FFC9E |
-  STA $03                                   ; $1FFCA0 |
-  LDA $0B                                   ; $1FFCA2 |
-  STA $01                                   ; $1FFCA4 |
-  LDA #$00                                  ; $1FFCA6 |
-  STA $00                                   ; $1FFCA8 |
-  JSR code_1FFD11                           ; $1FFCAA |
-  LDA $04                                   ; $1FFCAD |
-  STA $0440,x                               ; $1FFCAF |
-  LDA $05                                   ; $1FFCB2 |
-  STA $0460,x                               ; $1FFCB4 |
+; -----------------------------------------------
+; calc_homing_velocity — proportional X/Y velocity toward player
+; -----------------------------------------------
+; Computes entity velocity that points at the player with the
+; given speed magnitude. The dominant axis (larger distance) gets
+; full speed; the minor axis gets proportional speed:
+;   minor_vel = speed * minor_dist / major_dist
+;
+; Uses two successive divide_16bit calls to compute this ratio.
+;
+; parameters:
+;   X = entity slot
+;   $03.$02 = speed magnitude (8.8 fixed-point, whole.sub)
+; results:
+;   $0420,x.$0400,x = X velocity (8.8 fixed-point)
+;   $0460,x.$0440,x = Y velocity (8.8 fixed-point)
+;   $0C = direction bitmask:
+;     bit 0 ($01) = player is right
+;     bit 1 ($02) = player is left
+;     bit 2 ($04) = player is below
+;     bit 3 ($08) = player is above
+;   Callers typically store $0C into $04A0,x and use it
+;   to select move_sprite_right/left/up/down.
+; -----------------------------------------------
+calc_homing_velocity:
+  JSR entity_x_dist_to_player             ; $1FFC63 |  A = |x_dist|, C = player right
+  STA $0A                                   ; $1FFC66 |  $0A = x_distance
+  LDA #$01                                  ; $1FFC68 |\ $01 = right
+  BCS .store_x_dir                         ; $1FFC6A |/
+  LDA #$02                                  ; $1FFC6C |  $02 = left
+.store_x_dir:
+  STA $0C                                   ; $1FFC6E |  $0C = X direction bit
+  JSR entity_y_dist_to_player             ; $1FFC70 |  A = |y_dist|, C = player below
+  STA $0B                                   ; $1FFC73 |  $0B = y_distance
+  LDA #$04                                  ; $1FFC75 |\ $04 = below
+  BCS .combine_dir                         ; $1FFC77 |/
+  LDA #$08                                  ; $1FFC79 |  $08 = above
+.combine_dir:
+  ORA $0C                                   ; $1FFC7B |\ combine X and Y direction bits
+  STA $0C                                   ; $1FFC7D |/
+  LDA $0B                                   ; $1FFC7F |\ compare y_dist vs x_dist
+  CMP $0A                                   ; $1FFC81 | |
+  BCS .y_dominant                          ; $1FFC83 |/ y_dist >= x_dist → Y dominant
+  ; --- X dominant: x_dist > y_dist ---
+  LDA $02                                   ; $1FFC85 |\ X gets full speed
+  STA $0400,x                               ; $1FFC87 | | X vel sub = speed sub
+  LDA $03                                   ; $1FFC8A | |
+  STA $0420,x                               ; $1FFC8C |/ X vel whole = speed whole
+  LDA $0A                                   ; $1FFC8F |\ divide_16bit: (x_dist << 16) / speed
+  STA $01                                   ; $1FFC91 | | → intermediate scale factor
+  LDA #$00                                  ; $1FFC93 | |
+  STA $00                                   ; $1FFC95 | |
+  JSR divide_16bit                          ; $1FFC97 |/
+  LDA $04                                   ; $1FFC9A |\ use scale factor as new divisor
+  STA $02                                   ; $1FFC9C | |
+  LDA $05                                   ; $1FFC9E | |
+  STA $03                                   ; $1FFCA0 |/
+  LDA $0B                                   ; $1FFCA2 |\ divide_16bit: (y_dist << 16) / scale
+  STA $01                                   ; $1FFCA4 | | = speed * y_dist / x_dist
+  LDA #$00                                  ; $1FFCA6 | |
+  STA $00                                   ; $1FFCA8 | |
+  JSR divide_16bit                          ; $1FFCAA |/
+  LDA $04                                   ; $1FFCAD |\ Y gets proportional speed
+  STA $0440,x                               ; $1FFCAF | | Y vel sub
+  LDA $05                                   ; $1FFCB2 | |
+  STA $0460,x                               ; $1FFCB4 |/ Y vel whole
   RTS                                       ; $1FFCB7 |
 
-code_1FFCB8:
-  LDA $02                                   ; $1FFCB8 |
-  STA $0440,x                               ; $1FFCBA |
-  LDA $03                                   ; $1FFCBD |
-  STA $0460,x                               ; $1FFCBF |
-  LDA $0B                                   ; $1FFCC2 |
-  STA $01                                   ; $1FFCC4 |
-  LDA #$00                                  ; $1FFCC6 |
-  STA $00                                   ; $1FFCC8 |
-  JSR code_1FFD11                           ; $1FFCCA |
-  LDA $04                                   ; $1FFCCD |
-  STA $02                                   ; $1FFCCF |
-  LDA $05                                   ; $1FFCD1 |
-  STA $03                                   ; $1FFCD3 |
-  LDA $0A                                   ; $1FFCD5 |
-  STA $01                                   ; $1FFCD7 |
-  LDA #$00                                  ; $1FFCD9 |
-  STA $00                                   ; $1FFCDB |
-  JSR code_1FFD11                           ; $1FFCDD |
-  LDA $04                                   ; $1FFCE0 |
-  STA $0400,x                               ; $1FFCE2 |
-  LDA $05                                   ; $1FFCE5 |
-  STA $0420,x                               ; $1FFCE7 |
+.y_dominant:
+  ; --- Y dominant: y_dist >= x_dist ---
+  LDA $02                                   ; $1FFCB8 |\ Y gets full speed
+  STA $0440,x                               ; $1FFCBA | | Y vel sub = speed sub
+  LDA $03                                   ; $1FFCBD | |
+  STA $0460,x                               ; $1FFCBF |/ Y vel whole = speed whole
+  LDA $0B                                   ; $1FFCC2 |\ divide_16bit: (y_dist << 16) / speed
+  STA $01                                   ; $1FFCC4 | | → intermediate scale factor
+  LDA #$00                                  ; $1FFCC6 | |
+  STA $00                                   ; $1FFCC8 | |
+  JSR divide_16bit                          ; $1FFCCA |/
+  LDA $04                                   ; $1FFCCD |\ use scale factor as new divisor
+  STA $02                                   ; $1FFCCF | |
+  LDA $05                                   ; $1FFCD1 | |
+  STA $03                                   ; $1FFCD3 |/
+  LDA $0A                                   ; $1FFCD5 |\ divide_16bit: (x_dist << 16) / scale
+  STA $01                                   ; $1FFCD7 | | = speed * x_dist / y_dist
+  LDA #$00                                  ; $1FFCD9 | |
+  STA $00                                   ; $1FFCDB | |
+  JSR divide_16bit                          ; $1FFCDD |/
+  LDA $04                                   ; $1FFCE0 |\ X gets proportional speed
+  STA $0400,x                               ; $1FFCE2 | | X vel sub
+  LDA $05                                   ; $1FFCE5 | |
+  STA $0420,x                               ; $1FFCE7 |/ X vel whole
   RTS                                       ; $1FFCEA |
 
-code_1FFCEB:
-  LDA #$00                                  ; $1FFCEB |
-  STA $02                                   ; $1FFCED |
+; -----------------------------------------------
+; divide_8bit — 8-bit restoring division
+; -----------------------------------------------
+; Computes ($00 * 256) / $01 using shift-and-subtract.
+; Effectively returns the ratio $00/$01 as a 0.8 fixed-point
+; fraction, useful when $00 < $01.
+;
+; parameters:
+;   $00 = dividend (8-bit)
+;   $01 = divisor (8-bit)
+; results:
+;   $02 = quotient (= $00 * 256 / $01, 8-bit)
+;   $03 = remainder
+; -----------------------------------------------
+divide_8bit:
+  LDA #$00                                  ; $1FFCEB |\ clear quotient
+  STA $02                                   ; $1FFCED |/ and remainder
   STA $03                                   ; $1FFCEF |
-  LDA $00                                   ; $1FFCF1 |
-  ORA $01                                   ; $1FFCF3 |
-  BNE code_1FFCFA                           ; $1FFCF5 |
+  LDA $00                                   ; $1FFCF1 |\ if both inputs zero,
+  ORA $01                                   ; $1FFCF3 | | return 0
+  BNE .begin                               ; $1FFCF5 |/
   STA $02                                   ; $1FFCF7 |
   RTS                                       ; $1FFCF9 |
 
-code_1FFCFA:
-  LDY #$08                                  ; $1FFCFA |
-code_1FFCFC:
-  ASL $02                                   ; $1FFCFC |
-  ROL $00                                   ; $1FFCFE |
-  ROL $03                                   ; $1FFD00 |
-  SEC                                       ; $1FFD02 |
-  LDA $03                                   ; $1FFD03 |
-  SBC $01                                   ; $1FFD05 |
-  BCC code_1FFD0D                           ; $1FFD07 |
-  STA $03                                   ; $1FFD09 |
-  INC $02                                   ; $1FFD0B |
-code_1FFD0D:
+.begin:
+  LDY #$08                                  ; $1FFCFA |  8 iterations (8-bit quotient)
+.loop:
+  ASL $02                                   ; $1FFCFC |\ shift $03:$00:$02 left
+  ROL $00                                   ; $1FFCFE | | (quotient ← dividend ← remainder)
+  ROL $03                                   ; $1FFD00 |/
+  SEC                                       ; $1FFD02 |\ try remainder - divisor
+  LDA $03                                   ; $1FFD03 | |
+  SBC $01                                   ; $1FFD05 | |
+  BCC .no_fit                              ; $1FFD07 |/ divisor doesn't fit, skip
+  STA $03                                   ; $1FFD09 |  update remainder
+  INC $02                                   ; $1FFD0B |  set quotient bit
+.no_fit:
   DEY                                       ; $1FFD0D |
-  BNE code_1FFCFC                           ; $1FFD0E |
+  BNE .loop                                ; $1FFD0E |
   RTS                                       ; $1FFD10 |
 
-code_1FFD11:
-  LDA #$00                                  ; $1FFD11 |
-  STA $06                                   ; $1FFD13 |
-  STA $07                                   ; $1FFD15 |
-  LDA $00                                   ; $1FFD17 |
-  ORA $01                                   ; $1FFD19 |
-  ORA $02                                   ; $1FFD1B |
-  ORA $03                                   ; $1FFD1D |
-  BNE code_1FFD26                           ; $1FFD1F |
+; -----------------------------------------------
+; divide_16bit — 16-bit restoring division
+; -----------------------------------------------
+; Computes ($01:$00 << 16) / ($03:$02) using shift-and-subtract.
+; The dividend is placed in byte position 2 of the 32-bit shift
+; chain ($07:$01:$00:$06), so the result is effectively:
+;   ($01 * 65536) / ($03:$02)  [when $00 = 0, as typical]
+;
+; Used by calc_homing_velocity: two successive calls compute
+; speed * minor_dist / major_dist for proportional velocity.
+;
+; parameters:
+;   $01:$00 = dividend (16-bit, usually $01=value, $00=0)
+;   $03:$02 = divisor (16-bit, 8.8 fixed-point speed)
+; results:
+;   $05:$04 = quotient (16-bit), $05=high, $04=low
+; preserves:
+;   X register (saved/restored via $09)
+; -----------------------------------------------
+divide_16bit:
+  LDA #$00                                  ; $1FFD11 |\ clear quotient accumulator
+  STA $06                                   ; $1FFD13 | | and remainder high byte
+  STA $07                                   ; $1FFD15 |/
+  LDA $00                                   ; $1FFD17 |\ if all inputs zero,
+  ORA $01                                   ; $1FFD19 | | return 0
+  ORA $02                                   ; $1FFD1B | |
+  ORA $03                                   ; $1FFD1D | |
+  BNE .begin                               ; $1FFD1F |/
   STA $04                                   ; $1FFD21 |
   STA $05                                   ; $1FFD23 |
   RTS                                       ; $1FFD25 |
 
-code_1FFD26:
-  STX $09                                   ; $1FFD26 |
-  LDY #$10                                  ; $1FFD28 |
-code_1FFD2A:
-  ASL $06                                   ; $1FFD2A |
-  ROL $00                                   ; $1FFD2C |
-  ROL $01                                   ; $1FFD2E |
-  ROL $07                                   ; $1FFD30 |
-  SEC                                       ; $1FFD32 |
-  LDA $01                                   ; $1FFD33 |
-  SBC $02                                   ; $1FFD35 |
-  TAX                                       ; $1FFD37 |
-  LDA $07                                   ; $1FFD38 |
-  SBC $03                                   ; $1FFD3A |
-  BCC code_1FFD44                           ; $1FFD3C |
-  STX $01                                   ; $1FFD3E |
-  STA $07                                   ; $1FFD40 |
-  INC $06                                   ; $1FFD42 |
-code_1FFD44:
+.begin:
+  STX $09                                   ; $1FFD26 |  save X (used as temp)
+  LDY #$10                                  ; $1FFD28 |  16 iterations (16-bit quotient)
+.loop:
+  ASL $06                                   ; $1FFD2A |\ shift 32-bit chain left:
+  ROL $00                                   ; $1FFD2C | | $07:$01:$00:$06
+  ROL $01                                   ; $1FFD2E | | (remainder ← dividend ← quotient)
+  ROL $07                                   ; $1FFD30 |/
+  SEC                                       ; $1FFD32 |\ try $07:$01 - $03:$02
+  LDA $01                                   ; $1FFD33 | | (remainder - divisor)
+  SBC $02                                   ; $1FFD35 | |
+  TAX                                       ; $1FFD37 | | X = low byte of difference
+  LDA $07                                   ; $1FFD38 | |
+  SBC $03                                   ; $1FFD3A | |
+  BCC .no_fit                              ; $1FFD3C |/ divisor doesn't fit, skip
+  STX $01                                   ; $1FFD3E |  update remainder low
+  STA $07                                   ; $1FFD40 |  update remainder high
+  INC $06                                   ; $1FFD42 |  set quotient bit
+.no_fit:
   DEY                                       ; $1FFD44 |
-  BNE code_1FFD2A                           ; $1FFD45 |
-  LDA $06                                   ; $1FFD47 |
-  STA $04                                   ; $1FFD49 |
-  LDA $00                                   ; $1FFD4B |
-  STA $05                                   ; $1FFD4D |
-  LDX $09                                   ; $1FFD4F |
+  BNE .loop                                ; $1FFD45 |
+  LDA $06                                   ; $1FFD47 |\ $04 = quotient low byte
+  STA $04                                   ; $1FFD49 |/
+  LDA $00                                   ; $1FFD4B |\ $05 = quotient high byte
+  STA $05                                   ; $1FFD4D |/
+  LDX $09                                   ; $1FFD4F |  restore X
   RTS                                       ; $1FFD51 |
 
 code_1FFD52:
@@ -8852,7 +9274,7 @@ code_1FFF57:
   STA $97                                   ; $1FFF59 |
 code_1FFF5B:
   JSR code_1EC5E9                           ; $1FFF5B |
-  JSR code_1FF034                           ; $1FFF5E |
+  JSR update_entity_sprites                  ; $1FFF5E |
   LDA #$00                                  ; $1FFF61 |
   STA $EE                                   ; $1FFF63 |
   JSR code_1FFF21                           ; $1FFF65 |

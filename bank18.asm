@@ -670,7 +670,7 @@ stage_select_init:
 .wait_nmi:
   LDA #$04                                  ; $18910B |
   STA $10                                   ; $18910D |
-  JSR code_1FEF8C                           ; $18910F |
+  JSR fill_nametable_progressive                           ; $18910F |
   JSR code_1FFF21                           ; $189112 | wait for NMI
   LDA $70                                   ; $189115 |
   BNE .wait_nmi                             ; $189117 | loop until NMI complete
@@ -742,7 +742,7 @@ code_189164:
 code_189199:
   LDA $10                                   ; $189199 |
   PHA                                       ; $18919B |
-  JSR code_1FEF8C                           ; $18919C |
+  JSR fill_nametable_progressive                           ; $18919C |
   PLA                                       ; $18919F |
   STA $10                                   ; $1891A0 |
   JSR code_1FFF21                           ; $1891A2 |
@@ -824,7 +824,7 @@ code_189236:
   LDA #$00                                  ; $189236 |
   STA $EE                                   ; $189238 |
   STA $10                                   ; $18923A |
-  JSR code_1FEF8C                           ; $18923C |
+  JSR fill_nametable_progressive                           ; $18923C |
   JSR code_1FFF21                           ; $18923F |
   LDA $70                                   ; $189242 |
   BNE code_189236                           ; $189244 |
@@ -1505,7 +1505,7 @@ code_18958A:
 code_1895AF:
   LDA #$00                                  ; $1895AF |
   STA $10                                   ; $1895B1 |
-  JSR code_1FEF8C                           ; $1895B3 |
+  JSR fill_nametable_progressive                           ; $1895B3 |
   JSR code_1FFF21                           ; $1895B6 |
   LDA $70                                   ; $1895B9 |
   BNE code_1895AF                           ; $1895BB |
@@ -1527,7 +1527,7 @@ code_1895AF:
 code_1895E1:
   LDA #$04                                  ; $1895E1 |
   STA $10                                   ; $1895E3 |
-  JSR code_1FEF8C                           ; $1895E5 |
+  JSR fill_nametable_progressive                           ; $1895E5 |
   JSR code_1FFF21                           ; $1895E8 |
   LDA $70                                   ; $1895EB |
   BNE code_1895E1                           ; $1895ED |
@@ -1624,7 +1624,7 @@ code_18968C:
 code_1896AC:
   LDA #$04                                  ; $1896AC |
   STA $10                                   ; $1896AE |
-  JSR code_1FEF8C                           ; $1896B0 |
+  JSR fill_nametable_progressive                           ; $1896B0 |
   JSR code_1FFF21                           ; $1896B3 |
   LDA $70                                   ; $1896B6 |
   BNE code_1896AC                           ; $1896B8 |
@@ -1876,7 +1876,7 @@ code_18985D:
 code_18987F:
   LDA #$04                                  ; $18987F |
   STA $10                                   ; $189881 |
-  JSR code_1FEF8C                           ; $189883 |
+  JSR fill_nametable_progressive                           ; $189883 |
   JSR code_1FFF21                           ; $189886 |
   LDA $70                                   ; $189889 |
   BNE code_18987F                           ; $18988B |

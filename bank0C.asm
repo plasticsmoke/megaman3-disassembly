@@ -62,7 +62,7 @@ code_0C804A:
 code_0C8084:
   LDA #$00                                  ; $0C8084 |
   STA $10                                   ; $0C8086 |
-  JSR code_1FEF8C                           ; $0C8088 |
+  JSR fill_nametable_progressive                           ; $0C8088 |
   JSR code_1FFF21                           ; $0C808B |
   LDA $70                                   ; $0C808E |
   BNE code_0C8084                           ; $0C8090 |
@@ -248,7 +248,7 @@ code_0C81FC:
 code_0C8213:
   LDA #$04                                  ; $0C8213 |
   STA $10                                   ; $0C8215 |
-  JSR code_1FEF8C                           ; $0C8217 |
+  JSR fill_nametable_progressive                           ; $0C8217 |
   JSR code_1FFF21                           ; $0C821A |
   LDA $70                                   ; $0C821D |
   BNE code_0C8213                           ; $0C821F |
@@ -257,7 +257,7 @@ code_0C8213:
 code_0C8226:
   LDA #$00                                  ; $0C8226 |
   STA $10                                   ; $0C8228 |
-  JSR code_1FEF8C                           ; $0C822A |
+  JSR fill_nametable_progressive                           ; $0C822A |
   JSR code_1FFF21                           ; $0C822D |
   LDA $70                                   ; $0C8230 |
   BNE code_0C8226                           ; $0C8232 |
@@ -449,7 +449,7 @@ code_0C839F:
 code_0C83AF:
   LDA #$08                                  ; $0C83AF |
   STA $10                                   ; $0C83B1 |
-  JSR code_1FEF8C                           ; $0C83B3 |
+  JSR fill_nametable_progressive                           ; $0C83B3 |
   JSR code_1FFF21                           ; $0C83B6 |
   LDA $70                                   ; $0C83B9 |
   BNE code_0C83AF                           ; $0C83BB |
@@ -558,7 +558,7 @@ code_0C8466:
 code_0C849E:
   LDA #$00                                  ; $0C849E |
   STA $10                                   ; $0C84A0 |
-  JSR code_1FEF8C                           ; $0C84A2 |
+  JSR fill_nametable_progressive                           ; $0C84A2 |
   JSR code_1FFF21                           ; $0C84A5 |
   LDA $70                                   ; $0C84A8 |
   BNE code_0C849E                           ; $0C84AA |

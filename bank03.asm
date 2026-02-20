@@ -82,7 +82,7 @@ stage_transition_entry:
   AND #$01                                  ; $03A068 | | (wrap to 0-1)
   STA $FD                                   ; $03A06A |/
   LDX #$10                                  ; $03A06C |\ apply Y movement to entity $10
-  JSR code_1FF797                           ; $03A06E |/ (scroll entity — creates vertical effect)
+  JSR apply_y_speed                           ; $03A06E |/ (scroll entity — creates vertical effect)
   LDA $0470                                 ; $03A071 |\ scroll direction check
   BPL .normal_scroll                        ; $03A074 |/
   LDA #$70                                  ; $03A076 |\ clamp $03D0 to max $70

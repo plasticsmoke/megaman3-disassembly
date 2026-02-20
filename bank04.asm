@@ -50,18 +50,18 @@ code_04A04C:
   AND #$02                                  ; $04A04F |
   BNE code_04A0A7                           ; $04A051 |
   LDY #$1E                                  ; $04A053 |
-  JSR code_1FF67C                           ; $04A055 |
+  JSR move_vertical_gravity                           ; $04A055 |
   ROL $0F                                   ; $04A058 |
   LDA $04A0,x                               ; $04A05A |
   AND #$01                                  ; $04A05D |
   BEQ code_04A069                           ; $04A05F |
   LDY #$20                                  ; $04A061 |
-  JSR code_1FF580                           ; $04A063 |
+  JSR move_right_collide                           ; $04A063 |
   JMP code_04A06E                           ; $04A066 |
 
 code_04A069:
   LDY #$21                                  ; $04A069 |
-  JSR code_1FF5C4                           ; $04A06B |
+  JSR move_left_collide                           ; $04A06B |
 code_04A06E:
   LDA $0F                                   ; $04A06E |
   AND #$01                                  ; $04A070 |
@@ -105,7 +105,7 @@ code_04A0A7:
   LDA #$02                                  ; $04A0B9 |
   JSR reset_sprite_anim                     ; $04A0BB |
   JSR face_player                           ; $04A0BE |
-  JSR code_1FF883                           ; $04A0C1 |
+  JSR set_sprite_hflip                           ; $04A0C1 |
   RTS                                       ; $04A0C4 |
 
 code_04A0C5:
@@ -157,7 +157,7 @@ code_04A0F5:
   LDA #$08                                  ; $04A125 |
   STA $0420,y                               ; $04A127 |
   LDA #$58                                  ; $04A12A |
-  JSR code_1FF846                           ; $04A12C |
+  JSR init_child_entity                           ; $04A12C |
   LDA #$8B                                  ; $04A12F |
   STA $0480,y                               ; $04A131 |
   LDA #$A4                                  ; $04A134 |
@@ -173,7 +173,7 @@ code_04A13C:
   BNE code_04A182                           ; $04A141 |
   STA $0540,x                               ; $04A143 |
   INC $0300,x                               ; $04A146 |
-  JSR code_1FF8C2                           ; $04A149 |
+  JSR entity_x_dist_to_player                           ; $04A149 |
   CMP #$18                                  ; $04A14C |
   BCC code_04A182                           ; $04A14E |
   LDA $03C0                                 ; $04A150 |
@@ -191,7 +191,7 @@ code_04A13C:
   STA $02                                   ; $04A16B |
   LDA #$08                                  ; $04A16D |
   STA $03                                   ; $04A16F |
-  JSR code_1FFC63                           ; $04A171 |
+  JSR calc_homing_velocity                           ; $04A171 |
   LDA $0C                                   ; $04A174 |
   STA $04A0,x                               ; $04A176 |
   LDA $0500,x                               ; $04A179 |
@@ -358,15 +358,15 @@ code_04A306:
   AND #$01                                  ; $04A309 |
   BEQ code_04A315                           ; $04A30B |
   LDY #$20                                  ; $04A30D |
-  JSR code_1FF580                           ; $04A30F |
+  JSR move_right_collide                           ; $04A30F |
   JMP code_04A31A                           ; $04A312 |
 
 code_04A315:
   LDY #$21                                  ; $04A315 |
-  JSR code_1FF5C4                           ; $04A317 |
+  JSR move_left_collide                           ; $04A317 |
 code_04A31A:
   LDY #$1E                                  ; $04A31A |
-  JSR code_1FF67C                           ; $04A31C |
+  JSR move_vertical_gravity                           ; $04A31C |
   BCC code_04A332                           ; $04A31F |
   LDA #$9E                                  ; $04A321 |
   STA $0440,x                               ; $04A323 |
@@ -403,7 +403,7 @@ code_04A357:
   LDA #$60                                  ; $04A368 |
   STA $0560,x                               ; $04A36A |
   JSR face_player                           ; $04A36D |
-  JSR code_1FF883                           ; $04A370 |
+  JSR set_sprite_hflip                           ; $04A370 |
   JSR code_04A382                           ; $04A373 |
 code_04A376:
   RTS                                       ; $04A376 |
@@ -432,7 +432,7 @@ code_04A382:
   LDA #$A9                                  ; $04A3A7 |
   STA $0320,y                               ; $04A3A9 |
   LDA #$1B                                  ; $04A3AC |
-  JSR code_1FF846                           ; $04A3AE |
+  JSR init_child_entity                           ; $04A3AE |
   LDA #$AD                                  ; $04A3B1 |
   STA $0480,y                               ; $04A3B3 |
   LDA #$80                                  ; $04A3B6 |
@@ -456,7 +456,7 @@ code_04A3C1:
   STA $04E0,y                               ; $04A3E0 |
   STA $0440,y                               ; $04A3E3 |
   LDA #$12                                  ; $04A3E6 |
-  JSR code_1FF846                           ; $04A3E8 |
+  JSR init_child_entity                           ; $04A3E8 |
   LDA #$8B                                  ; $04A3EB |
   STA $0480,y                               ; $04A3ED |
   LDA #$04                                  ; $04A3F0 |
@@ -478,7 +478,7 @@ code_04A3FB:
   LDA #$00                                  ; $04A410 |
   STA $04E0,y                               ; $04A412 |
   LDA #$12                                  ; $04A415 |
-  JSR code_1FF846                           ; $04A417 |
+  JSR init_child_entity                           ; $04A417 |
   LDA #$8B                                  ; $04A41A |
   STA $0480,y                               ; $04A41C |
   LDA #$62                                  ; $04A41F |
@@ -564,7 +564,7 @@ code_04A4B9:
   AND #$01                                  ; $04A4C3 |
   BEQ code_04A4D6                           ; $04A4C5 |
   LDY #$20                                  ; $04A4C7 |
-  JSR code_1FF580                           ; $04A4C9 |
+  JSR move_right_collide                           ; $04A4C9 |
   LDA $0360,x                               ; $04A4CC |
   CMP #$CC                                  ; $04A4CF |
   BCS code_04A4E2                           ; $04A4D1 |
@@ -572,7 +572,7 @@ code_04A4B9:
 
 code_04A4D6:
   LDY #$21                                  ; $04A4D6 |
-  JSR code_1FF5C4                           ; $04A4D8 |
+  JSR move_left_collide                           ; $04A4D8 |
   LDA $0360,x                               ; $04A4DB |
   CMP #$34                                  ; $04A4DE |
   BCS code_04A4EA                           ; $04A4E0 |
@@ -582,7 +582,7 @@ code_04A4E2:
   STA $04A0,x                               ; $04A4E7 |
 code_04A4EA:
   LDY #$1E                                  ; $04A4EA |
-  JSR code_1FF67C                           ; $04A4EC |
+  JSR move_vertical_gravity                           ; $04A4EC |
   LDA $0500,x                               ; $04A4EF |
   BNE code_04A504                           ; $04A4F2 |
   LDA $14                                   ; $04A4F4 |
@@ -616,17 +616,17 @@ code_04A522:
   AND #$01                                  ; $04A525 |
   BEQ code_04A534                           ; $04A527 |
   LDY #$20                                  ; $04A529 |
-  JSR code_1FF580                           ; $04A52B |
+  JSR move_right_collide                           ; $04A52B |
   JSR code_04A5C1                           ; $04A52E |
   JMP code_04A53C                           ; $04A531 |
 
 code_04A534:
   LDY #$21                                  ; $04A534 |
-  JSR code_1FF5C4                           ; $04A536 |
+  JSR move_left_collide                           ; $04A536 |
   JSR code_04A5C1                           ; $04A539 |
 code_04A53C:
   LDY #$1E                                  ; $04A53C |
-  JSR code_1FF67C                           ; $04A53E |
+  JSR move_vertical_gravity                           ; $04A53E |
   BCC code_04A55D                           ; $04A541 |
   DEC $0300,x                               ; $04A543 |
   JSR reset_gravity                         ; $04A546 |
@@ -735,7 +735,7 @@ code_04A5E7:
   LDA #$80                                  ; $04A61E |
   STA $04C0,y                               ; $04A620 |
   LDA #$0B                                  ; $04A623 |
-  JSR code_1FF846                           ; $04A625 |
+  JSR init_child_entity                           ; $04A625 |
   LDA #$80                                  ; $04A628 |
   STA $0480,y                               ; $04A62A |
   LDA #$A7                                  ; $04A62D |
@@ -762,7 +762,7 @@ code_04A633:
   CLC                                       ; $04A656 |
   ADC $A6E3,y                               ; $04A657 |
   STA $0360,x                               ; $04A65A |
-  JSR code_1FFC63                           ; $04A65D |
+  JSR calc_homing_velocity                           ; $04A65D |
   LDA $0520,x                               ; $04A660 |
   STA $0360,x                               ; $04A663 |
   LDA $0C                                   ; $04A666 |
@@ -776,19 +776,19 @@ code_04A66E:
   AND #$08                                  ; $04A678 |
   BEQ code_04A684                           ; $04A67A |
   LDY #$13                                  ; $04A67C |
-  JSR code_1FF642                           ; $04A67E |
+  JSR move_up_collide                           ; $04A67E |
   JMP code_04A689                           ; $04A681 |
 
 code_04A684:
   LDY #$12                                  ; $04A684 |
-  JSR code_1FF606                           ; $04A686 |
+  JSR move_down_collide                           ; $04A686 |
 code_04A689:
   BCS code_04A6B1                           ; $04A689 |
   LDA $04A0,x                               ; $04A68B |
   AND #$01                                  ; $04A68E |
   BEQ code_04A6A2                           ; $04A690 |
   LDY #$1E                                  ; $04A692 |
-  JSR code_1FF580                           ; $04A694 |
+  JSR move_right_collide                           ; $04A694 |
   LDA $0580,x                               ; $04A697 |
   AND #$BF                                  ; $04A69A |
   STA $0580,x                               ; $04A69C |
@@ -796,7 +796,7 @@ code_04A689:
 
 code_04A6A2:
   LDY #$1F                                  ; $04A6A2 |
-  JSR code_1FF5C4                           ; $04A6A4 |
+  JSR move_left_collide                           ; $04A6A4 |
   LDA $0580,x                               ; $04A6A7 |
   ORA #$40                                  ; $04A6AA |
   STA $0580,x                               ; $04A6AC |
@@ -849,7 +849,7 @@ code_04A6FC:
   CMP #$03                                  ; $04A705 |
   BEQ code_04A77E                           ; $04A707 |
   JSR code_04A377                           ; $04A709 |
-  JSR code_1FF8C2                           ; $04A70C |
+  JSR entity_x_dist_to_player                           ; $04A70C |
   CMP #$28                                  ; $04A70F |
   BCS code_04A724                           ; $04A711 |
   LDA #$2A                                  ; $04A713 |
@@ -884,7 +884,7 @@ code_04A73C:
   BNE code_04A73B                           ; $04A746 |
 code_04A748:
   LDY #$1E                                  ; $04A748 |
-  JSR code_1FF67C                           ; $04A74A |
+  JSR move_vertical_gravity                           ; $04A74A |
   BCC code_04A75B                           ; $04A74D |
   JSR code_04A81F                           ; $04A74F |
   LDA #$1D                                  ; $04A752 |
@@ -926,7 +926,7 @@ code_04A798:
   JSR move_sprite_left                      ; $04A798 |
 code_04A79B:
   LDY #$1E                                  ; $04A79B |
-  JSR code_1FF67C                           ; $04A79D |
+  JSR move_vertical_gravity                           ; $04A79D |
   BCC code_04A7E1                           ; $04A7A0 |
   LDA #$2A                                  ; $04A7A2 |
   STA $0440,x                               ; $04A7A4 |
@@ -1024,7 +1024,7 @@ code_04A84A:
   LDA #$00                                  ; $04A872 |
   STA $04E0,y                               ; $04A874 |
   LDA #$0E                                  ; $04A877 |
-  JSR code_1FF846                           ; $04A879 |
+  JSR init_child_entity                           ; $04A879 |
   LDA #$80                                  ; $04A87C |
   STA $0480,y                               ; $04A87E |
   LDA #$A8                                  ; $04A881 |
@@ -1041,7 +1041,7 @@ code_04A887:
   STA $02                                   ; $04A893 |
   LDA #$04                                  ; $04A895 |
   STA $03                                   ; $04A897 |
-  JSR code_1FFC63                           ; $04A899 |
+  JSR calc_homing_velocity                           ; $04A899 |
   LDA $0C                                   ; $04A89C |
   STA $04A0,x                               ; $04A89E |
 code_04A8A1:

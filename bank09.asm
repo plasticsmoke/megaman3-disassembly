@@ -182,7 +182,7 @@ code_09815D:
   JSR find_enemy_freeslot_y                 ; $098176 |
   BCS code_0981AF                           ; $098179 |
   LDA #$71                                  ; $09817B |
-  JSR code_1FF846                           ; $09817D |
+  JSR init_child_entity                           ; $09817D |
   LDA #$19                                  ; $098180 |
   STA $0320,y                               ; $098182 |
   LDA #$00                                  ; $098185 |
@@ -357,7 +357,7 @@ code_098309:
   JSR code_1FE8B4                           ; $09831F |
   LDA #$08                                  ; $098322 |
   STA $10                                   ; $098324 |
-  JSR code_1FEF8C                           ; $098326 |
+  JSR fill_nametable_progressive                           ; $098326 |
   LDA $70                                   ; $098329 |
   BNE code_098331                           ; $09832B |
   LDA #$03                                  ; $09832D |

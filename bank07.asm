@@ -112,15 +112,15 @@ code_07A0C5:
   AND #$01                                  ; $07A0CD |
   BEQ code_07A0D9                           ; $07A0CF |
   LDY #$22                                  ; $07A0D1 |
-  JSR code_1FF580                           ; $07A0D3 |
+  JSR move_right_collide                           ; $07A0D3 |
   JMP code_07A0DE                           ; $07A0D6 |
 
 code_07A0D9:
   LDY #$23                                  ; $07A0D9 |
-  JSR code_1FF5C4                           ; $07A0DB |
+  JSR move_left_collide                           ; $07A0DB |
 code_07A0DE:
   LDY #$26                                  ; $07A0DE |
-  JSR code_1FF67C                           ; $07A0E0 |
+  JSR move_vertical_gravity                           ; $07A0E0 |
   BCC code_07A106                           ; $07A0E3 |
   LDA #$30                                  ; $07A0E5 |
   JSR reset_sprite_anim                     ; $07A0E7 |
@@ -143,7 +143,7 @@ code_07A106:
   LDA #$00                                  ; $07A106 |
   STA $05E0,x                               ; $07A108 |
   STA $05A0,x                               ; $07A10B |
-  JSR code_1FF8C2                           ; $07A10E |
+  JSR entity_x_dist_to_player                           ; $07A10E |
   CMP #$08                                  ; $07A111 |
   BCS code_07A127                           ; $07A113 |
   LDA #$30                                  ; $07A115 |
@@ -167,7 +167,7 @@ code_07A128:
   LDA #$30                                  ; $07A139 |
   JSR submit_sound_ID                       ; $07A13B |
   LDY #$26                                  ; $07A13E |
-  JSR code_1FF606                           ; $07A140 |
+  JSR move_down_collide                           ; $07A140 |
   BCC code_07A127                           ; $07A143 |
   LDA #$30                                  ; $07A145 |
   JSR reset_sprite_anim                     ; $07A147 |
@@ -220,7 +220,7 @@ code_07A198:
 ; Hard Man landing — launches player into the air on impact
 code_07A1A0:
   LDY #$26                                  ; $07A1A0 | collision check
-  JSR code_1FF67C                           ; $07A1A2 | is Hard Man near ground?
+  JSR move_vertical_gravity                           ; $07A1A2 | is Hard Man near ground?
   BCC code_07A1BA                           ; $07A1A5 | no → still falling
   LDA $30                                   ; $07A1A7 | if player dead ($0E),
   CMP #$0E                                  ; $07A1A9 | don't launch
@@ -269,7 +269,7 @@ code_07A1EF:
   RTS                                       ; $07A1FE |
 
 code_07A1FF:
-  JSR code_1FF8C2                           ; $07A1FF |
+  JSR entity_x_dist_to_player                           ; $07A1FF |
   LDY #$06                                  ; $07A202 |
 code_07A204:
   CMP $A219,y                               ; $07A204 |
@@ -312,7 +312,7 @@ code_07A22E:
   LDA #$00                                  ; $07A25E |
   STA $04E0,y                               ; $07A260 |
   LDA #$2D                                  ; $07A263 |
-  JSR code_1FF846                           ; $07A265 |
+  JSR init_child_entity                           ; $07A265 |
   LDA #$8B                                  ; $07A268 |
   STA $0480,y                               ; $07A26A |
   LDA #$D1                                  ; $07A26D |
@@ -349,7 +349,7 @@ code_07A2A8:
   LDA $03E0,x                               ; $07A2AB |
   BNE code_07A302                           ; $07A2AE |
 code_07A2B0:
-  JSR code_1FF883                           ; $07A2B0 |
+  JSR set_sprite_hflip                           ; $07A2B0 |
   LDA $04A0,x                               ; $07A2B3 |
   AND #$01                                  ; $07A2B6 |
   BEQ code_07A2C0                           ; $07A2B8 |
@@ -361,7 +361,7 @@ code_07A2C0:
 code_07A2C3:
   LDA $0500,x                               ; $07A2C3 |
   BNE code_07A2D3                           ; $07A2C6 |
-  JSR code_1FF8C2                           ; $07A2C8 |
+  JSR entity_x_dist_to_player                           ; $07A2C8 |
   CMP #$0C                                  ; $07A2CB |
   BCS code_07A2D2                           ; $07A2CD |
   INC $0500,x                               ; $07A2CF |
@@ -402,7 +402,7 @@ code_07A308:
   STA $02                                   ; $07A30A |
   LDA #$03                                  ; $07A30C |
   STA $03                                   ; $07A30E |
-  JSR code_1FFC63                           ; $07A310 |
+  JSR calc_homing_velocity                           ; $07A310 |
   LDA $0C                                   ; $07A313 |
   STA $04A0,x                               ; $07A315 |
   RTS                                       ; $07A318 |
@@ -449,7 +449,7 @@ code_07A35D:
   LDA $04A0,x                               ; $07A35D |
   PHA                                       ; $07A360 |
   JSR face_player                           ; $07A361 |
-  JSR code_1FF883                           ; $07A364 |
+  JSR set_sprite_hflip                           ; $07A364 |
   PLA                                       ; $07A367 |
   STA $04A0,x                               ; $07A368 |
   RTS                                       ; $07A36B |
@@ -459,7 +459,7 @@ code_07A36C:
   BNE code_07A38A                           ; $07A36F |
   LDA #$37                                  ; $07A371 |
   JSR reset_sprite_anim                     ; $07A373 |
-  JSR code_1FF883                           ; $07A376 |
+  JSR set_sprite_hflip                           ; $07A376 |
   JSR code_07A34A                           ; $07A379 |
   LDA $E4                                   ; $07A37C |
   ADC $E6                                   ; $07A37E |
@@ -470,7 +470,7 @@ code_07A36C:
   STA $0540,x                               ; $07A387 |
 code_07A38A:
   LDY #$1E                                  ; $07A38A |
-  JSR code_1FF67C                           ; $07A38C |
+  JSR move_vertical_gravity                           ; $07A38C |
   BCS code_07A3B7                           ; $07A38F |
   JSR code_07A333                           ; $07A391 |
   LDA $0520,x                               ; $07A394 |
@@ -484,11 +484,11 @@ code_07A38A:
   AND #$02                                  ; $07A3A9 |
   BEQ code_07A3B2                           ; $07A3AB |
   LDY #$21                                  ; $07A3AD |
-  JMP code_1FF5C4                           ; $07A3AF |
+  JMP move_left_collide                           ; $07A3AF |
 
 code_07A3B2:
   LDY #$20                                  ; $07A3B2 |
-  JMP code_1FF580                           ; $07A3B4 |
+  JMP move_right_collide                           ; $07A3B4 |
 
 code_07A3B7:
   LDA $0520,x                               ; $07A3B7 |
@@ -569,7 +569,7 @@ code_07A433:
   STA $04A0,y                               ; $07A455 |
   LDX $00                                   ; $07A458 |
   LDA #$3A                                  ; $07A45A |
-  JSR code_1FF846                           ; $07A45C |
+  JSR init_child_entity                           ; $07A45C |
   LDA #$8B                                  ; $07A45F |
   STA $0480,y                               ; $07A461 |
   LDA #$43                                  ; $07A464 |
@@ -601,7 +601,7 @@ code_07A485:
   LDA $0360,x                               ; $07A49B |
   STA $0360,y                               ; $07A49E |
   LDA #$3C                                  ; $07A4A1 |
-  JSR code_1FF846                           ; $07A4A3 |
+  JSR init_child_entity                           ; $07A4A3 |
   LDA #$8A                                  ; $07A4A6 |
   STA $0480,y                               ; $07A4A8 |
   LDA #$B8                                  ; $07A4AB |
@@ -613,7 +613,7 @@ code_07A485:
   STA $03                                   ; $07A4B8 |
   TYA                                       ; $07A4BA |
   TAX                                       ; $07A4BB |
-  JSR code_1FFC63                           ; $07A4BC |
+  JSR calc_homing_velocity                           ; $07A4BC |
   LDY $0F                                   ; $07A4BF |
   LDA $0C                                   ; $07A4C1 |
   STA $04A0,y                               ; $07A4C3 |
@@ -647,7 +647,7 @@ code_07A51B:
 
 code_07A525:
   LDY #$00                                  ; $07A525 |
-  JSR code_1FF67C                           ; $07A527 |
+  JSR move_vertical_gravity                           ; $07A527 |
   BCS code_07A535                           ; $07A52A |
 code_07A52C:
   LDA #$23                                  ; $07A52C |
@@ -681,7 +681,7 @@ code_07A559:
   RTS                                       ; $07A560 |
 
 code_07A561:
-  JSR code_1FF883                           ; $07A561 |
+  JSR set_sprite_hflip                           ; $07A561 |
   LDA #$25                                  ; $07A564 |
   CMP $05C0,x                               ; $07A566 |
   BEQ code_07A56E                           ; $07A569 |
@@ -745,7 +745,7 @@ code_07A5C2:
 
 code_07A5D8:
   LDY #$00                                  ; $07A5D8 |
-  JSR code_1FF67C                           ; $07A5DA |
+  JSR move_vertical_gravity                           ; $07A5DA |
   BCS code_07A5F8                           ; $07A5DD |
   LDA $05C0,x                               ; $07A5DF |
   CMP #$24                                  ; $07A5E2 |
@@ -800,7 +800,7 @@ code_07A633:
   JSR find_enemy_freeslot_y                 ; $07A645 |
   BCS code_07A6A1                           ; $07A648 |
   LDA #$52                                  ; $07A64A |
-  JSR code_1FF846                           ; $07A64C |
+  JSR init_child_entity                           ; $07A64C |
   LDA #$CB                                  ; $07A64F |
   STA $0480,y                               ; $07A651 |
   LDA #$BA                                  ; $07A654 |
@@ -908,7 +908,7 @@ code_07A738:
 
 code_07A739:
   LDY #$00                                  ; $07A739 |
-  JSR code_1FF67C                           ; $07A73B |
+  JSR move_vertical_gravity                           ; $07A73B |
   BCS code_07A756                           ; $07A73E |
   LDA #$00                                  ; $07A740 |
   STA $05E0,x                               ; $07A742 |
@@ -917,11 +917,11 @@ code_07A745:
   AND #$02                                  ; $07A748 |
   BEQ code_07A751                           ; $07A74A |
   LDY #$01                                  ; $07A74C |
-  JMP code_1FF5C4                           ; $07A74E |
+  JMP move_left_collide                           ; $07A74E |
 
 code_07A751:
   LDY #$00                                  ; $07A751 |
-  JMP code_1FF580                           ; $07A753 |
+  JMP move_right_collide                           ; $07A753 |
 
 code_07A756:
   LDA $05A0,x                               ; $07A756 |
@@ -943,7 +943,7 @@ code_07A774:
   STA $0420,x                               ; $07A77B |
   INC $0300,x                               ; $07A77E |
   JSR face_player                           ; $07A781 |
-  JSR code_1FF883                           ; $07A784 |
+  JSR set_sprite_hflip                           ; $07A784 |
 code_07A787:
   LDA $E6                                   ; $07A787 |
   ADC $E7                                   ; $07A789 |
@@ -958,7 +958,7 @@ code_07A795:
   AND #$40                                  ; $07A797 |
   BEQ code_07A7A6                           ; $07A799 |
   JSR face_player                           ; $07A79B |
-  JSR code_1FF883                           ; $07A79E |
+  JSR set_sprite_hflip                           ; $07A79E |
   LDA #$34                                  ; $07A7A1 |
   JMP reset_sprite_anim                     ; $07A7A3 |
 
@@ -998,13 +998,13 @@ code_07A7D6:
   BNE code_07A7C6                           ; $07A7E2 |
   LDA #$01                                  ; $07A7E4 |
   STA $04A0,x                               ; $07A7E6 |
-  JSR code_1FF883                           ; $07A7E9 |
+  JSR set_sprite_hflip                           ; $07A7E9 |
   LDA #$35                                  ; $07A7EC |
   JMP reset_sprite_anim                     ; $07A7EE |
 
 code_07A7F1:
   LDY #$00                                  ; $07A7F1 |
-  JSR code_1FF67C                           ; $07A7F3 |
+  JSR move_vertical_gravity                           ; $07A7F3 |
   BCS code_07A800                           ; $07A7F6 |
   LDA #$00                                  ; $07A7F8 |
   STA $05E0,x                               ; $07A7FA |
@@ -1019,7 +1019,7 @@ code_07A800:
   LDA $0310                                 ; $07A80C |
   BMI code_07A81F                           ; $07A80F |
   JSR face_player                           ; $07A811 |
-  JSR code_1FF883                           ; $07A814 |
+  JSR set_sprite_hflip                           ; $07A814 |
   LDA #$34                                  ; $07A817 |
   JMP reset_sprite_anim                     ; $07A819 |
 
@@ -1067,7 +1067,7 @@ code_07A863:
   CMP #$02                                  ; $07A86D |
   BNE code_07A87F                           ; $07A86F |
   JSR face_player                           ; $07A871 |
-  JSR code_1FF883                           ; $07A874 |
+  JSR set_sprite_hflip                           ; $07A874 |
   JSR code_07A787                           ; $07A877 |
   LDA #$35                                  ; $07A87A |
   JMP reset_sprite_anim                     ; $07A87C |
@@ -1086,7 +1086,7 @@ code_07A880:
   LDA #$00                                  ; $07A88F |
   STA $0500,y                               ; $07A891 |
   LDA #$33                                  ; $07A894 |
-  JSR code_1FF846                           ; $07A896 |
+  JSR init_child_entity                           ; $07A896 |
   LDA #$01                                  ; $07A899 |
   STA $05A0,y                               ; $07A89B |
   LDA #$1C                                  ; $07A89E |
@@ -1122,7 +1122,7 @@ code_07A8D3:
   LDA #$04                                  ; $07A8E4 |
   STA $0420,y                               ; $07A8E6 |
   LDA #$50                                  ; $07A8E9 |
-  JSR code_1FF846                           ; $07A8EB |
+  JSR init_child_entity                           ; $07A8EB |
 code_07A8EE:
   LDA #$8B                                  ; $07A8EE |
   STA $0480,y                               ; $07A8F0 |
@@ -1169,7 +1169,7 @@ code_07A92E:
   STA $0520,y                               ; $07A94F |
   LDX $00                                   ; $07A952 |
   LDA #$4A                                  ; $07A954 |
-  JSR code_1FF846                           ; $07A956 |
+  JSR init_child_entity                           ; $07A956 |
   JSR code_07A8EE                           ; $07A959 |
   LDA $0360,y                               ; $07A95C |
   AND #$FC                                  ; $07A95F |

@@ -245,7 +245,7 @@ code_0FA1E8:
   BCC code_0FA1FF                           ; $0FA1F5 |
 code_0FA1F7:
   LDX #$00                                  ; $0FA1F7 |
-  JSR code_1FF797                           ; $0FA1F9 |
+  JSR apply_y_speed                           ; $0FA1F9 |
   INC $0360                                 ; $0FA1FC |
 code_0FA1FF:
   JMP code_0FA0EF                           ; $0FA1FF |

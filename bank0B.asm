@@ -30,7 +30,7 @@ org $8000
 code_0B8038:
   LDA #$00                                  ; $0B8038 |
   STA $10                                   ; $0B803A |
-  JSR code_1FEF8C                           ; $0B803C |
+  JSR fill_nametable_progressive                           ; $0B803C |
   JSR code_1FFF21                           ; $0B803F |
   LDA $70                                   ; $0B8042 |
   BNE code_0B8038                           ; $0B8044 |
@@ -99,7 +99,7 @@ code_0B80CB:
   BEQ code_0B80F9                           ; $0B80D2 |
   CMP #$01                                  ; $0B80D4 |
   BEQ code_0B811A                           ; $0B80D6 |
-  JSR code_1FF797                           ; $0B80D8 |
+  JSR apply_y_speed                           ; $0B80D8 |
   LDA #$A4                                  ; $0B80DB |
   CMP $03C0                                 ; $0B80DD |
   BCS code_0B80F1                           ; $0B80E0 |
@@ -223,7 +223,7 @@ code_0B81B0:
 code_0B81D6:
   LDA #$00                                  ; $0B81D6 |
   STA $10                                   ; $0B81D8 |
-  JSR code_1FEF8C                           ; $0B81DA |
+  JSR fill_nametable_progressive                           ; $0B81DA |
   JSR code_1FFF21                           ; $0B81DD |
   LDA $70                                   ; $0B81E0 |
   BNE code_0B81D6                           ; $0B81E2 |
@@ -526,7 +526,7 @@ code_0B8439:
 code_0B8466:
   LDA #$00                                  ; $0B8466 |
   STA $10                                   ; $0B8468 |
-  JSR code_1FEF8C                           ; $0B846A |
+  JSR fill_nametable_progressive                           ; $0B846A |
   JSR code_1FFF21                           ; $0B846D |
   LDA $70                                   ; $0B8470 |
   BNE code_0B8466                           ; $0B8472 |

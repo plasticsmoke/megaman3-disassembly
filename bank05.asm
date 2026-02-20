@@ -42,7 +42,7 @@ code_05A022:
   db $39, $AF, $A0, $A0                     ; $05A035 |
 
   JSR face_player                           ; $05A039 |
-  JSR code_1FF883                           ; $05A03C |
+  JSR set_sprite_hflip                           ; $05A03C |
   JSR $8003                                 ; $05A03F |
   BCS code_05A06E                           ; $05A042 |
   LDA $04E0,x                               ; $05A044 |
@@ -58,7 +58,7 @@ code_05A022:
   STA $00                                   ; $05A05C |
   LDA #$03                                  ; $05A05E |
   STA $01                                   ; $05A060 |
-  JSR code_1FFCEB                           ; $05A062 |
+  JSR divide_8bit                           ; $05A062 |
   LDY $03                                   ; $05A065 |
   LDA $A1A6,y                               ; $05A067 |
   STA $0500,x                               ; $05A06A |
@@ -161,7 +161,7 @@ code_05A12B:
   RTS                                       ; $05A12B |
 
 code_05A12C:
-  JSR code_1FF8C2                           ; $05A12C |
+  JSR entity_x_dist_to_player                           ; $05A12C |
   CLC                                       ; $05A12F |
   ADC #$40                                  ; $05A130 |
   STA $0C                                   ; $05A132 |
@@ -190,7 +190,7 @@ code_05A161:
   STA $01                                   ; $05A161 |
   STA $0C                                   ; $05A163 |
   STY $0D                                   ; $05A165 |
-  JSR code_1FFD11                           ; $05A167 |
+  JSR divide_16bit                           ; $05A167 |
   LDY $0D                                   ; $05A16A |
   LDA $04                                   ; $05A16C |
   STA $0400,y                               ; $05A16E |
@@ -198,7 +198,7 @@ code_05A161:
   STA $0420,y                               ; $05A173 |
   LDX $0E                                   ; $05A176 |
   LDA #$0A                                  ; $05A178 |
-  JSR code_1FF846                           ; $05A17A |
+  JSR init_child_entity                           ; $05A17A |
   LDA #$80                                  ; $05A17D |
   STA $0480,y                               ; $05A17F |
   LDA #$B4                                  ; $05A182 |
@@ -222,18 +222,18 @@ code_05A1A3:
 
 code_05A1B4:
   LDY #$12                                  ; $05A1B4 |
-  JSR code_1FF67C                           ; $05A1B6 |
+  JSR move_vertical_gravity                           ; $05A1B6 |
   BCS code_05A1DC                           ; $05A1B9 |
   LDA $04A0,x                               ; $05A1BB |
   AND #$02                                  ; $05A1BE |
   BEQ code_05A1CA                           ; $05A1C0 |
   LDY #$1F                                  ; $05A1C2 |
-  JSR code_1FF5C4                           ; $05A1C4 |
+  JSR move_left_collide                           ; $05A1C4 |
   JMP code_05A1CF                           ; $05A1C7 |
 
 code_05A1CA:
   LDY #$1E                                  ; $05A1CA |
-  JSR code_1FF580                           ; $05A1CC |
+  JSR move_right_collide                           ; $05A1CC |
 code_05A1CF:
   BCS code_05A1D7                           ; $05A1CF |
   LDA #$00                                  ; $05A1D1 |
@@ -276,7 +276,7 @@ code_05A1F8:
   STA $0560,x                               ; $05A218 |
 code_05A21B:
   LDY #$1E                                  ; $05A21B |
-  JSR code_1FF606                           ; $05A21D |
+  JSR move_down_collide                           ; $05A21D |
   BCC code_05A1DC                           ; $05A220 |
   DEC $0300,x                               ; $05A222 |
   LDA #$00                                  ; $05A225 |
@@ -292,20 +292,20 @@ code_05A21B:
 
 code_05A23C:
   LDY #$1F                                  ; $05A23C |
-  JSR code_1FF642                           ; $05A23E |
+  JSR move_up_collide                           ; $05A23E |
   LDA $0560,x                               ; $05A241 |
   AND #$01                                  ; $05A244 |
   BNE code_05A24D                           ; $05A246 |
   LDY #$21                                  ; $05A248 |
-  JMP code_1FF5CC                           ; $05A24A |
+  JMP move_left_collide_no_face                           ; $05A24A |
 
 code_05A24D:
   LDY #$20                                  ; $05A24D |
-  JMP code_1FF588                           ; $05A24F |
+  JMP move_right_collide_no_face                           ; $05A24F |
 
 code_05A252:
   JSR face_player                           ; $05A252 |
-  JSR code_1FF883                           ; $05A255 |
+  JSR set_sprite_hflip                           ; $05A255 |
   LDA $05A0,x                               ; $05A258 |
   BNE code_05A262                           ; $05A25B |
   LDA #$00                                  ; $05A25D |
@@ -343,7 +343,7 @@ code_05A28D:
   STA $02                                   ; $05A29E |
   LDA #$01                                  ; $05A2A0 |
   STA $03                                   ; $05A2A2 |
-  JSR code_1FFC63                           ; $05A2A4 |
+  JSR calc_homing_velocity                           ; $05A2A4 |
   LDA $04A0,x                               ; $05A2A7 |
   STA $0560,x                               ; $05A2AA |
   PLA                                       ; $05A2AD |
@@ -352,7 +352,7 @@ code_05A28D:
   JMP reset_sprite_anim                     ; $05A2B3 |
 
 code_05A2B6:
-  JSR code_1FF8B3                           ; $05A2B6 |
+  JSR entity_y_dist_to_player                           ; $05A2B6 |
   CMP $A35A,y                               ; $05A2B9 |
   BCS code_05A2DC                           ; $05A2BC |
   TYA                                       ; $05A2BE |
@@ -366,7 +366,7 @@ code_05A2C5:
   STA $00                                   ; $05A2CB |
   LDA #$03                                  ; $05A2CD |
   STA $01                                   ; $05A2CF |
-  JSR code_1FFCEB                           ; $05A2D1 |
+  JSR divide_8bit                           ; $05A2D1 |
   LDA $03                                   ; $05A2D4 |
   CLC                                       ; $05A2D6 |
   ADC #$02                                  ; $05A2D7 |
@@ -395,7 +395,7 @@ code_05A2DD:
   STA $0320,y                               ; $05A307 |
   LDA $A358,x                               ; $05A30A |
   LDX $00                                   ; $05A30D |
-  JSR code_1FF846                           ; $05A30F |
+  JSR init_child_entity                           ; $05A30F |
   LDA #$80                                  ; $05A312 |
   STA $0480,y                               ; $05A314 |
   LDA $0360,x                               ; $05A317 |
@@ -430,7 +430,7 @@ code_05A360:
   AND #$01                                  ; $05A362 |
   BNE code_05A392                           ; $05A364 |
   LDY #$08                                  ; $05A366 |
-  JSR code_1FF67C                           ; $05A368 |
+  JSR move_vertical_gravity                           ; $05A368 |
   BCC code_05A377                           ; $05A36B |
   LDA #$A8                                  ; $05A36D |
   STA $0440,x                               ; $05A36F |
@@ -441,12 +441,12 @@ code_05A377:
   AND #$02                                  ; $05A37A |
   BEQ code_05A386                           ; $05A37C |
   LDY #$09                                  ; $05A37E |
-  JSR code_1FF5C4                           ; $05A380 |
+  JSR move_left_collide                           ; $05A380 |
   JMP code_05A38B                           ; $05A383 |
 
 code_05A386:
   LDY #$08                                  ; $05A386 |
-  JSR code_1FF580                           ; $05A388 |
+  JSR move_right_collide                           ; $05A388 |
 code_05A38B:
   BCC code_05A392                           ; $05A38B |
   LDA #$00                                  ; $05A38D |
@@ -477,10 +477,10 @@ code_05A393:
   LDA $0460,x                               ; $05A3BE |
   STA $0F                                   ; $05A3C1 |
   LDY #$1E                                  ; $05A3C3 |
-  JSR code_1FF67C                           ; $05A3C5 |
+  JSR move_vertical_gravity                           ; $05A3C5 |
   BCC code_05A43D                           ; $05A3C8 |
   JSR face_player                           ; $05A3CA |
-  JSR code_1FF883                           ; $05A3CD |
+  JSR set_sprite_hflip                           ; $05A3CD |
   DEC $0500,x                               ; $05A3D0 |
   BPL code_05A3D8                           ; $05A3D3 |
   JMP code_05A422                           ; $05A3D5 |
@@ -500,7 +500,7 @@ code_05A3D8:
   LDA #$00                                  ; $05A3F2 |
   STA $00                                   ; $05A3F4 |
   STA $02                                   ; $05A3F6 |
-  JSR code_1FF8C2                           ; $05A3F8 |
+  JSR entity_x_dist_to_player                           ; $05A3F8 |
   STA $01                                   ; $05A3FB |
   CLC                                       ; $05A3FD |
   ADC $A4F3,y                               ; $05A3FE |
@@ -515,7 +515,7 @@ code_05A40E:
   LDA $04                                   ; $05A410 |
   STA $01                                   ; $05A412 |
 code_05A414:
-  JSR code_1FFD11                           ; $05A414 |
+  JSR divide_16bit                           ; $05A414 |
   LDA $04                                   ; $05A417 |
   STA $0400,x                               ; $05A419 |
   LDA $05                                   ; $05A41C |
@@ -550,11 +550,11 @@ code_05A451:
   AND #$02                                  ; $05A454 |
   BEQ code_05A45D                           ; $05A456 |
   LDY #$21                                  ; $05A458 |
-  JMP code_1FF5C4                           ; $05A45A |
+  JMP move_left_collide                           ; $05A45A |
 
 code_05A45D:
   LDY #$20                                  ; $05A45D |
-  JMP code_1FF580                           ; $05A45F |
+  JMP move_right_collide                           ; $05A45F |
 
   LDA $0520,x                               ; $05A462 |
   BEQ code_05A485                           ; $05A465 |
@@ -573,7 +573,7 @@ code_05A45D:
 
 code_05A485:
   JSR face_player                           ; $05A485 |
-  JSR code_1FF883                           ; $05A488 |
+  JSR set_sprite_hflip                           ; $05A488 |
   LDA $0300,x                               ; $05A48B |
   AND #$F0                                  ; $05A48E |
   STA $0300,x                               ; $05A490 |
@@ -599,7 +599,7 @@ code_05A49E:
   LDA #$00                                  ; $05A4BC |
   STA $0500,y                               ; $05A4BE |
   LDA #$0F                                  ; $05A4C1 |
-  JSR code_1FF846                           ; $05A4C3 |
+  JSR init_child_entity                           ; $05A4C3 |
   LDA #$80                                  ; $05A4C6 |
   STA $0480,y                               ; $05A4C8 |
   LDA #$B6                                  ; $05A4CB |
@@ -637,7 +637,7 @@ code_05A518:
   STA $02                                   ; $05A51A |
   LDA #$04                                  ; $05A51C |
   STA $03                                   ; $05A51E |
-  JSR code_1FFC63                           ; $05A520 |
+  JSR calc_homing_velocity                           ; $05A520 |
   LDA $0C                                   ; $05A523 |
   STA $04A0,x                               ; $05A525 |
   RTS                                       ; $05A528 |
@@ -723,7 +723,7 @@ code_05A5AB:
   STA $00                                   ; $05A5B1 |
   LDA #$05                                  ; $05A5B3 |
   STA $01                                   ; $05A5B5 |
-  JSR code_1FFCEB                           ; $05A5B7 |
+  JSR divide_8bit                           ; $05A5B7 |
   LDA $03                                   ; $05A5BA |
   ASL                                       ; $05A5BC |
   STA $00                                   ; $05A5BD |
@@ -764,7 +764,7 @@ code_05A5D3:
   LDA $04A0,x                               ; $05A614 |
   STA $04A0,y                               ; $05A617 |
   LDA #$10                                  ; $05A61A |
-  JSR code_1FF846                           ; $05A61C |
+  JSR init_child_entity                           ; $05A61C |
   LDA #$A0                                  ; $05A61F |
   STA $0480,y                               ; $05A621 |
   LDA #$B7                                  ; $05A624 |
@@ -778,7 +778,7 @@ code_05A62F:
 
 code_05A632:
   LDY #$1E                                  ; $05A632 |
-  JSR code_1FF67C                           ; $05A634 |
+  JSR move_vertical_gravity                           ; $05A634 |
   BCS code_05A63C                           ; $05A637 |
   JMP code_05A554                           ; $05A639 |
 
@@ -932,7 +932,7 @@ code_05A7CF:
   LDA $0500,x                               ; $05A7D6 |
   BEQ code_05A7E3                           ; $05A7D9 |
   LDY #$1E                                  ; $05A7DB |
-  JSR code_1FF580                           ; $05A7DD |
+  JSR move_right_collide                           ; $05A7DD |
   JMP code_05A80C                           ; $05A7E0 |
 
 code_05A7E3:
@@ -946,7 +946,7 @@ code_05A7F1:
   LDA $0500,x                               ; $05A7F1 |
   BEQ code_05A7FE                           ; $05A7F4 |
   LDY #$1F                                  ; $05A7F6 |
-  JSR code_1FF5C4                           ; $05A7F8 |
+  JSR move_left_collide                           ; $05A7F8 |
   JMP code_05A80C                           ; $05A7FB |
 
 code_05A7FE:
@@ -988,7 +988,7 @@ code_05A833:
 
 code_05A84B:
   LDY #$12                                  ; $05A84B |
-  JSR code_1FF606                           ; $05A84D |
+  JSR move_down_collide                           ; $05A84D |
   LDA #$4B                                  ; $05A850 |
   STA $05C0,x                               ; $05A852 |
   JMP code_05A86F                           ; $05A855 |
@@ -1002,7 +1002,7 @@ code_05A858:
 
 code_05A865:
   LDY #$13                                  ; $05A865 |
-  JSR code_1FF642                           ; $05A867 |
+  JSR move_up_collide                           ; $05A867 |
   LDA #$4C                                  ; $05A86A |
   STA $05C0,x                               ; $05A86C |
 code_05A86F:
@@ -1020,7 +1020,7 @@ code_05A87D:
   AND #$0F                                  ; $05A880 |
   BNE code_05A8A9                           ; $05A882 |
   LDY #$12                                  ; $05A884 |
-  JSR code_1FF67C                           ; $05A886 |
+  JSR move_vertical_gravity                           ; $05A886 |
   BCC code_05A8F5                           ; $05A889 |
   LDA #$00                                  ; $05A88B |
   STA $0400,x                               ; $05A88D |
@@ -1038,14 +1038,14 @@ code_05A8A9:
   AND #$08                                  ; $05A8AC |
   BNE code_05A8BD                           ; $05A8AE |
   LDY #$12                                  ; $05A8B0 |
-  JSR code_1FF606                           ; $05A8B2 |
+  JSR move_down_collide                           ; $05A8B2 |
   LDA #$53                                  ; $05A8B5 |
   STA $05C0,x                               ; $05A8B7 |
   JMP code_05A8C7                           ; $05A8BA |
 
 code_05A8BD:
   LDY #$13                                  ; $05A8BD |
-  JSR code_1FF642                           ; $05A8BF |
+  JSR move_up_collide                           ; $05A8BF |
   LDA #$54                                  ; $05A8C2 |
   STA $05C0,x                               ; $05A8C4 |
 code_05A8C7:
@@ -1091,12 +1091,12 @@ code_05A908:
   AND #$01                                  ; $05A910 |
   BEQ code_05A91C                           ; $05A912 |
   LDY #$1E                                  ; $05A914 |
-  JSR code_1FF580                           ; $05A916 |
+  JSR move_right_collide                           ; $05A916 |
   JMP code_05A921                           ; $05A919 |
 
 code_05A91C:
   LDY #$1F                                  ; $05A91C |
-  JSR code_1FF5C4                           ; $05A91E |
+  JSR move_left_collide                           ; $05A91E |
 code_05A921:
   BCC code_05A92B                           ; $05A921 |
   LDA $04A0,x                               ; $05A923 |
