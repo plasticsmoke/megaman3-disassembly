@@ -12,7 +12,7 @@ org $8000
   STA $97                                   ; $0B800F |
   JSR code_1EC5E9                           ; $0B8011 |
   JSR code_1EC628                           ; $0B8014 |
-  JSR code_1FFF21                           ; $0B8017 |
+  JSR task_yield                           ; $0B8017 |
   LDA #$F0                                  ; $0B801A |
   JSR submit_sound_ID_D9                    ; $0B801C |
   LDA #$00                                  ; $0B801F |
@@ -31,7 +31,7 @@ code_0B8038:
   LDA #$00                                  ; $0B8038 |
   STA $10                                   ; $0B803A |
   JSR fill_nametable_progressive                           ; $0B803C |
-  JSR code_1FFF21                           ; $0B803F |
+  JSR task_yield                           ; $0B803F |
   LDA $70                                   ; $0B8042 |
   BNE code_0B8038                           ; $0B8044 |
   LDY #$1F                                  ; $0B8046 |
@@ -84,7 +84,7 @@ code_0B80A6:
   STA $F8                                   ; $0B80B1 |
   LDA #$C0                                  ; $0B80B3 |
   STA $5E                                   ; $0B80B5 |
-  JSR code_1FFF21                           ; $0B80B7 |
+  JSR task_yield                           ; $0B80B7 |
   JSR code_1EC74C                           ; $0B80BA |
   LDA #$08                                  ; $0B80BD |
   STA $0500                                 ; $0B80BF |
@@ -159,7 +159,7 @@ code_0B8131:
 code_0B814E:
   LDA #$08                                  ; $0B814E |
   STA $97                                   ; $0B8150 |
-  JSR code_1FFD80                           ; $0B8152 |
+  JSR process_frame_yield                           ; $0B8152 |
   LDA $05C0                                 ; $0B8155 |
   CMP #$01                                  ; $0B8158 |
   BNE code_0B81AD                           ; $0B815A |
@@ -199,7 +199,7 @@ code_0B8190:
   LDA #$00                                  ; $0B81A3 |
   STA $EE                                   ; $0B81A5 |
   JSR $A000                                 ; $0B81A7 |
-  JSR code_1FFF21                           ; $0B81AA |
+  JSR task_yield                           ; $0B81AA |
 code_0B81AD:
   JMP code_0B80CB                           ; $0B81AD |
 
@@ -211,7 +211,7 @@ code_0B81B0:
   STA $97                                   ; $0B81B9 |
   JSR code_1EC5E9                           ; $0B81BB |
   JSR code_1EC628                           ; $0B81BE |
-  JSR code_1FFF21                           ; $0B81C1 |
+  JSR task_yield                           ; $0B81C1 |
   LDA #$00                                  ; $0B81C4 |
   STA $70                                   ; $0B81C6 |
   STA $F8                                   ; $0B81C8 |
@@ -224,7 +224,7 @@ code_0B81D6:
   LDA #$00                                  ; $0B81D6 |
   STA $10                                   ; $0B81D8 |
   JSR fill_nametable_progressive                           ; $0B81DA |
-  JSR code_1FFF21                           ; $0B81DD |
+  JSR task_yield                           ; $0B81DD |
   LDA $70                                   ; $0B81E0 |
   BNE code_0B81D6                           ; $0B81E2 |
   LDY #$1F                                  ; $0B81E4 |
@@ -262,7 +262,7 @@ code_0B81F1:
   STA $0500                                 ; $0B822F |
   LDA #$04                                  ; $0B8232 |
   STA $0420                                 ; $0B8234 |
-  JSR code_1FFF21                           ; $0B8237 |
+  JSR task_yield                           ; $0B8237 |
   JSR code_1EC74C                           ; $0B823A |
 code_0B823D:
   LDA $03E0                                 ; $0B823D |
@@ -304,7 +304,7 @@ code_0B827E:
   JSR submit_sound_ID                       ; $0B8286 |
 code_0B8289:
   INC $18                                   ; $0B8289 |
-  JSR code_1FFD6E                           ; $0B828B |
+  JSR process_frame_yield_full                           ; $0B828B |
   JMP code_0B823D                           ; $0B828E |
 
 code_0B8291:
@@ -499,7 +499,7 @@ code_0B8422:
   LDA #$28                                  ; $0B842B |
   JSR submit_sound_ID                       ; $0B842D |
 code_0B8430:
-  JSR code_1FFD80                           ; $0B8430 |
+  JSR process_frame_yield                           ; $0B8430 |
   INC $0560                                 ; $0B8433 |
   JMP code_0B82E2                           ; $0B8436 |
 
@@ -513,7 +513,7 @@ code_0B8439:
   STA $97                                   ; $0B8447 |
   JSR code_1EC5E9                           ; $0B8449 |
   JSR code_1EC628                           ; $0B844C |
-  JSR code_1FFF21                           ; $0B844F |
+  JSR task_yield                           ; $0B844F |
   LDA #$16                                  ; $0B8452 |
   STA $22                                   ; $0B8454 |
   LDA #$00                                  ; $0B8456 |
@@ -527,7 +527,7 @@ code_0B8466:
   LDA #$00                                  ; $0B8466 |
   STA $10                                   ; $0B8468 |
   JSR fill_nametable_progressive                           ; $0B846A |
-  JSR code_1FFF21                           ; $0B846D |
+  JSR task_yield                           ; $0B846D |
   LDA $70                                   ; $0B8470 |
   BNE code_0B8466                           ; $0B8472 |
   LDY #$1F                                  ; $0B8474 |
@@ -550,7 +550,7 @@ code_0B848F:
   DEY                                       ; $0B8495 |
   BPL code_0B848F                           ; $0B8496 |
   JSR code_1EC628                           ; $0B8498 |
-  JSR code_1FFF21                           ; $0B849B |
+  JSR task_yield                           ; $0B849B |
   JSR code_1EC74C                           ; $0B849E |
   LDY #$13                                  ; $0B84A1 |
 code_0B84A3:
@@ -587,7 +587,7 @@ code_0B84D9:
   EOR #$2F                                  ; $0B84E8 |
   STA $10                                   ; $0B84EA |
 code_0B84EC:
-  JSR code_1FFF21                           ; $0B84EC |
+  JSR task_yield                           ; $0B84EC |
   INC $95                                   ; $0B84EF |
   LDA $95                                   ; $0B84F1 |
   CMP #$30                                  ; $0B84F3 |
@@ -639,7 +639,7 @@ code_0B8525:
   ADC #$02                                  ; $0B853E |
   STA $0202,x                               ; $0B8540 |
 code_0B8543:
-  JSR code_1FFD80                           ; $0B8543 |
+  JSR process_frame_yield                           ; $0B8543 |
   PLA                                       ; $0B8546 |
   TAY                                       ; $0B8547 |
   PLA                                       ; $0B8548 |

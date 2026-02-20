@@ -522,7 +522,7 @@ org $9000
   JMP code_189ABE                           ; $189006 |
 
   JSR code_1EC752                           ; $189009 |
-  JSR code_1FFF21                           ; $18900C |
+  JSR task_yield                           ; $18900C |
   JSR code_1EC531                           ; $18900F |
   LDY #$05                                  ; $189012 |
 code_189014:
@@ -546,15 +546,15 @@ code_18902E:
   STA $10                                   ; $189039 |
   LDX #$10                                  ; $18903B |
   JSR code_18939E                           ; $18903D |
-  JSR code_1FFF21                           ; $189040 |
+  JSR task_yield                           ; $189040 |
   LDX #$11                                  ; $189043 |
   JSR code_18939E                           ; $189045 |
-  JSR code_1FFF21                           ; $189048 |
+  JSR task_yield                           ; $189048 |
   JSR code_1EC74C                           ; $18904B |
   LDX #$B4                                  ; $18904E |
-  JSR code_1FFF1A                           ; $189050 |
+  JSR task_yield_x                           ; $189050 |
   JSR code_1EC752                           ; $189053 |
-  JSR code_1FFF21                           ; $189056 |
+  JSR task_yield                           ; $189056 |
   JSR code_1EC531                           ; $189059 |
   LDY #$05                                  ; $18905C |
 code_18905E:
@@ -571,9 +571,9 @@ code_18905E:
 code_189075:
   LDY #$00                                  ; $189075 |
   STY $10                                   ; $189077 |
-  JSR code_1FEEAB                           ; $189079 |
+  JSR queue_metatile_update                           ; $189079 |
   JSR code_1EC4F8                           ; $18907C |
-  JSR code_1FFF21                           ; $18907F |
+  JSR task_yield                           ; $18907F |
   INC $28                                   ; $189082 |
   LDA $28                                   ; $189084 |
   AND #$3F                                  ; $189086 |
@@ -584,7 +584,7 @@ code_18908C:
   STA $0620,y                               ; $18908F |
   DEY                                       ; $189092 |
   BPL code_18908C                           ; $189093 |
-  JSR code_1FFF21                           ; $189095 |
+  JSR task_yield                           ; $189095 |
   JSR code_1EC53B                           ; $189098 |
   LDX #$03                                  ; $18909B |
 code_18909D:
@@ -612,7 +612,7 @@ code_1890B4:
   LDA $9BFF,y                               ; $1890C4 |
   STA $0200                                 ; $1890C7 |
 code_1890CA:
-  JSR code_1FFF21                           ; $1890CA |
+  JSR task_yield                           ; $1890CA |
   JMP code_1890B4                           ; $1890CD |
 
 ; --- stage_select_init ($1890D0) ---
@@ -671,7 +671,7 @@ stage_select_init:
   LDA #$04                                  ; $18910B |
   STA $10                                   ; $18910D |
   JSR fill_nametable_progressive                           ; $18910F |
-  JSR code_1FFF21                           ; $189112 | wait for NMI
+  JSR task_yield                           ; $189112 | wait for NMI
   LDA $70                                   ; $189115 |
   BNE .wait_nmi                             ; $189117 | loop until NMI complete
 ; Load BG palettes — offset depends on fresh start vs return
@@ -722,7 +722,7 @@ code_189164:
   STA $FD                                   ; $189171 |
   LDA #$00                                  ; $189173 |
   STA $EE                                   ; $189175 |
-  JSR code_1FFF21                           ; $189177 |
+  JSR task_yield                           ; $189177 |
   INC $EE                                   ; $18917A |
   LDA $FC                                   ; $18917C |
   BNE code_189164                           ; $18917E |
@@ -745,13 +745,13 @@ code_189199:
   JSR fill_nametable_progressive                           ; $18919C |
   PLA                                       ; $18919F |
   STA $10                                   ; $1891A0 |
-  JSR code_1FFF21                           ; $1891A2 |
+  JSR task_yield                           ; $1891A2 |
   LDA $70                                   ; $1891A5 |
   BNE code_189199                           ; $1891A7 |
   JSR code_18995C                           ; $1891A9 |
   LDX #$03                                  ; $1891AC |
   JSR code_18939E                           ; $1891AE |
-  JSR code_1FFF21                           ; $1891B1 |
+  JSR task_yield                           ; $1891B1 |
   LDX #$04                                  ; $1891B4 |
   JSR code_18939E                           ; $1891B6 |
   LDA $FD                                   ; $1891B9 |
@@ -787,7 +787,7 @@ code_1891EF:
   JSR code_1893FE                           ; $1891EF |
   LDA #$00                                  ; $1891F2 |
   STA $EE                                   ; $1891F4 |
-  JSR code_1FFF21                           ; $1891F6 |
+  JSR task_yield                           ; $1891F6 |
   INC $EE                                   ; $1891F9 |
   LDA $14                                   ; $1891FB |
   AND #$10                                  ; $1891FD |
@@ -825,7 +825,7 @@ code_189236:
   STA $EE                                   ; $189238 |
   STA $10                                   ; $18923A |
   JSR fill_nametable_progressive                           ; $18923C |
-  JSR code_1FFF21                           ; $18923F |
+  JSR task_yield                           ; $18923F |
   LDA $70                                   ; $189242 |
   BNE code_189236                           ; $189244 |
   LDA #$04                                  ; $189246 |
@@ -995,7 +995,7 @@ code_189291:
 code_1892F2:
   LDA #$00                                  ; $1892F2 |
   STA $EE                                   ; $1892F4 |
-  JSR code_1FFF21                           ; $1892F6 |
+  JSR task_yield                           ; $1892F6 |
   INC $EE                                   ; $1892F9 |
   INC $95                                   ; $1892FB |
   JMP code_189258                           ; $1892FD |
@@ -1094,7 +1094,7 @@ stage_select_confirm:
   LDA $10                                   ; $18935F |\ preserve nametable select
   PHA                                       ; $189361 |/
   JSR fill_nametable_progressive            ; $189362 | write 4 rows to PPU queue
-  JSR code_1FFF21                           ; $189365 | wait for NMI (PPU uploads queued data)
+  JSR task_yield                           ; $189365 | wait for NMI (PPU uploads queued data)
   PLA                                       ; $189368 |\ restore nametable select
   STA $10                                   ; $189369 |/
   LDA $70                                   ; $18936B | $70 = 0 when fill complete
@@ -1254,7 +1254,7 @@ robot_master_intro:
   LDA #$04                                  ; $18942B |\ set rendering mode
   STA $97                                   ; $18942D |/
   JSR code_1EC5E9                           ; $18942F | configure PPU
-  JSR code_1FFF21                           ; $189432 | wait 1 frame
+  JSR task_yield                           ; $189432 | wait 1 frame
   LDA #$35                                  ; $189435 |\ play sound $35
   JSR submit_sound_ID_D9                    ; $189437 |/ (boss intro fanfare)
   JSR reset_stage_state                     ; $18943A | zero out game state
@@ -1273,7 +1273,7 @@ robot_master_intro:
   LDA #$00                                  ; $189449 |\ $10 = 0 → write to nametable $2000
   STA $10                                   ; $18944B |/
   JSR fill_nametable_progressive            ; $18944D | write 4 tile rows
-  JSR code_1FFF21                           ; $189450 | wait for NMI
+  JSR task_yield                           ; $189450 | wait for NMI
   LDA $70                                   ; $189453 | $70 = 0 when complete
   BNE .fill_intro_screen                    ; $189455 |
   PLA                                       ; $189457 |\ restore real stage number
@@ -1287,7 +1287,7 @@ robot_master_intro:
   LDA #$00                                  ; $18945C |\ $10 = 0 → nametable $2000
   STA $10                                   ; $18945E |/
   JSR write_ppu_data_from_bank03            ; $189460 | write common intro nametable data
-  JSR code_1FFF21                           ; $189463 | wait for NMI
+  JSR task_yield                           ; $189463 | wait for NMI
   LDA $22                                   ; $189466 |\ X = stage + 6
   CLC                                       ; $189468 | | (per-boss face data table index)
   ADC #$06                                  ; $189469 | |
@@ -1325,7 +1325,7 @@ robot_master_intro:
   LDA $0580                                 ; $189499 |\ clear bit 6 of entity flags
   AND #$BF                                  ; $18949C | | (enable rendering?)
   STA $0580                                 ; $18949E |/
-  JSR code_1FFF21                           ; $1894A1 | wait 1 frame
+  JSR task_yield                           ; $1894A1 | wait 1 frame
   JSR code_1EC74C                           ; $1894A4 | enable rendering
 
 ; Boss drop loop: decrement Y from $E8 to $74 at 4px/frame.
@@ -1348,12 +1348,12 @@ robot_master_intro:
   LDA #$1A                                  ; $1894C2 | |
   JSR reset_sprite_anim                     ; $1894C4 |/
 .boss_render_frame:
-  JSR code_1FFD6E                           ; $1894C7 | process sprites + wait for NMI
+  JSR process_frame_yield_full                           ; $1894C7 | process sprites + wait for NMI
   LDA $05C0                                 ; $1894CA |\ check current OAM ID
   CMP #$1A                                  ; $1894CD | | $1A = idle pose active
   BNE .boss_drop_loop                       ; $1894CF |/ loop until idle
   LDX #$3C                                  ; $1894D1 |\ wait $3C (60) frames
-  JSR code_1FFF1A                           ; $1894D3 |/ (boss stands idle)
+  JSR task_yield_x                           ; $1894D3 |/ (boss stands idle)
 
 ; --- Mega Man teleport-in animation ---
 ; Mega Man rises from Y=$80 to Y=$C0, 2px/frame = 32 frames.
@@ -1365,7 +1365,7 @@ robot_master_intro:
   CLC                                       ; $1894DD |\ X += 2
   ADC #$02                                  ; $1894DE | | (note: using $0360 which is
   STA $0360                                 ; $1894E0 |/  the X position for the entity)
-  JSR code_1FFD6E                           ; $1894E3 | process sprites + wait for NMI
+  JSR process_frame_yield_full                           ; $1894E3 | process sprites + wait for NMI
   JMP .megaman_rise_loop                    ; $1894E6 |
 
 ; --- Palette fade to black ---
@@ -1374,7 +1374,7 @@ robot_master_intro:
 ; from palette colors, 4 frames per step, until all reach $0F.
 .megaman_done:
   LDX #$3C                                  ; $1894E9 |\ wait $3C (60) frames
-  JSR code_1FFF1A                           ; $1894EB |/
+  JSR task_yield_x                           ; $1894EB |/
   LDA #$00                                  ; $1894EE |\ clear NMI skip flag
   STA $EE                                   ; $1894F0 |/
   LDY #$03                                  ; $1894F2 |\ fade BG palette 0 (bytes $00-$03)
@@ -1384,7 +1384,7 @@ robot_master_intro:
   LDY #$0B                                  ; $1894FC |\ fade BG palette 2 (bytes $08-$0B)
   JSR fade_palette_to_black                 ; $1894FE |/
   LDX #$B4                                  ; $189501 |\ wait $B4 (180) frames
-  JSR code_1FFF1A                           ; $189503 |/ (3 seconds on black screen)
+  JSR task_yield_x                           ; $189503 |/ (3 seconds on black screen)
   JMP code_189581                           ; $189506 | → stage loading
 
 ; ---------------------------------------------------------------------------
@@ -1432,7 +1432,7 @@ boss_face_palette_flash:
 .flash_wait:
   INC $18                                   ; $18953E | flag palette upload
   LDX #$02                                  ; $189540 |\ wait 2 frames per flash
-  JSR code_1FFF1A                           ; $189542 |/
+  JSR task_yield_x                           ; $189542 |/
   DEC $10                                   ; $189545 | decrement flash counter
   BPL .flash_loop                           ; $189547 |
   RTS                                       ; $189549 |
@@ -1467,7 +1467,7 @@ fade_palette_to_black:
   BPL .fade_color                           ; $189563 |
   STY $18                                   ; $189565 | flag palette upload
   LDX #$04                                  ; $189567 |\ wait 4 frames per step
-  JSR code_1FFF1A                           ; $189569 |/
+  JSR task_yield_x                           ; $189569 |/
   LDA $10                                   ; $18956C |\ $10 -= $10 (next darker step)
   SEC                                       ; $18956E | |
   SBC #$10                                  ; $18956F | |
@@ -1477,7 +1477,7 @@ fade_palette_to_black:
   CMP #$07                                  ; $189577 | | chain into boss face flash
   BEQ boss_face_palette_flash               ; $189579 |/
   LDX #$1E                                  ; $18957B |\ wait $1E (30) frames between groups
-  JSR code_1FFF1A                           ; $18957D |/
+  JSR task_yield_x                           ; $18957D |/
   RTS                                       ; $189580 |
 
 code_189581:
@@ -1491,7 +1491,7 @@ code_18958A:
   LDA #$04                                  ; $18958D |
   STA $97                                   ; $18958F |
   JSR code_1EC5E9                           ; $189591 |
-  JSR code_1FFF21                           ; $189594 |
+  JSR task_yield                           ; $189594 |
   JSR code_189936                           ; $189597 |
   LDA #$10                                  ; $18959A |
   JSR submit_sound_ID_D9                    ; $18959C |
@@ -1506,7 +1506,7 @@ code_1895AF:
   LDA #$00                                  ; $1895AF |
   STA $10                                   ; $1895B1 |
   JSR fill_nametable_progressive                           ; $1895B3 |
-  JSR code_1FFF21                           ; $1895B6 |
+  JSR task_yield                           ; $1895B6 |
   LDA $70                                   ; $1895B9 |
   BNE code_1895AF                           ; $1895BB |
   LDA #$00                                  ; $1895BD |
@@ -1516,10 +1516,10 @@ code_1895AF:
   STA $10                                   ; $1895C6 |
   LDX #$03                                  ; $1895C8 |
   JSR code_18939E                           ; $1895CA |
-  JSR code_1FFF21                           ; $1895CD |
+  JSR task_yield                           ; $1895CD |
   LDX #$04                                  ; $1895D0 |
   JSR code_18939E                           ; $1895D2 |
-  JSR code_1FFF21                           ; $1895D5 |
+  JSR task_yield                           ; $1895D5 |
   LDA #$04                                  ; $1895D8 |
   JSR code_1FE8B4                           ; $1895DA |
   LDA #$00                                  ; $1895DD |
@@ -1528,7 +1528,7 @@ code_1895E1:
   LDA #$04                                  ; $1895E1 |
   STA $10                                   ; $1895E3 |
   JSR fill_nametable_progressive                           ; $1895E5 |
-  JSR code_1FFF21                           ; $1895E8 |
+  JSR task_yield                           ; $1895E8 |
   LDA $70                                   ; $1895EB |
   BNE code_1895E1                           ; $1895ED |
   LDA #$7C                                  ; $1895EF |
@@ -1552,16 +1552,16 @@ code_18960F:
   STA $0630,y                               ; $189612 |
   DEY                                       ; $189615 |
   BPL code_18960F                           ; $189616 |
-  JSR code_1FFF21                           ; $189618 |
+  JSR task_yield                           ; $189618 |
   JSR code_1899FA                           ; $18961B |
   LDA #$00                                  ; $18961E |
   STA $18                                   ; $189620 |
-  JSR code_1FFF21                           ; $189622 |
+  JSR task_yield                           ; $189622 |
   LDA #$58                                  ; $189625 |
   STA $5E                                   ; $189627 |
   LDA #$07                                  ; $189629 |
   STA $F8                                   ; $18962B |
-  JSR code_1FFF21                           ; $18962D |
+  JSR task_yield                           ; $18962D |
   JSR code_1EC74C                           ; $189630 |
   LDA $60                                   ; $189633 |
   BEQ code_18964D                           ; $189635 |
@@ -1577,7 +1577,7 @@ code_18960F:
 
 code_18964D:
   LDX #$F0                                  ; $18964D |
-  JSR code_1FFF1A                           ; $18964F |
+  JSR task_yield_x                           ; $18964F |
   LDA #$3A                                  ; $189652 |
   STA $61                                   ; $189654 |
   LDA #$09                                  ; $189656 |
@@ -1612,7 +1612,7 @@ code_18968C:
   LDA #$04                                  ; $18968F |
   STA $97                                   ; $189691 |
   JSR code_1EC5E9                           ; $189693 |
-  JSR code_1FFF21                           ; $189696 |
+  JSR task_yield                           ; $189696 |
   JSR code_189936                           ; $189699 |
   LDA #$13                                  ; $18969C |
   STA $F5                                   ; $18969E |
@@ -1625,7 +1625,7 @@ code_1896AC:
   LDA #$04                                  ; $1896AC |
   STA $10                                   ; $1896AE |
   JSR fill_nametable_progressive                           ; $1896B0 |
-  JSR code_1FFF21                           ; $1896B3 |
+  JSR task_yield                           ; $1896B3 |
   LDA $70                                   ; $1896B6 |
   BNE code_1896AC                           ; $1896B8 |
   LDA #$7C                                  ; $1896BA |
@@ -1653,7 +1653,7 @@ code_1896DA:
   STA $10                                   ; $1896E5 |
   LDX #$12                                  ; $1896E7 |
   JSR code_18939E                           ; $1896E9 |
-  JSR code_1FFF21                           ; $1896EC |
+  JSR task_yield                           ; $1896EC |
   LDA #$03                                  ; $1896EF |
   STA $F5                                   ; $1896F1 |
   JSR select_PRG_banks                      ; $1896F3 |
@@ -1663,7 +1663,7 @@ code_1896FC:
   LDA $14                                   ; $1896FC |
   AND #$90                                  ; $1896FE |
   BNE code_189708                           ; $189700 |
-  JSR code_1FFF21                           ; $189702 |
+  JSR task_yield                           ; $189702 |
   JMP code_1896FC                           ; $189705 |
 
 code_189708:
@@ -1718,7 +1718,7 @@ write_portrait_frames:
   TYA                                       ; $18974E |
   PHA                                       ; $18974F |
   LDX $0F                                   ; $189750 |
-  JSR code_1FFF1A                           ; $189752 | submit PPU update buffer
+  JSR task_yield_x                           ; $189752 | submit PPU update buffer
   PLA                                       ; $189755 |
   TAY                                       ; $189756 |
 .advance_portrait:
@@ -1798,7 +1798,7 @@ write_portrait_faces:
   TYA                                       ; $1897D8 |
   PHA                                       ; $1897D9 |
   LDX $0F                                   ; $1897DA |
-  JSR code_1FFF1A                           ; $1897DC | submit PPU update buffer
+  JSR task_yield_x                           ; $1897DC | submit PPU update buffer
   PLA                                       ; $1897DF |
   TAY                                       ; $1897E0 |
 .advance_face:
@@ -1853,7 +1853,7 @@ code_18983E:
   STA $079C                                 ; $18984C |
   STX $07A1                                 ; $18984F |
   STX $19                                   ; $189852 |
-  JSR code_1FFF21                           ; $189854 |
+  JSR task_yield                           ; $189854 |
   LDX #$0E                                  ; $189857 |
   JSR code_18939E                           ; $189859 |
   RTS                                       ; $18985C |
@@ -1863,7 +1863,7 @@ code_18985D:
   LDA #$04                                  ; $189860 |
   STA $97                                   ; $189862 |
   JSR code_1EC5E9                           ; $189864 |
-  JSR code_1FFF21                           ; $189867 |
+  JSR task_yield                           ; $189867 |
   LDA #$0E                                  ; $18986A |
   JSR submit_sound_ID_D9                    ; $18986C |
   JSR code_189936                           ; $18986F |
@@ -1877,7 +1877,7 @@ code_18987F:
   LDA #$04                                  ; $18987F |
   STA $10                                   ; $189881 |
   JSR fill_nametable_progressive                           ; $189883 |
-  JSR code_1FFF21                           ; $189886 |
+  JSR task_yield                           ; $189886 |
   LDA $70                                   ; $189889 |
   BNE code_18987F                           ; $18988B |
   LDA #$7C                                  ; $18988D |
@@ -1901,7 +1901,7 @@ code_1898AD:
   STA $0630,y                               ; $1898B0 |
   DEY                                       ; $1898B3 |
   BPL code_1898AD                           ; $1898B4 |
-  JSR code_1FFF21                           ; $1898B6 |
+  JSR task_yield                           ; $1898B6 |
   LDX #$01                                  ; $1898B9 |
   LDA #$04                                  ; $1898BB |
   STA $10                                   ; $1898BD |
@@ -1914,12 +1914,12 @@ code_1898AD:
   STA $F5                                   ; $1898CC |
   JSR select_PRG_banks                      ; $1898CE |
   JSR $A8DD                                 ; $1898D1 |
-  JSR code_1FFF21                           ; $1898D4 |
+  JSR task_yield                           ; $1898D4 |
   JSR code_1EC74C                           ; $1898D7 |
   LDA #$78                                  ; $1898DA |
 code_1898DC:
   PHA                                       ; $1898DC |
-  JSR code_1FFF21                           ; $1898DD |
+  JSR task_yield                           ; $1898DD |
   PLA                                       ; $1898E0 |
   SEC                                       ; $1898E1 |
   SBC #$01                                  ; $1898E2 |
@@ -1934,7 +1934,7 @@ code_1898F2:
   LDA $14                                   ; $1898F5 |
   AND #$10                                  ; $1898F7 |
   BNE code_189901                           ; $1898F9 |
-  JSR code_1FFF21                           ; $1898FB |
+  JSR task_yield                           ; $1898FB |
   JMP code_1898F2                           ; $1898FE |
 
 code_189901:
@@ -2037,7 +2037,7 @@ code_1899A3:
   BPL code_1899A3                           ; $1899B0 |
   STY $079C                                 ; $1899B2 |
   STY $19                                   ; $1899B5 |
-  JSR code_1FFF21                           ; $1899B7 |
+  JSR task_yield                           ; $1899B7 |
 code_1899BA:
   DEX                                       ; $1899BA |
   BPL code_189961                           ; $1899BB |
@@ -2046,7 +2046,7 @@ code_1899BA:
   CMP #$12                                  ; $1899C1 |
   BNE code_1899CB                           ; $1899C3 |
   JSR write_center_portrait                           ; $1899C5 |
-  JSR code_1FFF21                           ; $1899C8 |
+  JSR task_yield                           ; $1899C8 |
 code_1899CB:
   RTS                                       ; $1899CB |
 
@@ -2193,7 +2193,7 @@ code_189ABE:
   LDA #$04                                  ; $189AC4 |
   STA $97                                   ; $189AC6 |
   JSR code_1EC5E9                           ; $189AC8 |
-  JSR code_1FFF21                           ; $189ACB |
+  JSR task_yield                           ; $189ACB |
   JSR code_1EC628                           ; $189ACE |
   LDA #$01                                  ; $189AD1 |
   STA $A000                                 ; $189AD3 |
@@ -2228,7 +2228,7 @@ code_189B0E:
   LDA #$01                                  ; $189B0F |
   STA $10                                   ; $189B11 |
   JSR code_1FE4F1                           ; $189B13 |
-  JSR code_1FFF21                           ; $189B16 |
+  JSR task_yield                           ; $189B16 |
   PLA                                       ; $189B19 |
   SEC                                       ; $189B1A |
   SBC #$01                                  ; $189B1B |
@@ -2292,7 +2292,7 @@ code_189B38:
   STA $0360                                 ; $189BA6 |
   LDA #$0C                                  ; $189BA9 |
   JSR submit_sound_ID_D9                    ; $189BAB |
-  JSR code_1FFF21                           ; $189BAE |
+  JSR task_yield                           ; $189BAE |
   JSR code_1EC74C                           ; $189BB1 |
   JMP code_1EC9B3                           ; $189BB4 |
 

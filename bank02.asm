@@ -133,7 +133,7 @@ code_02A0D1:
   LDA #$1E                                  ; $02A0DA |
 code_02A0DC:
   PHA                                       ; $02A0DC |
-  JSR code_1FFF21                           ; $02A0DD |
+  JSR task_yield                           ; $02A0DD |
   PLA                                       ; $02A0E0 |
   SEC                                       ; $02A0E1 |
   SBC #$01                                  ; $02A0E2 |
@@ -447,7 +447,7 @@ code_02A2F8:
   JSR code_02A30C                           ; $02A2FD |
   LDA #$00                                  ; $02A300 |
   STA $EE                                   ; $02A302 |
-  JSR code_1FFF21                           ; $02A304 |
+  JSR task_yield                           ; $02A304 |
   INC $EE                                   ; $02A307 |
   INC $95                                   ; $02A309 |
   RTS                                       ; $02A30B |

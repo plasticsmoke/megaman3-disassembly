@@ -1452,7 +1452,7 @@ code_1EC774:
   LDA $0E                                   ; $1EC77C |
 code_1EC77E:
   PHA                                       ; $1EC77E |
-  JSR code_1FFF21                           ; $1EC77F |
+  JSR task_yield                           ; $1EC77F |
   PLA                                       ; $1EC782 |
   SEC                                       ; $1EC783 |
   SBC #$01                                  ; $1EC784 |
@@ -1663,7 +1663,7 @@ code_1EC8B4:
   TXS                                       ; $1EC8D2 |
   LDA $FF                                   ; $1EC8D3 |
   STA $2000                                 ; $1EC8D5 |
-  JSR code_1FFF21                           ; $1EC8D8 |
+  JSR task_yield                           ; $1EC8D8 |
   LDA #$88                                  ; $1EC8DB |
   STA $E4                                   ; $1EC8DD |
   CLI                                       ; $1EC8DF |
@@ -1695,7 +1695,7 @@ code_1EC909:
   LDA #$04                                  ; $1EC910 |
   STA $97                                   ; $1EC912 |
   JSR code_1EC5E9                           ; $1EC914 |
-  JSR code_1FFF21                           ; $1EC917 |
+  JSR task_yield                           ; $1EC917 |
   JSR code_1EC628                           ; $1EC91A |
   LDA #$01                                  ; $1EC91D |
   STA $A000                                 ; $1EC91F |
@@ -1736,7 +1736,7 @@ code_1EC969:
   LDA #$01                                  ; $1EC969 |
   STA $10                                   ; $1EC96B |
   JSR code_1FE4F1                           ; $1EC96D |
-  JSR code_1FFF21                           ; $1EC970 |
+  JSR task_yield                           ; $1EC970 |
   LDA $29                                   ; $1EC973 |
   BEQ code_1EC969                           ; $1EC975 |
   LDA $22                                   ; $1EC977 |
@@ -1764,7 +1764,7 @@ code_1EC991:
   JSR load_stage                           ; $1EC9A1 |
   LDA #$00                                  ; $1EC9A4 |
   STA $18                                   ; $1EC9A6 |
-  JSR code_1FFF21                           ; $1EC9A8 |
+  JSR task_yield                           ; $1EC9A8 |
   JSR code_1EC74C                           ; $1EC9AB |
   LDA #$80                                  ; $1EC9AE |
   STA $0360                                 ; $1EC9B0 |
@@ -1830,7 +1830,7 @@ code_1ECA15:
   BNE code_1ECA15                           ; $1ECA1C |
   LDA #$00                                  ; $1ECA1E |
   STA $EE                                   ; $1ECA20 |
-  JSR code_1FFF21                           ; $1ECA22 |
+  JSR task_yield                           ; $1ECA22 |
   INC $EE                                   ; $1ECA25 |
   INC $95                                   ; $1ECA27 |
   PLA                                       ; $1ECA29 |
@@ -1962,7 +1962,7 @@ code_1ECAFB:
   JSR $8000                                 ; $1ECB31 |
   JSR $8012                                 ; $1ECB34 |
   JSR code_1EC798                           ; $1ECB37 |
-  JSR code_1FFF57                           ; $1ECB3A |
+  JSR process_frame_yield_with_player                           ; $1ECB3A |
   LDA $98                                   ; $1ECB3D |
   AND #$02                                  ; $1ECB3F |
   BEQ code_1ECB49                           ; $1ECB41 |
@@ -2105,7 +2105,7 @@ handle_checkpoint:
   LDA #$04                                  ; $1ECC36 |
   STA $97                                   ; $1ECC38 |
   JSR code_1EC5E9                           ; $1ECC3A |
-  JSR code_1FFF21                           ; $1ECC3D |
+  JSR task_yield                           ; $1ECC3D |
   JSR code_1EC628                           ; $1ECC40 |
   LDA #$00                                  ; $1ECC43 |
   STA $F8                                   ; $1ECC45 |
@@ -2174,7 +2174,7 @@ code_1ECCBF:
   LDA #$01                                  ; $1ECCC0 |
   STA $10                                   ; $1ECCC2 |
   JSR code_1FE4F1                           ; $1ECCC4 |
-  JSR code_1FFF21                           ; $1ECCC7 |
+  JSR task_yield                           ; $1ECCC7 |
   PLA                                       ; $1ECCCA |
   SEC                                       ; $1ECCCB |
   SBC #$01                                  ; $1ECCCC |
@@ -2182,7 +2182,7 @@ code_1ECCBF:
   JSR load_stage                           ; $1ECCD0 |
   LDA #$00                                  ; $1ECCD3 |
   STA $18                                   ; $1ECCD5 |
-  JSR code_1FFF21                           ; $1ECCD7 |
+  JSR task_yield                           ; $1ECCD7 |
   JSR code_1EC74C                           ; $1ECCDA |
   LDA #$80                                  ; $1ECCDD |
   STA $0360                                 ; $1ECCDF |
@@ -4489,7 +4489,7 @@ code_1EDDC1:
   LDA #$04                                  ; $1EDDC8 |
   STA $97                                   ; $1EDDCA |
   JSR code_1EC5E9                           ; $1EDDCC |
-  JSR code_1FFF21                           ; $1EDDCF |
+  JSR task_yield                           ; $1EDDCF |
   JSR code_1EC628                           ; $1EDDD2 |
   LDA #$01                                  ; $1EDDD5 |
   STA $F5                                   ; $1EDDD7 |
@@ -4528,7 +4528,7 @@ code_1EDE1E:
   LDA #$01                                  ; $1EDE1F |
   STA $10                                   ; $1EDE21 |
   JSR code_1FE4F1                           ; $1EDE23 |
-  JSR code_1FFF21                           ; $1EDE26 |
+  JSR task_yield                           ; $1EDE26 |
   PLA                                       ; $1EDE29 |
   SEC                                       ; $1EDE2A |
   SBC #$01                                  ; $1EDE2B |
@@ -4542,7 +4542,7 @@ code_1EDE1E:
   LDA #$0A                                  ; $1EDE3B |
   JSR submit_sound_ID_D9                    ; $1EDE3D |
 code_1EDE40:
-  JSR code_1FFF21                           ; $1EDE40 |
+  JSR task_yield                           ; $1EDE40 |
   JSR code_1EC74C                           ; $1EDE43 |
   LDX #$00                                  ; $1EDE46 |
   LDA #$13                                  ; $1EDE48 |
@@ -5164,7 +5164,7 @@ code_1FE2E8:
   TAX                                       ; $1FE2F0 |
   LDY $AA39,x                               ; $1FE2F1 |
 code_1FE2F4:
-  JSR code_1FEE31                           ; $1FE2F4 |
+  JSR call_bank10_8000                      ; $1FE2F4 |
 code_1FE2F7:
   LDA $22                                   ; $1FE2F7 |
   BNE code_1FE308                           ; $1FE2F9 |
@@ -5201,7 +5201,7 @@ code_1FE32A:
   TAX                                       ; $1FE334 |
   LDY $AA38,x                               ; $1FE335 |
 code_1FE338:
-  JSR code_1FEE44                           ; $1FE338 |
+  JSR call_bank10_8003                      ; $1FE338 |
 code_1FE33B:
   RTS                                       ; $1FE33B |
 
@@ -5587,7 +5587,7 @@ code_1FE5DF:
   LDA $0380                                 ; $1FE5FB |
   ADC #$00                                  ; $1FE5FE |
   STA $0380                                 ; $1FE600 |
-  JSR code_1FFF57                           ; $1FE603 |
+  JSR process_frame_yield_with_player                           ; $1FE603 |
   LDA $FC                                   ; $1FE606 |
   BNE code_1FE5D4                           ; $1FE608 |
   LDA $22                                   ; $1FE60A |
@@ -5655,7 +5655,7 @@ code_1FE67A:
   STA $26                                   ; $1FE67F |
   LDA $12                                   ; $1FE681 |
   PHA                                       ; $1FE683 |
-  JSR code_1FFF57                           ; $1FE684 |
+  JSR process_frame_yield_with_player                           ; $1FE684 |
   PLA                                       ; $1FE687 |
   STA $12                                   ; $1FE688 |
   LDA $FA                                   ; $1FE68A |
@@ -6690,155 +6690,198 @@ snap_y_to_floor:
   STA $11                                   ; $1FEE2E |/
   RTS                                       ; $1FEE30 |
 
-code_1FEE31:
-  LDA $F4                                   ; $1FEE31 |
-  PHA                                       ; $1FEE33 |
-  LDA #$10                                  ; $1FEE34 |
-  STA $F4                                   ; $1FEE36 |
-  JSR select_PRG_banks                      ; $1FEE38 |
-  JSR $8000                                 ; $1FEE3B |
-  PLA                                       ; $1FEE3E |
-  STA $F4                                   ; $1FEE3F |
-  JMP select_PRG_banks                      ; $1FEE41 |
+; ===========================================================================
+; call_bank10_8000 / call_bank10_8003 — bank $10 trampolines
+; ===========================================================================
+; Save current $8000-$9FFF bank, switch to bank $10, call entry point
+; ($8000 or $8003), then restore original bank. Called from player cutscene
+; state machine (code_1FE2F4, code_1FE338). Bank $10 contains cutscene/
+; scripted sequence routines.
+; ---------------------------------------------------------------------------
+call_bank10_8000:
+  LDA $F4                                   ; $1FEE31 |\ save current $8000 bank
+  PHA                                       ; $1FEE33 |/
+  LDA #$10                                  ; $1FEE34 |\ switch $8000-$9FFF to bank $10
+  STA $F4                                   ; $1FEE36 | |
+  JSR select_PRG_banks                      ; $1FEE38 |/
+  JSR $8000                                 ; $1FEE3B | call bank $10 entry point 0
+  PLA                                       ; $1FEE3E |\ restore original $8000 bank
+  STA $F4                                   ; $1FEE3F | |
+  JMP select_PRG_banks                      ; $1FEE41 |/
 
-code_1FEE44:
-  LDA $F4                                   ; $1FEE44 |
-  PHA                                       ; $1FEE46 |
-  LDA #$10                                  ; $1FEE47 |
-  STA $F4                                   ; $1FEE49 |
-  JSR select_PRG_banks                      ; $1FEE4B |
-  JSR $8003                                 ; $1FEE4E |
-  PLA                                       ; $1FEE51 |
-  STA $F4                                   ; $1FEE52 |
-  JMP select_PRG_banks                      ; $1FEE54 |
+call_bank10_8003:
+  LDA $F4                                   ; $1FEE44 |\ save current $8000 bank
+  PHA                                       ; $1FEE46 |/
+  LDA #$10                                  ; $1FEE47 |\ switch $8000-$9FFF to bank $10
+  STA $F4                                   ; $1FEE49 | |
+  JSR select_PRG_banks                      ; $1FEE4B |/
+  JSR $8003                                 ; $1FEE4E | call bank $10 entry point 1
+  PLA                                       ; $1FEE51 |\ restore original $8000 bank
+  STA $F4                                   ; $1FEE52 | |
+  JMP select_PRG_banks                      ; $1FEE54 |/
 
-code_1FEE57:
-  SEC                                       ; $1FEE57 |
-  LDA $1A                                   ; $1FEE58 |
-  ORA $19                                   ; $1FEE5A |
-  BNE code_1FEEAA                           ; $1FEE5C |
-  LDA #$08                                  ; $1FEE5E |
-  STA $0780                                 ; $1FEE60 |
-  LDA $03C0,x                               ; $1FEE63 |
-  AND #$F0                                  ; $1FEE66 |
-  ASL                                       ; $1FEE68 |
-  ROL $0780                                 ; $1FEE69 |
-  ASL                                       ; $1FEE6C |
-  ROL $0780                                 ; $1FEE6D |
-  STA $0781                                 ; $1FEE70 |
-  LDA $0360,x                               ; $1FEE73 |
-  AND #$F0                                  ; $1FEE76 |
-  LSR                                       ; $1FEE78 |
-  LSR                                       ; $1FEE79 |
-  LSR                                       ; $1FEE7A |
-  ORA $0781                                 ; $1FEE7B |
-  STA $0781                                 ; $1FEE7E |
-  ORA #$20                                  ; $1FEE81 |
-  STA $0786                                 ; $1FEE83 |
-  LDA #$01                                  ; $1FEE86 |
-  STA $0782                                 ; $1FEE88 |
-  STA $0787                                 ; $1FEE8B |
-  LDA $0780                                 ; $1FEE8E |
-  STA $0785                                 ; $1FEE91 |
-  LDA #$00                                  ; $1FEE94 |
-  STA $0783                                 ; $1FEE96 |
-  STA $0784                                 ; $1FEE99 |
-  STA $0788                                 ; $1FEE9C |
-  STA $0789                                 ; $1FEE9F |
-  LDA #$FF                                  ; $1FEEA2 |
-  STA $078A                                 ; $1FEEA4 |
-  STA $19                                   ; $1FEEA7 |
-  CLC                                       ; $1FEEA9 |
-code_1FEEAA:
+; ===========================================================================
+; queue_metatile_clear — queue a 2×2 blank metatile write to PPU
+; ===========================================================================
+; Converts entity X's screen position ($0360,x / $03C0,x) to a PPU nametable
+; address and fills the NMI update buffer ($0780+) with two 2-tile rows of
+; blank tiles ($00). NMI's code_1EC4F8 drains this buffer during VBlank.
+;
+; Buffer format: [addr_hi][addr_lo][count][tile × (count+1)]...[FF=end]
+; This builds two entries (top row + bottom row of metatile) + terminator.
+;
+; Input:  X = entity slot index
+; Output: C=0 on success (buffer queued), C=1 if PPU update already pending
+; Clobbers: $0780-$078A, $19
+; Called from: bank1C_1D (tile destruction / block breaking)
+; ---------------------------------------------------------------------------
+queue_metatile_clear:
+  SEC                                       ; $1FEE57 | preset carry = fail
+  LDA $1A                                   ; $1FEE58 |\ if nametable column or row
+  ORA $19                                   ; $1FEE5A | | update already pending,
+  BNE .ret                                  ; $1FEE5C |/ return C=1 (busy)
+  LDA #$08                                  ; $1FEE5E |\ seed high byte = $08
+  STA $0780                                 ; $1FEE60 |/ (becomes $20-$23 after shifts)
+  LDA $03C0,x                               ; $1FEE63 |\ entity Y, upper nibble = metatile row
+  AND #$F0                                  ; $1FEE66 | | ASL×2 with ROL into $0780:
+  ASL                                       ; $1FEE68 | | row * 64 → PPU row offset
+  ROL $0780                                 ; $1FEE69 | | (each metatile = 2 tile rows × 32)
+  ASL                                       ; $1FEE6C | |
+  ROL $0780                                 ; $1FEE6D | |
+  STA $0781                                 ; $1FEE70 |/ low byte = row component
+  LDA $0360,x                               ; $1FEE73 |\ entity X, upper nibble
+  AND #$F0                                  ; $1FEE76 | | LSR×3 = metatile column × 2
+  LSR                                       ; $1FEE78 | | (each metatile = 2 tiles wide)
+  LSR                                       ; $1FEE79 | |
+  LSR                                       ; $1FEE7A | |
+  ORA $0781                                 ; $1FEE7B | |
+  STA $0781                                 ; $1FEE7E |/ combine row + column
+  ORA #$20                                  ; $1FEE81 |\ addr + 32 = next tile row
+  STA $0786                                 ; $1FEE83 |/ (second entry low byte)
+  LDA #$01                                  ; $1FEE86 |\ count = 1 → write 2 tiles per row
+  STA $0782                                 ; $1FEE88 | |
+  STA $0787                                 ; $1FEE8B |/
+  LDA $0780                                 ; $1FEE8E |\ copy high byte for second entry
+  STA $0785                                 ; $1FEE91 |/
+  LDA #$00                                  ; $1FEE94 |\ tile data = $00 (blank) for all 4
+  STA $0783                                 ; $1FEE96 | |
+  STA $0784                                 ; $1FEE99 | |
+  STA $0788                                 ; $1FEE9C | |
+  STA $0789                                 ; $1FEE9F |/
+  LDA #$FF                                  ; $1FEEA2 |\ terminator
+  STA $078A                                 ; $1FEEA4 |/
+  STA $19                                   ; $1FEEA7 | flag NMI to process buffer
+  CLC                                       ; $1FEEA9 | success
+.ret:
   RTS                                       ; $1FEEAA |
 
-code_1FEEAB:
-  LDA $28                                   ; $1FEEAB |
-  PHA                                       ; $1FEEAD |
-  AND #$07                                  ; $1FEEAE |
-  ASL                                       ; $1FEEB0 |
-  ASL                                       ; $1FEEB1 |
-  STA $0781                                 ; $1FEEB2 |
-  LDA #$02                                  ; $1FEEB5 |
-  STA $0780                                 ; $1FEEB7 |
-  PLA                                       ; $1FEEBA |
-  AND #$F8                                  ; $1FEEBB |
-  ASL                                       ; $1FEEBD |
-  ROL $0780                                 ; $1FEEBE |
-  ASL                                       ; $1FEEC1 |
-  ROL $0780                                 ; $1FEEC2 |
-  ASL                                       ; $1FEEC5 |
-  ROL $0780                                 ; $1FEEC6 |
-  ASL                                       ; $1FEEC9 |
-  ROL $0780                                 ; $1FEECA |
-  ORA $0781                                 ; $1FEECD |
-  STA $0781                                 ; $1FEED0 |
+; ===========================================================================
+; queue_metatile_update — build PPU update buffer for a 4×4 tile metatile
+; ===========================================================================
+; Converts metatile position ($28) to PPU nametable addresses and builds
+; a 5-entry NMI update buffer at $0780: four 4-tile rows + one attribute
+; byte. Tile data is sourced from $06C0-$06CF (filled by metatile_to_chr_tiles).
+;
+; $28 = metatile index (low 3 bits = column, upper bits = row)
+; $10 = nametable select (bit 2: 0=$2000, 4=$2400)
+; $68 = cutscene-complete flag (selects alternate tile lookup path)
+; Y  = metatile ID (when $68=0, passed to code_1FE8B4)
+;
+; Buffer layout: 4 row entries (7 bytes each) + 1 attribute entry + $FF end
+;   Entry: [addr_hi][addr_lo][count=3][tile0][tile1][tile2][tile3]
+;   Attr:  [attr_addr_hi][attr_addr_lo][count=0][attr_byte][$FF]
+;
+; Edge case: if metatile row >= $38 (bottom of nametable), the attribute
+; entry overwrites the 3rd row entry to avoid writing past nametable bounds.
+;
+; Called from: bank09 (enemy spawning), bank0C (level loading), bank18
+; ---------------------------------------------------------------------------
+queue_metatile_update:
+  LDA $28                                   ; $1FEEAB |\ save metatile index
+  PHA                                       ; $1FEEAD |/
+  AND #$07                                  ; $1FEEAE |\ column bits × 4 = PPU column offset
+  ASL                                       ; $1FEEB0 | | (4 tiles wide per metatile)
+  ASL                                       ; $1FEEB1 | |
+  STA $0781                                 ; $1FEEB2 |/
+  LDA #$02                                  ; $1FEEB5 |\ seed high byte = $02
+  STA $0780                                 ; $1FEEB7 |/ (becomes $20+ after shifts)
+  PLA                                       ; $1FEEBA |\ row bits (upper 5 bits of $28)
+  AND #$F8                                  ; $1FEEBB | | ASL×4 with ROL = row × 128
+  ASL                                       ; $1FEEBD | | (each metatile row = 4 tile rows
+  ROL $0780                                 ; $1FEEBE | |  × 32 bytes = 128)
+  ASL                                       ; $1FEEC1 | |
+  ROL $0780                                 ; $1FEEC2 | |
+  ASL                                       ; $1FEEC5 | |
+  ROL $0780                                 ; $1FEEC6 | |
+  ASL                                       ; $1FEEC9 | |
+  ROL $0780                                 ; $1FEECA | |
+  ORA $0781                                 ; $1FEECD | |
+  STA $0781                                 ; $1FEED0 |/ row 0 addr low byte
   CLC                                       ; $1FEED3 |
-  ADC #$20                                  ; $1FEED4 |
-  STA $0788                                 ; $1FEED6 |
-  ADC #$20                                  ; $1FEED9 |
-  STA $078F                                 ; $1FEEDB |
-  ADC #$20                                  ; $1FEEDE |
-  STA $0796                                 ; $1FEEE0 |
-  LDA $28                                   ; $1FEEE3 |
-  ORA #$C0                                  ; $1FEEE5 |
-  STA $079D                                 ; $1FEEE7 |
-  LDA $0780                                 ; $1FEEEA |
-  ORA $10                                   ; $1FEEED |
-  STA $0780                                 ; $1FEEEF |
-  STA $0787                                 ; $1FEEF2 |
-  STA $078E                                 ; $1FEEF5 |
-  STA $0795                                 ; $1FEEF8 |
-  ORA #$03                                  ; $1FEEFB |
-  STA $079C                                 ; $1FEEFD |
-  LDA #$03                                  ; $1FEF00 |
-  STA $0782                                 ; $1FEF02 |
-  STA $0789                                 ; $1FEF05 |
-  STA $0790                                 ; $1FEF08 |
-  STA $0797                                 ; $1FEF0B |
-  LDA #$00                                  ; $1FEF0E |
-  STA $079E                                 ; $1FEF10 |
-  LDA $68                                   ; $1FEF13 |
-  BEQ code_1FEF26                           ; $1FEF15 |
-  LDA #$00                                  ; $1FEF17 |
-  STA $01                                   ; $1FEF19 |
-  LDA $11                                   ; $1FEF1B |
-  JSR .calc_chr_offset                           ; $1FEF1D |
-  JSR metatile_to_chr_tiles_continue                           ; $1FEF20 |
-  JMP code_1FEF2D                           ; $1FEF23 |
-
-code_1FEF26:
-  TYA                                       ; $1FEF26 |
-  JSR code_1FE8B4                           ; $1FEF27 |
-  JSR metatile_to_chr_tiles                           ; $1FEF2A |
-code_1FEF2D:
-  LDX #$03                                  ; $1FEF2D |
-code_1FEF2F:
-  LDA $06C0,x                               ; $1FEF2F |
-  STA $0783,x                               ; $1FEF32 |
-  LDA $06C4,x                               ; $1FEF35 |
-  STA $078A,x                               ; $1FEF38 |
-  LDA $06C8,x                               ; $1FEF3B |
-  STA $0791,x                               ; $1FEF3E |
-  LDA $06CC,x                               ; $1FEF41 |
-  STA $0798,x                               ; $1FEF44 |
-  DEX                                       ; $1FEF47 |
-  BPL code_1FEF2F                           ; $1FEF48 |
-  LDA $10                                   ; $1FEF4A |
-  STA $079F                                 ; $1FEF4C |
-  STX $07A0                                 ; $1FEF4F |
-  LDA $28                                   ; $1FEF52 |
-  AND #$3F                                  ; $1FEF54 |
-  CMP #$38                                  ; $1FEF56 |
-  BCC code_1FEF65                           ; $1FEF58 |
-  LDX #$04                                  ; $1FEF5A |
-code_1FEF5C:
-  LDA $079C,x                               ; $1FEF5C |
-  STA $078E,x                               ; $1FEF5F |
-  DEX                                       ; $1FEF62 |
-  BPL code_1FEF5C                           ; $1FEF63 |
-code_1FEF65:
-  STX $19                                   ; $1FEF65 |
+  ADC #$20                                  ; $1FEED4 |\ row 1 addr low = row 0 + 32
+  STA $0788                                 ; $1FEED6 |/
+  ADC #$20                                  ; $1FEED9 |\ row 2 addr low = row 1 + 32
+  STA $078F                                 ; $1FEEDB |/
+  ADC #$20                                  ; $1FEEDE |\ row 3 addr low = row 2 + 32
+  STA $0796                                 ; $1FEEE0 |/
+  LDA $28                                   ; $1FEEE3 |\ attribute addr low = $28 OR $C0
+  ORA #$C0                                  ; $1FEEE5 | | (attribute table offset)
+  STA $079D                                 ; $1FEEE7 |/
+  LDA $0780                                 ; $1FEEEA |\ merge nametable select bit
+  ORA $10                                   ; $1FEEED | | into all row high bytes
+  STA $0780                                 ; $1FEEEF | | (rows 0-3 share same high byte)
+  STA $0787                                 ; $1FEEF2 | |
+  STA $078E                                 ; $1FEEF5 | |
+  STA $0795                                 ; $1FEEF8 |/
+  ORA #$03                                  ; $1FEEFB |\ attribute high byte = $23 or $27
+  STA $079C                                 ; $1FEEFD |/
+  LDA #$03                                  ; $1FEF00 |\ count = 3 → 4 tiles per row
+  STA $0782                                 ; $1FEF02 | |
+  STA $0789                                 ; $1FEF05 | |
+  STA $0790                                 ; $1FEF08 | |
+  STA $0797                                 ; $1FEF0B |/
+  LDA #$00                                  ; $1FEF0E |\ attribute entry count = 0 (1 byte)
+  STA $079E                                 ; $1FEF10 |/
+  LDA $68                                   ; $1FEF13 |\ cutscene-complete flag?
+  BEQ .normal_lookup                        ; $1FEF15 |/ no → normal metatile lookup
+  LDA #$00                                  ; $1FEF17 |\ alternate path: use $11 (scroll pos)
+  STA $01                                   ; $1FEF19 | | for CHR tile offset calculation
+  LDA $11                                   ; $1FEF1B | |
+  JSR .calc_chr_offset                      ; $1FEF1D | |
+  JSR metatile_to_chr_tiles_continue        ; $1FEF20 | |
+  JMP .copy_tiles                           ; $1FEF23 |/
+.normal_lookup:
+  TYA                                       ; $1FEF26 |\ Y = metatile ID
+  JSR code_1FE8B4                           ; $1FEF27 | | look up metatile definition
+  JSR metatile_to_chr_tiles                  ; $1FEF2A |/ convert to CHR tile indices
+.copy_tiles:
+  LDX #$03                                  ; $1FEF2D |\ copy 4×4 tile data from $06C0-$06CF
+.copy_loop:                                          ; | into PPU buffer data slots
+  LDA $06C0,x                               ; $1FEF2F | | row 0: $06C0-$06C3 → $0783-$0786
+  STA $0783,x                               ; $1FEF32 | |
+  LDA $06C4,x                               ; $1FEF35 | | row 1: $06C4-$06C7 → $078A-$078D
+  STA $078A,x                               ; $1FEF38 | |
+  LDA $06C8,x                               ; $1FEF3B | | row 2: $06C8-$06CB → $0791-$0794
+  STA $0791,x                               ; $1FEF3E | |
+  LDA $06CC,x                               ; $1FEF41 | | row 3: $06CC-$06CF → $0798-$079B
+  STA $0798,x                               ; $1FEF44 | |
+  DEX                                       ; $1FEF47 | |
+  BPL .copy_loop                            ; $1FEF48 |/
+  LDA $10                                   ; $1FEF4A |\ attribute byte = nametable select
+  STA $079F                                 ; $1FEF4C |/
+  STX $07A0                                 ; $1FEF4F | terminator ($FF from DEX past 0)
+  LDA $28                                   ; $1FEF52 |\ if metatile row >= $38 (bottom edge),
+  AND #$3F                                  ; $1FEF54 | | row 3+4 would overflow nametable.
+  CMP #$38                                  ; $1FEF56 | | Move attribute entry up to replace
+  BCC .done                                 ; $1FEF58 |/ row 3 entry to avoid overflow.
+  LDX #$04                                  ; $1FEF5A |\ copy attribute entry ($079C-$07A0)
+.overflow_fix:                                       ; | over row 3 entry ($078E-$0792)
+  LDA $079C,x                               ; $1FEF5C | |
+  STA $078E,x                               ; $1FEF5F | |
+  DEX                                       ; $1FEF62 | |
+  BPL .overflow_fix                         ; $1FEF63 |/
+.done:
+  STX $19                                   ; $1FEF65 | flag NMI to process buffer
   RTS                                       ; $1FEF67 |
 
 ; ===========================================================================
@@ -8980,69 +9023,105 @@ divide_16bit:
   LDX $09                                   ; $1FFD4F |  restore X
   RTS                                       ; $1FFD51 |
 
-code_1FFD52:
-  LDA #$80                                  ; $1FFD52 |
-  STA $5A                                   ; $1FFD54 |
-  LDA $F5                                   ; $1FFD56 |
-  PHA                                       ; $1FFD58 |
-  LDA #$0C                                  ; $1FFD59 |
-  STA $97                                   ; $1FFD5B |
-  JSR code_1FFF5B                           ; $1FFD5D |
-  LDA #$00                                  ; $1FFD60 |
-  STA $5A                                   ; $1FFD62 |
-  LDA #$18                                  ; $1FFD64 |
-  STA $F4                                   ; $1FFD66 |
-  PLA                                       ; $1FFD68 |
-  STA $F5                                   ; $1FFD69 |
-  JMP select_PRG_banks                      ; $1FFD6B |
+; ===========================================================================
+; Frame-yield trampolines — process one frame, yield to NMI, restore banks
+; ===========================================================================
+; These wrappers let banked code (boss AI, cutscenes, level transitions)
+; run one frame of entity processing + sprite update, then yield to the
+; cooperative scheduler until NMI completes. They save/restore PRG bank
+; state across the yield so the caller doesn't need to worry about it.
+;
+; $97 controls OAM start offset for update_entity_sprites:
+;   $04 = include player sprites (default, set by process_frame_yield_full)
+;   $0C = skip player sprites (set by boss_frame_yield)
+;
+; Variants:
+;   boss_frame_yield      — sets $5A (boss active), $97=$0C, saves $F5
+;   process_frame_yield_full — saves both banks, $97=$04 (includes player)
+;   process_frame_yield   — saves both banks, uses caller's $97
+;   call_bank0E_A006      — bank $0E trampoline, calls $A006 with X=$B8
+;   call_bank0E_A003      — bank $0E trampoline, calls $A003
+; ---------------------------------------------------------------------------
 
-code_1FFD6E:
-  LDA $F4                                   ; $1FFD6E |
-  PHA                                       ; $1FFD70 |
-  LDA $F5                                   ; $1FFD71 |
-  PHA                                       ; $1FFD73 |
-  JSR code_1FFF57                           ; $1FFD74 |
-code_1FFD77:
-  PLA                                       ; $1FFD77 |
-  STA $F5                                   ; $1FFD78 |
-  PLA                                       ; $1FFD7A |
-  STA $F4                                   ; $1FFD7B |
-  JMP select_PRG_banks                      ; $1FFD7D |
+; --- boss_frame_yield ---
+; Called from bank03 (boss intro sequences). Sets boss-active flag, processes
+; entities (skipping player sprites), yields, then restores banks.
+boss_frame_yield:
+  LDA #$80                                  ; $1FFD52 |\ set boss-active flag
+  STA $5A                                   ; $1FFD54 |/ (bit 7 = boss fight in progress)
+  LDA $F5                                   ; $1FFD56 |\ save $A000 bank
+  PHA                                       ; $1FFD58 |/
+  LDA #$0C                                  ; $1FFD59 |\ $97 = $0C: OAM offset past player
+  STA $97                                   ; $1FFD5B |/ (skip first 3 sprite entries)
+  JSR process_frame_and_yield               ; $1FFD5D | process entities + yield one frame
+  LDA #$00                                  ; $1FFD60 |\ clear boss-active flag
+  STA $5A                                   ; $1FFD62 |/
+  LDA #$18                                  ; $1FFD64 |\ restore $8000 bank to $18
+  STA $F4                                   ; $1FFD66 |/ (bank1C_1D fixed pair)
+  PLA                                       ; $1FFD68 |\ restore $A000 bank
+  STA $F5                                   ; $1FFD69 |/
+  JMP select_PRG_banks                      ; $1FFD6B | re-select banks and return
 
-code_1FFD80:
-  LDA $F4                                   ; $1FFD80 |
-  PHA                                       ; $1FFD82 |
-  LDA $F5                                   ; $1FFD83 |
-  PHA                                       ; $1FFD85 |
-  JSR code_1FFF5B                           ; $1FFD86 |
-  JMP code_1FFD77                           ; $1FFD89 |
+; --- process_frame_yield_full ---
+; Saves both PRG banks, sets $97=$04, processes frame, restores banks.
+; Called from bank0C/0B (level loading, cutscenes), bank18 (stage select).
+process_frame_yield_full:
+  LDA $F4                                   ; $1FFD6E |\ save both PRG banks
+  PHA                                       ; $1FFD70 | |
+  LDA $F5                                   ; $1FFD71 | |
+  PHA                                       ; $1FFD73 |/
+  JSR process_frame_yield_with_player       ; $1FFD74 | $97=$04, process + yield
+.restore_banks:
+  PLA                                       ; $1FFD77 |\ restore $A000 bank
+  STA $F5                                   ; $1FFD78 |/
+  PLA                                       ; $1FFD7A |\ restore $8000 bank
+  STA $F4                                   ; $1FFD7B |/
+  JMP select_PRG_banks                      ; $1FFD7D | re-select and return
 
-code_1FFD8C:
-  STX $0F                                   ; $1FFD8C |
-  LDA $F5                                   ; $1FFD8E |
-  PHA                                       ; $1FFD90 |
-  LDA #$0E                                  ; $1FFD91 |
-  STA $F5                                   ; $1FFD93 |
-  JSR select_PRG_banks                      ; $1FFD95 |
-  LDX $B8                                   ; $1FFD98 |
-  JSR $A006                                 ; $1FFD9A |
-code_1FFD9D:
-  PLA                                       ; $1FFD9D |
-  STA $F5                                   ; $1FFD9E |
-  JSR select_PRG_banks                      ; $1FFDA0 |
-  LDX $0F                                   ; $1FFDA3 |
+; --- process_frame_yield ---
+; Same as above but uses caller's $97 value (doesn't set $04).
+; Called from bank0B/0F (level transitions with custom OAM offset).
+process_frame_yield:
+  LDA $F4                                   ; $1FFD80 |\ save both PRG banks
+  PHA                                       ; $1FFD82 | |
+  LDA $F5                                   ; $1FFD83 | |
+  PHA                                       ; $1FFD85 |/
+  JSR process_frame_and_yield               ; $1FFD86 | process + yield (caller's $97)
+  JMP .restore_banks                        ; $1FFD89 | restore banks and return
+
+; --- call_bank0E_A006 ---
+; Switches $A000-$BFFF to bank $0E, calls entry point $A006 with X=$B8.
+; Called from bank12 (entity AI).
+call_bank0E_A006:
+  STX $0F                                   ; $1FFD8C | save X
+  LDA $F5                                   ; $1FFD8E |\ save $A000 bank
+  PHA                                       ; $1FFD90 |/
+  LDA #$0E                                  ; $1FFD91 |\ switch $A000 to bank $0E
+  STA $F5                                   ; $1FFD93 | |
+  JSR select_PRG_banks                      ; $1FFD95 |/
+  LDX $B8                                   ; $1FFD98 | X = parameter from $B8
+  JSR $A006                                 ; $1FFD9A | call bank $0E entry point
+.restore_A000:
+  PLA                                       ; $1FFD9D |\ restore $A000 bank
+  STA $F5                                   ; $1FFD9E | |
+  JSR select_PRG_banks                      ; $1FFDA0 |/
+  LDX $0F                                   ; $1FFDA3 | restore X
   RTS                                       ; $1FFDA5 |
 
-code_1FFDA6:
-  STX $0F                                   ; $1FFDA6 |
-  LDA $F5                                   ; $1FFDA8 |
-  PHA                                       ; $1FFDAA |
-  LDA #$0E                                  ; $1FFDAB |
-  STA $F5                                   ; $1FFDAD |
-  JSR select_PRG_banks                      ; $1FFDAF |
-  JSR $A003                                 ; $1FFDB2 |
-  JMP code_1FFD9D                           ; $1FFDB5 |
+; --- call_bank0E_A003 ---
+; Switches $A000-$BFFF to bank $0E, calls entry point $A003.
+; Called from bank12 (entity AI).
+call_bank0E_A003:
+  STX $0F                                   ; $1FFDA6 | save X
+  LDA $F5                                   ; $1FFDA8 |\ save $A000 bank
+  PHA                                       ; $1FFDAA |/
+  LDA #$0E                                  ; $1FFDAB |\ switch $A000 to bank $0E
+  STA $F5                                   ; $1FFDAD | |
+  JSR select_PRG_banks                      ; $1FFDAF |/
+  JSR $A003                                 ; $1FFDB2 | call bank $0E entry point
+  JMP .restore_A000                         ; $1FFDB5 | restore and return
 
+; unknown data table — 64 bytes, purpose not identified
   db $8A, $40, $A3, $00, $0F, $04, $4B, $50 ; $1FFDB8 |
   db $80, $04, $18, $10, $E0, $00, $64, $04 ; $1FFDC0 |
   db $C5, $45, $67, $50, $CA, $11, $1B, $51 ; $1FFDC8 |
@@ -9053,198 +9132,262 @@ code_1FFDA6:
   db $28, $11, $CB, $44, $6E, $50, $8A, $54 ; $1FFDF0 |
   db $AE, $10, $2B, $00, $53, $05, $5D, $15 ; $1FFDF8 |
 
+; ===========================================================================
+; RESET — power-on initialization
+; ===========================================================================
+; Standard NES startup: disable interrupts, silence APU, wait for PPU,
+; clear all RAM, initialize sound buffer, set up PRG/CHR banks, clear
+; nametables, register the main game task at $C8D0, then fall into the
+; cooperative scheduler.
+; ---------------------------------------------------------------------------
 RESET:
-  SEI                                       ; $1FFE00 |
-  CLD                                       ; $1FFE01 |
-  LDA #$08                                  ; $1FFE02 |
-  STA $2000                                 ; $1FFE04 |
-  LDA #$40                                  ; $1FFE07 |
-  STA $4017                                 ; $1FFE09 |
+  SEI                                       ; $1FFE00 | disable interrupts
+  CLD                                       ; $1FFE01 | clear decimal mode
+  LDA #$08                                  ; $1FFE02 |\ PPUCTRL: sprite table = $1000
+  STA $2000                                 ; $1FFE04 |/ (NMI not yet enabled)
+  LDA #$40                                  ; $1FFE07 |\ APU frame counter: disable IRQ
+  STA $4017                                 ; $1FFE09 |/
   LDX #$00                                  ; $1FFE0C |
-  STX $2001                                 ; $1FFE0E |
-  STX $4010                                 ; $1FFE11 |
-  STX $4015                                 ; $1FFE14 |
-  DEX                                       ; $1FFE17 |
-  TXS                                       ; $1FFE18 |
-  LDX #$04                                  ; $1FFE19 |
-code_1FFE1B:
-  LDA $2002                                 ; $1FFE1B |
-  BPL code_1FFE1B                           ; $1FFE1E |
-code_1FFE20:
-  LDA $2002                                 ; $1FFE20 |
-  BMI code_1FFE20                           ; $1FFE23 |
-  DEX                                       ; $1FFE25 |
-  BNE code_1FFE1B                           ; $1FFE26 |
-  LDA $2002                                 ; $1FFE28 |
-  LDA #$10                                  ; $1FFE2B |
-  TAY                                       ; $1FFE2D |
-code_1FFE2E:
-  STA $2006                                 ; $1FFE2E |
-  STA $2006                                 ; $1FFE31 |
-  EOR #$10                                  ; $1FFE34 |
+  STX $2001                                 ; $1FFE0E | PPUMASK: rendering off
+  STX $4010                                 ; $1FFE11 | DMC: disable
+  STX $4015                                 ; $1FFE14 | APU status: silence all channels
+  DEX                                       ; $1FFE17 |\ stack pointer = $FF
+  TXS                                       ; $1FFE18 |/
+; --- wait for PPU warm-up (4 VBlank cycles) ---
+  LDX #$04                                  ; $1FFE19 | 4 iterations
+.wait_vblank_start:
+  LDA $2002                                 ; $1FFE1B |\ wait for VBlank flag set
+  BPL .wait_vblank_start                    ; $1FFE1E |/
+.wait_vblank_end:
+  LDA $2002                                 ; $1FFE20 |\ wait for VBlank flag clear
+  BMI .wait_vblank_end                      ; $1FFE23 |/
+  DEX                                       ; $1FFE25 |\ repeat 4 times
+  BNE .wait_vblank_start                    ; $1FFE26 |/
+; --- exercise PPU address bus ---
+  LDA $2002                                 ; $1FFE28 | reset PPU latch
+  LDA #$10                                  ; $1FFE2B |\ toggle PPUADDR between $1010
+  TAY                                       ; $1FFE2D |/ and $0000, 16 times
+.ppu_warmup:
+  STA $2006                                 ; $1FFE2E | write high byte
+  STA $2006                                 ; $1FFE31 | write low byte
+  EOR #$10                                  ; $1FFE34 | toggle $10 ↔ $00
   DEY                                       ; $1FFE36 |
-  BNE code_1FFE2E                           ; $1FFE37 |
-  TYA                                       ; $1FFE39 |
-code_1FFE3A:
-  STA $0000,y                               ; $1FFE3A |
-  DEY                                       ; $1FFE3D |
-  BNE code_1FFE3A                           ; $1FFE3E |
-code_1FFE40:
-  INC $01                                   ; $1FFE40 |
-code_1FFE42:
-  STA ($00),y                               ; $1FFE42 |
+  BNE .ppu_warmup                           ; $1FFE37 |
+; --- clear zero page ($00-$FF) ---
+  TYA                                       ; $1FFE39 | A = 0 (Y wrapped to 0)
+.clear_zp:
+  STA $0000,y                               ; $1FFE3A | clear byte at Y
+  DEY                                       ; $1FFE3D | Y: 0, $FF, $FE, ..., $01
+  BNE .clear_zp                             ; $1FFE3E |
+; --- clear RAM pages $01-$06 ($0100-$06FF) ---
+.clear_page:
+  INC $01                                   ; $1FFE40 | advance page pointer ($01→$06)
+.clear_byte:
+  STA ($00),y                               ; $1FFE42 | clear byte via ($00/$01)+Y
   INY                                       ; $1FFE44 |
-  BNE code_1FFE42                           ; $1FFE45 |
+  BNE .clear_byte                           ; $1FFE45 | 256 bytes per page
   LDX $01                                   ; $1FFE47 |
-  CPX #$07                                  ; $1FFE49 |
-  BNE code_1FFE40                           ; $1FFE4B |
+  CPX #$07                                  ; $1FFE49 |\ stop after page $06
+  BNE .clear_page                           ; $1FFE4B |/ (leaves stack area $0700+ alone)
+; --- initialize sound buffer ($DC-$E3) to $88 (no sound) ---
   LDY #$07                                  ; $1FFE4D |
-  LDA #$88                                  ; $1FFE4F |
-code_1FFE51:
-  STA $DC,x                                 ; $1FFE51 |
+  LDA #$88                                  ; $1FFE4F | $88 = "no sound" sentinel
+.init_sound_buf:
+  STA $DC,x                                 ; $1FFE51 | X=7..0 → $E3..$DC
   DEX                                       ; $1FFE53 |
-  BPL code_1FFE51                           ; $1FFE54 |
-  LDA #$18                                  ; $1FFE56 |
-  STA $FE                                   ; $1FFE58 |
-  LDA #$00                                  ; $1FFE5A |
-  STA $A000                                 ; $1FFE5C |
-  LDX #$1C                                  ; $1FFE5F |
-  STX $F4                                   ; $1FFE61 |
-  INX                                       ; $1FFE63 |
-  STX $F5                                   ; $1FFE64 |
-  JSR select_PRG_banks                      ; $1FFE66 |
-  LDA #$40                                  ; $1FFE69 |
-  STA $E8                                   ; $1FFE6B |
-  LDA #$42                                  ; $1FFE6D |
-  STA $E9                                   ; $1FFE6F |
-  LDA #$00                                  ; $1FFE71 |
-  STA $EA                                   ; $1FFE73 |
-  LDA #$01                                  ; $1FFE75 |
-  STA $EB                                   ; $1FFE77 |
-  LDA #$0A                                  ; $1FFE79 |
-  STA $EC                                   ; $1FFE7B |
-  LDA #$0B                                  ; $1FFE7D |
-  STA $ED                                   ; $1FFE7F |
-  JSR update_CHR_banks                      ; $1FFE81 |
-  JSR code_1EC5E9                           ; $1FFE84 |
-  LDA #$20                                  ; $1FFE87 |
-  LDX #$00                                  ; $1FFE89 |
-  LDY #$00                                  ; $1FFE8B |
-  JSR code_1EC59D                           ; $1FFE8D |
-  LDA #$24                                  ; $1FFE90 |
-  LDX #$00                                  ; $1FFE92 |
-  LDY #$00                                  ; $1FFE94 |
-  JSR code_1EC59D                           ; $1FFE96 |
-  LDA #$C8                                  ; $1FFE99 |
-  STA $94                                   ; $1FFE9B |
-  LDA #$D0                                  ; $1FFE9D |
-  STA $93                                   ; $1FFE9F |
-  LDA #$00                                  ; $1FFEA1 |
-  JSR code_1FFEF2                           ; $1FFEA3 |
-  LDA #$88                                  ; $1FFEA6 |
-  STA $FF                                   ; $1FFEA8 |
-code_1FFEAA:
-  LDX #$FF                                  ; $1FFEAA |
-  TXS                                       ; $1FFEAC |
-code_1FFEAD:
-  LDX #$00                                  ; $1FFEAD |
-  STX $90                                   ; $1FFEAF |
-  LDY #$04                                  ; $1FFEB1 |
-code_1FFEB3:
-  LDA $80,x                                 ; $1FFEB3 |
-  CMP #$04                                  ; $1FFEB5 |
-  BCS code_1FFEC3                           ; $1FFEB7 |
-  INX                                       ; $1FFEB9 |
-  INX                                       ; $1FFEBA |
-  INX                                       ; $1FFEBB |
-  INX                                       ; $1FFEBC |
-  DEY                                       ; $1FFEBD |
-  BNE code_1FFEB3                           ; $1FFEBE |
-  JMP code_1FFEAD                           ; $1FFEC0 |
+  BPL .init_sound_buf                       ; $1FFE54 |
+; --- hardware/bank initialization ---
+  LDA #$18                                  ; $1FFE56 |\ $FE = PPUMASK value
+  STA $FE                                   ; $1FFE58 |/ ($18 = show sprites + background)
+  LDA #$00                                  ; $1FFE5A |\ MMC3 mirroring: vertical
+  STA $A000                                 ; $1FFE5C |/
+  LDX #$1C                                  ; $1FFE5F |\ $F4/$F5 = initial PRG banks
+  STX $F4                                   ; $1FFE61 | | bank $1C at $8000-$9FFF
+  INX                                       ; $1FFE63 | | bank $1D at $A000-$BFFF
+  STX $F5                                   ; $1FFE64 | |
+  JSR select_PRG_banks                      ; $1FFE66 |/
+  LDA #$40                                  ; $1FFE69 |\ CHR bank setup:
+  STA $E8                                   ; $1FFE6B | | $E8=$40 (2KB bank 0)
+  LDA #$42                                  ; $1FFE6D | | $E9=$42 (2KB bank 1)
+  STA $E9                                   ; $1FFE6F | | $EA=$00 (1KB bank 2)
+  LDA #$00                                  ; $1FFE71 | | $EB=$01 (1KB bank 3)
+  STA $EA                                   ; $1FFE73 | | $EC=$0A (1KB bank 4)
+  LDA #$01                                  ; $1FFE75 | | $ED=$0B (1KB bank 5)
+  STA $EB                                   ; $1FFE77 | |
+  LDA #$0A                                  ; $1FFE79 | |
+  STA $EC                                   ; $1FFE7B | |
+  LDA #$0B                                  ; $1FFE7D | |
+  STA $ED                                   ; $1FFE7F | |
+  JSR update_CHR_banks                      ; $1FFE81 |/
+  JSR code_1EC5E9                           ; $1FFE84 | init OAM / sprite state
+  LDA #$20                                  ; $1FFE87 |\ clear nametable 0 ($2000)
+  LDX #$00                                  ; $1FFE89 | | A=addr hi, X=fill, Y=attr fill
+  LDY #$00                                  ; $1FFE8B | |
+  JSR code_1EC59D                           ; $1FFE8D |/
+  LDA #$24                                  ; $1FFE90 |\ clear nametable 1 ($2400)
+  LDX #$00                                  ; $1FFE92 | |
+  LDY #$00                                  ; $1FFE94 | |
+  JSR code_1EC59D                           ; $1FFE96 |/
+; --- register main game task (slot 0, address $C8D0) ---
+  LDA #$C8                                  ; $1FFE99 |\ $93/$94 = $C8D0 (main game entry)
+  STA $94                                   ; $1FFE9B | | (in bank $1C, always-mapped range)
+  LDA #$D0                                  ; $1FFE9D | |
+  STA $93                                   ; $1FFE9F |/
+  LDA #$00                                  ; $1FFEA1 | A = slot 0
+  JSR task_register                         ; $1FFEA3 | register task with address
+  LDA #$88                                  ; $1FFEA6 |\ $FF = PPUCTRL: NMI enable + sprite $1000
+  STA $FF                                   ; $1FFEA8 |/
+; fall through to scheduler
+; ===========================================================================
+; task_scheduler — cooperative multitasking scheduler
+; ===========================================================================
+; MM3 uses a simple cooperative scheduler with 4 task slots at $80-$8F.
+; Each slot is 4 bytes:
+;   byte 0 ($80,x): state — $00=free, $01=sleeping, $02=running,
+;                            $04=ready (woken by NMI), $08=fresh (has address)
+;   byte 1 ($81,x): sleep countdown (decremented by NMI when state=$01)
+;   byte 2 ($82,x): saved stack pointer (state $04) or address low (state $08)
+;   byte 3 ($83,x): address high (state $08 only)
+;
+; The scheduler spins until a task with state >= $04 is found, then either:
+;   state $08: JMP to address stored in bytes 2-3 (fresh task launch)
+;   state $04: restore stack pointer from byte 2 and RTS (resume coroutine)
+;
+; NMI decrements sleeping tasks' countdowns and sets state $04 when done.
+; Task slot 0 gets controller input read on resume (code_1EC545).
+;
+; $90 = NMI-occurred flag (set $FF by NMI, forces rescan)
+; $91 = current task slot index (0-3)
+; ---------------------------------------------------------------------------
+task_scheduler:
+  LDX #$FF                                  ; $1FFEAA |\ reset stack to top
+  TXS                                       ; $1FFEAC |/ (discard all coroutine frames)
+.rescan:
+  LDX #$00                                  ; $1FFEAD |\ clear NMI flag
+  STX $90                                   ; $1FFEAF |/
+  LDY #$04                                  ; $1FFEB1 | 4 slots to check
+.scan_loop:
+  LDA $80,x                                 ; $1FFEB3 |\ state >= $04? (ready or fresh)
+  CMP #$04                                  ; $1FFEB5 | |
+  BCS .found_task                           ; $1FFEB7 |/
+  INX                                       ; $1FFEB9 |\ advance to next slot (+4 bytes)
+  INX                                       ; $1FFEBA | |
+  INX                                       ; $1FFEBB | |
+  INX                                       ; $1FFEBC |/
+  DEY                                       ; $1FFEBD |\ more slots?
+  BNE .scan_loop                            ; $1FFEBE |/
+  JMP .rescan                               ; $1FFEC0 | no runnable tasks, spin until NMI
 
-code_1FFEC3:
-  LDA $90                                   ; $1FFEC3 |
-  BNE code_1FFEAD                           ; $1FFEC5 |
-  DEY                                       ; $1FFEC7 |
-  TYA                                       ; $1FFEC8 |
-  EOR #$03                                  ; $1FFEC9 |
-  STA $91                                   ; $1FFECB |
-  LDY $80,x                                 ; $1FFECD |
-  LDA #$02                                  ; $1FFECF |
-  STA $80,x                                 ; $1FFED1 |
-  CPY #$08                                  ; $1FFED3 |
-  BNE code_1FFEE2                           ; $1FFED5 |
-  LDA $82,x                                 ; $1FFED7 |
-  STA $93                                   ; $1FFED9 |
-  LDA $83,x                                 ; $1FFEDB |
-  STA $94                                   ; $1FFEDD |
-  JMP ($0093)                               ; $1FFEDF |
+.found_task:
+  LDA $90                                   ; $1FFEC3 |\ if NMI fired during scan,
+  BNE .rescan                               ; $1FFEC5 |/ rescan (states may have changed)
+  DEY                                       ; $1FFEC7 |\ convert Y countdown → slot index
+  TYA                                       ; $1FFEC8 | | Y=3→0, Y=2→1, Y=1→2, Y=0→3
+  EOR #$03                                  ; $1FFEC9 | |
+  STA $91                                   ; $1FFECB |/ $91 = current slot index
+  LDY $80,x                                 ; $1FFECD | Y = task state
+  LDA #$02                                  ; $1FFECF |\ mark slot as running
+  STA $80,x                                 ; $1FFED1 |/
+  CPY #$08                                  ; $1FFED3 |\ state $08? → fresh task (JMP)
+  BNE .resume_coroutine                     ; $1FFED5 |/
+  LDA $82,x                                 ; $1FFED7 |\ load address from slot
+  STA $93                                   ; $1FFED9 | |
+  LDA $83,x                                 ; $1FFEDB | |
+  STA $94                                   ; $1FFEDD |/
+  JMP ($0093)                               ; $1FFEDF | launch task at stored address
 
-code_1FFEE2:
-  LDA $82,x                                 ; $1FFEE2 |
-  TAX                                       ; $1FFEE4 |
-  TXS                                       ; $1FFEE5 |
-  LDA $91                                   ; $1FFEE6 |
-  BNE code_1FFEED                           ; $1FFEE8 |
-  JSR code_1EC545                           ; $1FFEEA |
-code_1FFEED:
-  PLA                                       ; $1FFEED |
-  TAY                                       ; $1FFEEE |
-  PLA                                       ; $1FFEEF |
-  TAX                                       ; $1FFEF0 |
-  RTS                                       ; $1FFEF1 |
+.resume_coroutine:
+  LDA $82,x                                 ; $1FFEE2 |\ restore saved stack pointer
+  TAX                                       ; $1FFEE4 | |
+  TXS                                       ; $1FFEE5 |/
+  LDA $91                                   ; $1FFEE6 |\ slot 0? read controllers first
+  BNE .restore_regs                         ; $1FFEE8 |/ (only main game task gets input)
+  JSR code_1EC545                           ; $1FFEEA | read_controllers
+.restore_regs:
+  PLA                                       ; $1FFEED |\ restore Y and X from stack
+  TAY                                       ; $1FFEEE | | (saved by task_yield)
+  PLA                                       ; $1FFEEF | |
+  TAX                                       ; $1FFEF0 |/
+  RTS                                       ; $1FFEF1 | resume coroutine after yield
 
-code_1FFEF2:
-  JSR code_1FFF16                           ; $1FFEF2 |
-  LDA $93                                   ; $1FFEF5 |
-  STA $82,x                                 ; $1FFEF7 |
-  LDA $94                                   ; $1FFEF9 |
-  STA $83,x                                 ; $1FFEFB |
-  LDA #$08                                  ; $1FFEFD |
-  STA $80,x                                 ; $1FFEFF |
+; ===========================================================================
+; Coroutine primitives — task registration, yielding, and destruction
+; ===========================================================================
+; These routines manage the cooperative scheduler's task slots.
+;
+; task_register:   register a new task with an address (state $08)
+; task_kill_by_id: free a task slot by ID (A = slot index)
+; task_kill_self:  free current task and return to scheduler
+; slot_offset_self/slot_offset: convert slot index → byte offset (×4)
+; task_yield_x:    yield for X frames (calls task_yield in a loop)
+; task_yield:      yield for 1 frame (save state, sleep, return to scheduler)
+; ---------------------------------------------------------------------------
+
+; --- task_register — A = slot index, $93/$94 = entry address ---
+task_register:
+  JSR slot_offset                           ; $1FFEF2 | X = A × 4
+  LDA $93                                   ; $1FFEF5 |\ store address in slot bytes 2-3
+  STA $82,x                                 ; $1FFEF7 | |
+  LDA $94                                   ; $1FFEF9 | |
+  STA $83,x                                 ; $1FFEFB |/
+  LDA #$08                                  ; $1FFEFD |\ state = $08 (fresh, has address)
+  STA $80,x                                 ; $1FFEFF |/
   RTS                                       ; $1FFF01 |
 
-  JSR code_1FFF16                           ; $1FFF02 |
-  LDA #$00                                  ; $1FFF05 |
-  STA $80,x                                 ; $1FFF07 |
+; --- task_kill_by_id — A = slot index to kill ---
+task_kill_by_id:
+  JSR slot_offset                           ; $1FFF02 | X = A × 4
+  LDA #$00                                  ; $1FFF05 |\ state = $00 (free)
+  STA $80,x                                 ; $1FFF07 |/
   RTS                                       ; $1FFF09 |
 
-  JSR code_1FFF14                           ; $1FFF0A |
-  LDA #$00                                  ; $1FFF0D |
-  STA $80,x                                 ; $1FFF0F |
-  JMP code_1FFEAA                           ; $1FFF11 |
+; --- task_kill_self — kill current task ($91) and return to scheduler ---
+task_kill_self:
+  JSR slot_offset_self                      ; $1FFF0A | X = $91 × 4
+  LDA #$00                                  ; $1FFF0D |\ state = $00 (free)
+  STA $80,x                                 ; $1FFF0F |/
+  JMP task_scheduler                        ; $1FFF11 | back to scheduler (never returns)
 
-code_1FFF14:
-  LDA $91                                   ; $1FFF14 |
-code_1FFF16:
-  ASL                                       ; $1FFF16 |
-  ASL                                       ; $1FFF17 |
-  TAX                                       ; $1FFF18 |
+; --- slot_offset_self — X = $91 × 4 (current task's byte offset) ---
+slot_offset_self:
+  LDA $91                                   ; $1FFF14 | load current task index
+; --- slot_offset — X = A × 4 (task slot byte offset) ---
+slot_offset:
+  ASL                                       ; $1FFF16 |\ A × 4
+  ASL                                       ; $1FFF17 | |
+  TAX                                       ; $1FFF18 |/
   RTS                                       ; $1FFF19 |
 
-code_1FFF1A:
-  JSR code_1FFF21                           ; $1FFF1A |
-  DEX                                       ; $1FFF1D |
-  BNE code_1FFF1A                           ; $1FFF1E |
+; --- task_yield_x — yield for X frames ---
+; Called extensively from cutscene/level-transition code for timed waits.
+task_yield_x:
+  JSR task_yield                            ; $1FFF1A | yield one frame
+  DEX                                       ; $1FFF1D |\ loop X times
+  BNE task_yield_x                          ; $1FFF1E |/
   RTS                                       ; $1FFF20 |
 
-code_1FFF21:
-  LDA #$01                                  ; $1FFF21 |
-  STA $93                                   ; $1FFF23 |
-  TXA                                       ; $1FFF25 |
-  PHA                                       ; $1FFF26 |
-  TYA                                       ; $1FFF27 |
-  PHA                                       ; $1FFF28 |
-  JSR code_1FFF14                           ; $1FFF29 |
-  LDA $93                                   ; $1FFF2C |
-  STA $81,x                                 ; $1FFF2E |
-  LDA #$01                                  ; $1FFF30 |
-  STA $80,x                                 ; $1FFF32 |
-  TXA                                       ; $1FFF34 |
-  TAY                                       ; $1FFF35 |
-  TSX                                       ; $1FFF36 |
-  STX $82,y                                 ; $1FFF37 |
-  JMP code_1FFEAA                           ; $1FFF39 |
+; --- task_yield — yield current task for 1 frame ---
+; Saves X/Y on stack, stores sleep countdown and stack pointer in the
+; task slot, sets state to $01 (sleeping), then jumps to scheduler.
+; NMI will decrement the countdown; when it reaches 0, state → $04.
+; Scheduler then restores SP and does RTS to resume here.
+task_yield:
+  LDA #$01                                  ; $1FFF21 |\ $93 = sleep frames (1)
+  STA $93                                   ; $1FFF23 |/
+  TXA                                       ; $1FFF25 |\ save X and Y on stack
+  PHA                                       ; $1FFF26 | | (scheduler's .restore_regs will
+  TYA                                       ; $1FFF27 | |  PLA these back on resume)
+  PHA                                       ; $1FFF28 |/
+  JSR slot_offset_self                      ; $1FFF29 | X = $91 × 4
+  LDA $93                                   ; $1FFF2C |\ store sleep countdown in byte 1
+  STA $81,x                                 ; $1FFF2E |/
+  LDA #$01                                  ; $1FFF30 |\ state = $01 (sleeping)
+  STA $80,x                                 ; $1FFF32 |/
+  TXA                                       ; $1FFF34 |\ Y = slot byte offset
+  TAY                                       ; $1FFF35 |/
+  TSX                                       ; $1FFF36 |\ save current stack pointer
+  STX $82,y                                 ; $1FFF37 |/ in slot byte 2
+  JMP task_scheduler                        ; $1FFF39 | hand off to scheduler
 
 update_CHR_banks:
   LDA #$FF                                  ; $1FFF3C |\  turns on the flag for
@@ -9269,16 +9412,30 @@ select_CHR_banks:
 .ret:
   RTS                                       ; $1FFF56 |
 
-code_1FFF57:
-  LDA #$04                                  ; $1FFF57 |
-  STA $97                                   ; $1FFF59 |
-code_1FFF5B:
-  JSR code_1EC5E9                           ; $1FFF5B |
-  JSR update_entity_sprites                  ; $1FFF5E |
-  LDA #$00                                  ; $1FFF61 |
-  STA $EE                                   ; $1FFF63 |
-  JSR code_1FFF21                           ; $1FFF65 |
-  INC $EE                                   ; $1FFF68 |
+; ===========================================================================
+; process_frame_and_yield — run one frame of game logic, then yield to NMI
+; ===========================================================================
+; Core game loop primitive. Processes all entities, builds OAM sprite data,
+; clears $EE (signals "ready for NMI to render"), yields one frame, then
+; sets $EE (signals "NMI done, safe to modify state").
+;
+; process_frame_yield_with_player: sets $97=$04 (include player sprites)
+; process_frame_and_yield: uses caller's $97 value
+;
+; $97 = OAM write index start (controls which sprite slots to fill):
+;   $04 = start after sprite 0 (include player), $0C = skip player sprites
+; $EE = rendering phase flag (0=NMI pending, nonzero=NMI completed)
+; ---------------------------------------------------------------------------
+process_frame_yield_with_player:
+  LDA #$04                                  ; $1FFF57 |\ $97 = $04: start OAM after sprite 0
+  STA $97                                   ; $1FFF59 |/ (include player in sprite update)
+process_frame_and_yield:
+  JSR code_1EC5E9                           ; $1FFF5B | process entities (sprite state)
+  JSR update_entity_sprites                 ; $1FFF5E | build OAM buffer from entity data
+  LDA #$00                                  ; $1FFF61 |\ $EE = 0: "waiting for NMI"
+  STA $EE                                   ; $1FFF63 |/
+  JSR task_yield                            ; $1FFF65 | sleep 1 frame (NMI will render)
+  INC $EE                                   ; $1FFF68 | $EE = 1: "NMI done, frame complete"
   RTS                                       ; $1FFF6A |
 
 ; selects both swappable PRG banks

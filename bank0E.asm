@@ -79,7 +79,7 @@ code_0EA083:
   LDA #$FF                                  ; $0EA08C |
   STA $07C6                                 ; $0EA08E |
   STA $19                                   ; $0EA091 |
-  JSR code_1FFF21                           ; $0EA093 |
+  JSR task_yield                           ; $0EA093 |
   INX                                       ; $0EA096 |
   INX                                       ; $0EA097 |
   CPX #$04                                  ; $0EA098 |

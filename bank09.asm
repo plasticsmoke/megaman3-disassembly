@@ -177,7 +177,7 @@ code_09815D:
   LDA #$00                                  ; $09816B |
   STA $10                                   ; $09816D |
   LDY #$1E                                  ; $09816F |
-  JSR code_1FEEAB                           ; $098171 |
+  JSR queue_metatile_update                           ; $098171 |
   LDX #$00                                  ; $098174 |
   JSR find_enemy_freeslot_y                 ; $098176 |
   BCS code_0981AF                           ; $098179 |
@@ -229,7 +229,7 @@ code_0981CA:
   PHA                                       ; $0981E6 |
   LDA #$00                                  ; $0981E7 |
   STA $10                                   ; $0981E9 |
-  JSR code_1FEEAB                           ; $0981EB |
+  JSR queue_metatile_update                           ; $0981EB |
   INC $68                                   ; $0981EE |
   PLA                                       ; $0981F0 |
   TAY                                       ; $0981F1 |

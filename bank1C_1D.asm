@@ -1121,7 +1121,7 @@ code_1C85D9:
   BCC code_1C8627                           ; $1C85F0 |
   CMP #$F0                                  ; $1C85F2 |
   BCS code_1C8627                           ; $1C85F4 |
-  JSR code_1FEE57                           ; $1C85F6 |
+  JSR queue_metatile_clear                  ; $1C85F6 |
   BCS code_1C8627                           ; $1C85F9 |
   JSR find_enemy_freeslot_y                 ; $1C85FB |
   BCC code_1C8628                           ; $1C85FE |
@@ -8083,7 +8083,7 @@ code_1DBE72:
   DEC $0F                                   ; $1DBE89 |
   BEQ code_1DBE98                           ; $1DBE8B |
 code_1DBE8D:
-  JSR code_1FFD6E                           ; $1DBE8D |
+  JSR process_frame_yield_full                           ; $1DBE8D |
   LDA $95                                   ; $1DBE90 |
   AND #$03                                  ; $1DBE92 |
   BNE code_1DBE8D                           ; $1DBE94 |

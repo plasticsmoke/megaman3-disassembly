@@ -2240,10 +2240,10 @@ code_12B42A:
   STA $5E                                   ; $12B441 |
   LDA #$0A                                  ; $12B443 |
   STA $B8                                   ; $12B445 |
-  JMP code_1FFD8C                           ; $12B447 |
+  JMP call_bank0E_A006                           ; $12B447 |
 
 code_12B44A:
-  JSR code_1FFDA6                           ; $12B44A |
+  JSR call_bank0E_A003                           ; $12B44A |
   LDA $B8                                   ; $12B44D |
   CMP #$FF                                  ; $12B44F |
   BEQ code_12B457                           ; $12B451 |

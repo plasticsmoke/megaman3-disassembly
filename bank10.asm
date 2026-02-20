@@ -58,7 +58,7 @@ code_10804B:
 code_108084:
   LDA #$00                                  ; $108084 |
   STA $EE                                   ; $108086 |
-  JSR code_1FFF21                           ; $108088 |
+  JSR task_yield                           ; $108088 |
   INC $EE                                   ; $10808B |
   INC $95                                   ; $10808D |
   LDA $95                                   ; $10808F |
@@ -180,7 +180,7 @@ code_108236:
 code_108263:
   LDA #$00                                  ; $108263 |
   STA $EE                                   ; $108265 |
-  JSR code_1FFF21                           ; $108267 |
+  JSR task_yield                           ; $108267 |
   INC $EE                                   ; $10826A |
   INC $95                                   ; $10826C |
   LDA $95                                   ; $10826E |

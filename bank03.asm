@@ -99,7 +99,7 @@ stage_transition_entry:
   ADC $0430                                 ; $03A08F | | $0370 += $0430 + carry
   STA $0370                                 ; $03A092 |/
 .scroll_render:
-  JSR code_1FFD52                           ; $03A095 | process entities + wait for NMI
+  JSR boss_frame_yield                           ; $03A095 | process entities + wait for NMI
   LDA #$00                                  ; $03A098 |
   STA $05F0                                 ; $03A09A | clear entity $10 flags
   LDA $FC                                   ; $03A09D |\ loop until $FC wraps to 0
@@ -112,7 +112,7 @@ stage_transition_entry:
   LDA #$3C                                  ; $03A0A8 | A = $3C (60 frames)
 .post_scroll_wait:
   PHA                                       ; $03A0AA |
-  JSR code_1FFD52                           ; $03A0AB | process entities + wait for NMI
+  JSR boss_frame_yield                           ; $03A0AB | process entities + wait for NMI
   LDA #$00                                  ; $03A0AE |
   STA $05F0                                 ; $03A0B0 |
   PLA                                       ; $03A0B3 |
@@ -124,7 +124,7 @@ stage_transition_entry:
 ; $A1C9,y = expected animation phase value for this stage.
 ; Wait until entity $10's anim phase ($05B0) matches.
 .wait_anim_sync:
-  JSR code_1FFD52                           ; $03A0B9 | process entities + wait for NMI
+  JSR boss_frame_yield                           ; $03A0B9 | process entities + wait for NMI
   LDY $22                                   ; $03A0BC | Y = stage number
   LDA $A1C9,y                               ; $03A0BE | expected anim phase
   CMP $05B0                                 ; $03A0C1 | current anim phase
@@ -190,7 +190,7 @@ stage_transition_entry:
   INC $19                                   ; $03A103 | flag PPU write pending
   LDA #$00                                  ; $03A105 |\ allow NMI
   STA $EE                                   ; $03A107 |/
-  JSR code_1FFF21                           ; $03A109 | wait for NMI (tile gets uploaded)
+  JSR task_yield                           ; $03A109 | wait for NMI (tile gets uploaded)
   INC $EE                                   ; $03A10C | skip next NMI (pacing)
   INC $95                                   ; $03A10E |\ frame counter
   LDA $95                                   ; $03A110 | |
@@ -209,7 +209,7 @@ stage_transition_entry:
   PHA                                       ; $03A124 |
   LDA #$00                                  ; $03A125 |
   STA $EE                                   ; $03A127 | allow NMI
-  JSR code_1FFF21                           ; $03A129 | wait 1 frame
+  JSR task_yield                           ; $03A129 | wait 1 frame
   INC $EE                                   ; $03A12C |
   PLA                                       ; $03A12E |
   SEC                                       ; $03A12F |
@@ -459,7 +459,7 @@ code_03A5F2:
   JSR code_03A681                           ; $03A5F2 |
   LDA #$00                                  ; $03A5F5 |
   STA $EE                                   ; $03A5F7 |
-  JSR code_1FFF21                           ; $03A5F9 |
+  JSR task_yield                           ; $03A5F9 |
   INC $EE                                   ; $03A5FC |
   INC $95                                   ; $03A5FE |
   JMP code_03A5C3                           ; $03A600 |
@@ -526,7 +526,7 @@ code_03A66D:
   JSR code_03A681                           ; $03A670 |
   LDA #$00                                  ; $03A673 |
   STA $EE                                   ; $03A675 |
-  JSR code_1FFF21                           ; $03A677 |
+  JSR task_yield                           ; $03A677 |
   INC $EE                                   ; $03A67A |
   INC $95                                   ; $03A67C |
   JMP code_03A61C                           ; $03A67E |
@@ -649,7 +649,7 @@ code_03A77C:
   LDX #$0F                                  ; $03A784 |
   JSR $939E                                 ; $03A786 |
   LDX #$B4                                  ; $03A789 |
-  JSR code_1FFF1A                           ; $03A78B |
+  JSR task_yield_x                           ; $03A78B |
   LDX #$00                                  ; $03A78E |
   JSR $939E                                 ; $03A790 |
   LDY #$04                                  ; $03A793 |
@@ -661,7 +661,7 @@ code_03A797:
   INY                                       ; $03A79C |
   INY                                       ; $03A79D |
   BNE code_03A797                           ; $03A79E |
-  JSR code_1FFF21                           ; $03A7A0 |
+  JSR task_yield                           ; $03A7A0 |
   JMP code_03A593                           ; $03A7A3 |
 
 code_03A7A6:

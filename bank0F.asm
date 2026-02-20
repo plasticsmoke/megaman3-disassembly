@@ -158,7 +158,7 @@ code_0FA0F3:
   CLC                                       ; $0FA12B |
   ADC #$03                                  ; $0FA12C |
   STA $0520                                 ; $0FA12E |
-  JSR code_1FFD80                           ; $0FA131 |
+  JSR process_frame_yield                           ; $0FA131 |
   JMP code_0FA01B                           ; $0FA134 |
 
 code_0FA137:
