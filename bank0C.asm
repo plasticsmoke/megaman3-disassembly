@@ -1,3 +1,10 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $0C — GAME OVER / RESULTS SCREEN + WILY 1 STAGE
+; =============================================================================
+; Mapped to $8000-$9FFF. Contains game over screen rendering, palette setup,
+; OAM/nametable filling, and results display logic.
+; Also serves as Wily Fortress 1 stage data ($22=$0C) at $A000-$BFFF.
+; =============================================================================
 bank $0C
 org $8000
 

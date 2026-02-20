@@ -1,3 +1,23 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $00 — GLOBAL ENEMY DATA
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains global enemy property tables indexed by
+; "global enemy ID" (the ID used in stage enemy spawn lists at $AB00+).
+; NOT a stage data bank — loaded explicitly when the engine needs enemy
+; properties (spawning, collision). Each table is 256 bytes.
+;
+; Tables:
+;   $A000: enemy_flags_g     — entity flags (bit 7=active, bit 4=invincible, etc.)
+;   $A100: enemy_main_ID_g   — main routine index for bank1C_1D dispatch
+;   $A200: enemy_shape_g     — hitbox shape ID (bit 7=contact damage)
+;   $A300: enemy_OAM_ID_g    — OAM animation ID ($05C0 value)
+;   $A400: enemy_health_g    — starting HP ($04E0 value)
+;   (remaining tables at $A500+: speed, velocity data, etc.)
+;
+; $AA00+ region: may contain additional data, but this bank is NOT used
+; as a stage layout bank (stage banks are $00-$0F per stage_to_bank table,
+; but bank $00 doubles as Needle Man's stage AND global enemy data).
+; =============================================================================
 bank $00
 org $A000
 

@@ -1,3 +1,18 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $15 — WEAPON SPRITE ANIMATION SEQUENCES
+; =============================================================================
+; Mapped to $8000-$9FFF. Contains OAM animation sequence data for weapon
+; and projectile sprites. Selected via `LDY #$15 / STY $F4` in the sprite
+; renderer when $5A (weapon sprite bank override) is nonzero.
+;
+; Pointer tables at $8000/$8080 (low/high bytes): animation sequence
+; pointers indexed by OAM ID ($05C0). Each sequence has:
+;   byte 0 = total frames
+;   byte 1 = ticks per frame
+;   byte 2+ = sprite definition IDs per frame
+;
+; Companion banks: $1A (entity OAM IDs $00-$7F), $1B (OAM IDs $80-$FF).
+; =============================================================================
 bank $15
 org $8000
 

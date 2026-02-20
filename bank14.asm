@@ -1,3 +1,17 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $14 — SPRITE POSITION OFFSET DATA (ALTERNATE)
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains sprite Y/X position offset tables used
+; by write_entity_oam in bank1E_1F when the sprite definition's count byte
+; has bit 7 set. Selected via `LDY #$14 / STY $F5` in the sprite renderer.
+;
+; Data format: signed byte pairs (Y offset, X offset) per sprite tile,
+; grouped by sprite definition. Values like $F4=-12, $FC=-4, $04=+4, etc.
+; Pointer table at $BE00/$BF00 indexes into this data per sprite def.
+;
+; Companion bank: $19 (default sprite offsets, used when bit 7 is clear).
+; The two banks together cover all entity sprite position layouts.
+; =============================================================================
 bank $14
 org $A000
 

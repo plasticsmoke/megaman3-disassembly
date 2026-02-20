@@ -1,4 +1,24 @@
-; OAM banks
+; =============================================================================
+; MEGA MAN 3 (U) — BANKS $1A-$1B — OAM ANIMATION SEQUENCES
+; =============================================================================
+; Mapped to $8000-$9FFF (one bank at a time). Contains animation sequence
+; definitions for all entity sprites. The sprite renderer in bank1E_1F
+; selects which bank based on the entity's OAM ID ($05C0,x):
+;   OAM IDs $00-$7F → bank $1A
+;   OAM IDs $80-$FF → bank $1B
+;
+; Pointer tables at $8000/$8080 (low/high bytes): indexed by OAM ID.
+; Each sequence contains:
+;   byte 0 = frame count (total frames in animation loop)
+;   byte 1 = ticks per frame (animation speed)
+;   byte 2+ = sprite definition IDs per frame (0 = deactivate entity)
+;
+; Sprite definitions are further looked up via $8100/$8200 pointer tables
+; (in the same bank) to get tile/attribute data, then combined with
+; position offsets from banks $14/$19.
+;
+; Bank $15 is the weapon-specific variant (loaded when $5A override set).
+; =============================================================================
 
 bank $1A
 org $8000

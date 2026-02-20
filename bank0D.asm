@@ -1,3 +1,11 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $0D — OAM/SPRITE ANIMATION + WILY 2/3/5 STAGE
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains sprite/OAM animation routines: pointer
+; table lookups, animation frame data transfer to OAM buffer ($0200+).
+; Also serves as Wily Fortress 2/3/5 stage data — shared by stages $0D,
+; $0E, $10 via stage_to_bank table (all map to bank $0D).
+; =============================================================================
 bank $0D
 org $A000
 

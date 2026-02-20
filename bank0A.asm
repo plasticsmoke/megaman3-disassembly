@@ -1,3 +1,31 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $0A — WEAPON DAMAGE TABLES + DOC ROBOT SPARK STAGE
+; =============================================================================
+; Mapped to $A000-$BFFF. Dual-purpose bank:
+;
+; 1) WEAPON DAMAGE DATA ($A000-$A9FF):
+;   Loaded explicitly by check_player_hit and check_weapon_hit in bank1C_1D
+;   via hardcoded `LDA #$0A / STA $F5`. Contains 10 damage tables, each 256
+;   bytes, indexed by entity main routine ID ($0320,x):
+;     $A000: unnamed table — base/contact damage (read via LDA $A000,y)
+;     $A100: buster_damage_table   — Mega Buster ($A0=00)
+;     $A200: needle_damage_table   — Needle Cannon ($A0=02)
+;     $A300: magnet_damage_table   — Magnet Missile ($A0=04)
+;     $A400: gemini_damage_table   — Gemini Laser ($A0=01)
+;     $A500: hard_knuckle_damage_table — Hard Knuckle ($A0=03)
+;     $A600: top_spin_damage_table — Top Spin ($A0=05)
+;     $A700: snake_damage_table    — Search Snake ($A0=06)
+;     $A800: spark_damage_table    — Spark Shock ($A0=08)
+;     $A900: shadow_damage_table   — Shadow Blade ($A0=0A)
+;   Weapon → table mapping via weapon_damage_ptr_lo/hi in bank1C_1D.
+;   Rush Coil/Marine/Jet use buster_damage_table (no unique damage).
+;
+; 2) STAGE DATA ($AA00-$BFFF):
+;   Also serves as Doc Robot Spark Man stage ($22=$0A) layout data.
+;   Contains screen layouts, enemy spawn lists, metatile columns,
+;   CHR definitions, and collision table ($BF00) for the Doc Robot
+;   version of Spark Man's stage (featuring Metal Man & Quick Man).
+; =============================================================================
 bank $0A
 org $A000
 

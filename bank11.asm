@@ -1,3 +1,10 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $11 — SPECIAL/ENDING STAGE DATA
+; =============================================================================
+; Mapped to $A000-$BFFF. Stage data bank for stage $11 (special/ending
+; sequence). Referenced by stage_to_bank[$11] = $11.
+; Standard stage data layout (see bank08.asm header for format details).
+; =============================================================================
 bank $11
 org $A000
 

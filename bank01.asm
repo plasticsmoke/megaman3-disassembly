@@ -1,3 +1,12 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $01 — MAGNET MAN STAGE DATA + SPRITE INIT
+; =============================================================================
+; Mapped to $A000-$BFFF. Stage data bank for Magnet Man ($22=$01).
+; Contains stage initialization code (palette setup, OAM buffer init),
+; palette data tables ($A030+: NES color values per stage), and standard
+; stage layout data ($AA00+: screen grids, enemy placements, metatiles,
+; collision table at $BF00).
+; =============================================================================
 bank $01
 org $A000
 

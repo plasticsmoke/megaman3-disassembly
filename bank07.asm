@@ -1,3 +1,11 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $07 — ROBOT MASTER AI (HARD/SPARK/SNAKE/GEMINI)
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains boss AI routines dispatched from bank1C_1D
+; for routine indices $D0-$DF. Entry points: main_hard_man_j, main_spark_man_j,
+; main_snake_man_j, main_gemini_man_j. Also doubles as Shadow Man stage
+; data ($22=$07).
+; =============================================================================
 bank $07
 org $A000
 

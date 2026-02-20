@@ -1,3 +1,11 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $0E — ANIMATION FRAME MANAGEMENT
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains animation frame advancement logic:
+; pointer table lookups for frame data, frame transfer, increment/loop.
+; Called via trampoline at $1FFDB2 (bank $0E entry at $A003).
+; Also serves as stage data for stage $16 (special) via stage_to_bank.
+; =============================================================================
 bank $0E
 org $A000
 

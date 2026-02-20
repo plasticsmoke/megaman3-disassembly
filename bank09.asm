@@ -1,3 +1,12 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $09 — PER-FRAME ENTITY SUBSYSTEMS
+; =============================================================================
+; Mapped to $8000-$9FFF. Called every gameplay frame from gameplay_frame_loop
+; (step 4) via `LDA #$09 / STA $F4`. Contains stage-specific entity
+; processing, weapon behavior updates, and per-frame game logic that runs
+; after the main entity AI loop. Also serves as Doc Robot Gemini stage
+; data bank ($22=$09) when mapped to $A000-$BFFF.
+; =============================================================================
 bank $09
 org $8000
 

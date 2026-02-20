@@ -1,3 +1,12 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $06 — ROBOT MASTER AI (NEEDLE/MAGNET/TOP/SHADOW)
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains boss AI routines dispatched from bank1C_1D
+; for routine indices $C0-$CF. Entry points: main_needle_man, main_magnet_man_j,
+; main_top_man_j, main_shadow_man_j. Each boss has a multi-state AI with
+; attack patterns, movement, and vulnerability windows.
+; Also doubles as Spark Man stage data ($22=$06).
+; =============================================================================
 bank $06
 org $A000
 

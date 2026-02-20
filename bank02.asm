@@ -1,3 +1,10 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $02 — GEMINI MAN STAGE DATA + TITLE SCREEN
+; =============================================================================
+; Mapped to $A000-$BFFF. Dual-purpose:
+; - Stage data for Gemini Man ($22=$02): layout, enemies, metatiles
+; - Title screen logic: input handling, sound, cutscene sequencing
+; =============================================================================
 bank $02
 org $A000
 

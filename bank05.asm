@@ -1,3 +1,11 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $05 — DOC ROBOT AI (BUBBLE/HEAT/QUICK/AIR)
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains AI routines for Doc Robot encounters
+; that mimic MM2 bosses. Dispatched from bank1C_1D for routine indices $B0-$BF.
+; Entry points: main_doc_bubble_j, main_doc_heat_j, main_doc_quick_j,
+; main_doc_air_j. Also doubles as Snake Man stage data ($22=$05).
+; =============================================================================
 bank $05
 org $A000
 

@@ -1,3 +1,11 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $0B — INTRO SEQUENCE + DOC ROBOT SHADOW STAGE
+; =============================================================================
+; Mapped to $8000-$9FFF. Contains the game intro/opening cutscene:
+; palette fading, entity table setup, Mega Man landing animation,
+; sound init, and state machine for the intro sequence.
+; Also serves as Doc Robot Shadow Man stage data ($22=$0B) at $A000-$BFFF.
+; =============================================================================
 bank $0B
 org $8000
 

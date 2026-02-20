@@ -1,3 +1,12 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $12 — FORTRESS BOSSES + SPECIAL ENTITIES
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains AI routines for Wily fortress bosses
+; and special entities. Dispatched from bank1C_1D for routine indices $E0-$FF.
+; Known bosses: main_yellow_devil, main_wily_machine_A, main_wily_machine_B,
+; main_gamma_B, main_gamma_F.
+; Also serves as stage data for stage $12 (special/ending) via stage_to_bank.
+; =============================================================================
 bank $12
 org $A000
 

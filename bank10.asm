@@ -1,3 +1,12 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $10 — STAGE SETUP / BOSS POST-DEFEAT
+; =============================================================================
+; Mapped to $8000-$9FFF. Called via trampolines at $1FEE31/$1FEE44 in
+; bank1E_1F. Contains stage initialization (nametable pointers, collision
+; table setup, music selection) and boss post-defeat sequencing.
+; Entry points: $8000 (stage setup), $8003 (post-defeat).
+; Also serves as stage data for stage $14 via stage_to_bank.
+; =============================================================================
 bank $10
 org $8000
 
