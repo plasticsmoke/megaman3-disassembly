@@ -41,29 +41,62 @@
 ; =============================================================================
 ;
 ; Zero Page:
-;   $12     = player tile X coordinate (low nibble)
-;   $14     = controller 1 buttons (current frame, new presses)
+;   $12     = stage select cursor column (0-2) / player tile X (in-game)
+;   $13     = stage select cursor row offset (0/3/6)
+;   $14     = controller 1 buttons (new presses this frame)
+;   $15     = controller 1 buttons (new presses, alternate read)
 ;   $16     = controller 1 buttons (held / continuous)
+;             Button bits: $80=A $40=B $20=Select $10=Start
+;                          $08=Up $04=Down $02=Left $01=Right
 ;   $18     = palette update request flag
 ;   $19     = nametable update request flag
 ;   $1A     = nametable column update flag
-;   $22     = current stage bank number (for $A000-$BFFF)
+;   $22     = current stage index (see STAGE MAPPING below)
 ;   $30     = player state (index into player_state_ptr tables, 22 states)
 ;   $31     = player facing direction (1=right, 2=left)
-;   $32     = walking flag (nonzero = player is walking)
-;   $35     = facing sub-state
-;   $39     = invincibility/damage-immunity flag (nonzero = immune)
+;   $32     = walking flag / sub-state (nonzero = walking or sub-state active)
+;   $34     = entity_ride slot (entity slot index being ridden, state $05)
+;   $35     = facing sub-state / Mag Fly direction inherit
+;   $39     = invincibility/i-frames timer (nonzero = immune to damage)
 ;   $3A     = jump/rush counter
+;   $3D     = pending hazard state ($06=damage, $0E=death from tile collision)
+;   $41     = max tile type at feet (highest priority hazard)
 ;   $43-$44 = tile types at player feet (for ground/ladder detection)
 ;   $50     = scroll lock flag
-;   $5A     = special state flag (bit 7 = active)
+;   $5A     = boss active flag (bit 7 = boss fight in progress)
 ;   $5B-$5C = spark freeze slots (entity X indices frozen by Spark Shock)
 ;   $5D     = sub-state / item interaction flag
 ;   $5E-$5F = scroll position values
+;   $60     = stage select page offset (0=Robot Master, nonzero=Doc Robot/Wily)
+;   $61     = boss-defeated bitmask (bit N = stage $0N boss beaten, $FF=all 8)
+;   $68     = cutscene-complete flag (Proto Man encounter)
+;   $69-$6A = scroll position (used during Gamma screen_scroll)
+;   $6C     = warp destination index (teleporter tube target)
 ;   $78     = screen mode
-;   $99     = sprite processing flag (set to $55 at start of process_sprites)
+;   $99     = gravity sub-pixel increment ($55 during gameplay = 0.332/frame,
+;             set at start of process_sprites each frame; $40 at stage select)
 ;   $9E-$9F = enemy spawn tracking counters (left/right)
-;   $A2     = player HP (low 5 bits = health, AND #$1F to read)
+;
+; Weapon / Inventory Block ($A0-$AF):
+;   $A0     = current weapon ID (see WEAPON IDS below)
+;   $A1     = weapon menu cursor position (remembers last pause screen selection)
+;   $A2     = player HP        (full=$9C, empty=$80, AND #$1F for value, 28 max)
+;   $A3     = Gemini Laser ammo (full=$9C, empty=$80, address = $A2 + weapon ID)
+;   $A4     = Needle Cannon ammo
+;   $A5     = Hard Knuckle ammo
+;   $A6     = Magnet Missile ammo
+;   $A7     = Top Spin ammo
+;   $A8     = Search Snake ammo
+;   $A9     = Rush Coil ammo
+;   $AA     = Spark Shock ammo
+;   $AB     = Rush Marine ammo
+;   $AC     = Shadow Blade ammo
+;   $AD     = Rush Jet ammo
+;   $AE     = lives
+;   $AF     = E-Tanks
+;
+;   $B0     = boss HP display position (starts $80, fills to $9C = 28 HP)
+;   $B3     = boss HP fill target ($8E = 28 HP)
 ;   $EE     = NMI skip flag
 ;   $EF     = current sprite slot counter (loop variable in process_sprites)
 ;   $F0     = MMC3 bank select register shadow
@@ -74,6 +107,47 @@
 ;   $FC-$FD = camera X position (low, high)
 ;   $FE     = PPU mask ($2001) shadow
 ;   $FF     = PPU control ($2000) shadow
+;
+; WEAPON IDS ($A0 values):
+;   $00 = Mega Buster    $04 = Magnet Missile  $08 = Spark Shock
+;   $01 = Gemini Laser   $05 = Top Spin        $09 = Rush Marine
+;   $02 = Needle Cannon  $06 = Search Snake    $0A = Shadow Blade
+;   $03 = Hard Knuckle   $07 = Rush Coil       $0B = Rush Jet
+;
+; STAGE MAPPING ($22 values):
+;   Robot Masters (stage select grid, $12=col 0-2, $13=row 0/3/6):
+;     $00 = Needle Man   (col 2, row 0 = top-right)
+;     $01 = Magnet Man   (col 1, row 2 = bottom-middle)
+;     $02 = Gemini Man   (col 0, row 2 = bottom-left)
+;     $03 = Hard Man     (col 0, row 1 = middle-left)
+;     $04 = Top Man      (col 2, row 1 = middle-right)
+;     $05 = Snake Man    (col 1, row 0 = top-middle)
+;     $06 = Spark Man    (col 0, row 0 = top-left)
+;     $07 = Shadow Man   (col 2, row 2 = bottom-right)
+;   Doc Robot stages: $08-$0B (4 revisited stages)
+;   Wily Castle: $0C+ (fortress stages)
+;   Stage select grid lookup table at CPU $9CE1 (bank18.asm)
+;
+; PLAYER PHYSICS:
+;   Normal jump velocity:    $04.E5 (~4.9 px/frame upward)
+;   Super jump (Rush Coil):  $08.00 (8.0 px/frame upward)
+;   Slide jump velocity:     $06.EE (~6.9 px/frame upward)
+;   Resting Y velocity:      $FF.C0 (-0.25, gentle ground pin)
+;   Terminal fall velocity:   $F9.00 (-7.0, clamped in gravity code)
+;   Gravity per frame:        $00.55 (0.332 px/frame², set in process_sprites)
+;   Velocity format: $0460.$0440 = whole.sub, higher = upward
+;
+; TILE COLLISION TYPES (upper nibble of $BF00,y tile attribute table):
+;   $00 = air (passthrough, no collision)
+;   $10 = solid ground (bit 4 = solid flag)
+;   $20 = ladder (climbable when pressing Up, passthrough)
+;   $30 = damage tile (lava/fire — triggers player_damage, solid)
+;   $40 = ladder top (climbable, grab point from above)
+;   $50 = spikes (instant kill, solid)
+;   $70 = disappearing block (Gemini Man stages $02/$09 only, solid when visible)
+;   Solid test: accumulate tile types in $10, then AND #$10 — nonzero = on solid ground
+;   Hazard priority: $41 tracks max type, $30→damage, $50→death
+;   $BF00 table is per-stage, loaded from the stage's PRG bank
 ;
 ; Entity Arrays (indexed by X, stride $20, 32 slots $00-$1F):
 ;   $0300,x = entity active flag (bit 7 = active)
@@ -163,7 +237,7 @@
 ;   $04 = player_reappear     ($D5BA) — respawn/reappear (death, unpause, stage start) [confirmed]
 ;   $05 = player_entity_ride  ($D613) — riding entity at slot $34 (anim $62) [unconfirmed]
 ;   $06 = player_damage       ($D6AB) — taking damage (contact or projectile) [confirmed]
-;   $07 = player_special_death($D831) — palette cycling kill (bank04 hazard) [unconfirmed]
+;   $07 = player_special_death($D831) — Doc Flash Time Stopper kill [confirmed]
 ;   $08 = player_rush_marine  ($D858) — riding Rush Marine submarine [confirmed]
 ;   $09 = player_boss_wait    ($D929) — frozen during boss intro (shutters/HP bar) [confirmed]
 ;   $0A = player_top_spin     ($D991) — Top Spin recoil bounce (8 frames) [confirmed]
@@ -1953,7 +2027,7 @@ code_1ECD8B:
 ;   $04 = player_reappear     ($D5BA) — respawn/reappear (death, unpause, stage start) [confirmed]
 ;   $05 = player_entity_ride  ($D613) — riding entity at slot $34 (anim $62) [unconfirmed]
 ;   $06 = player_damage       ($D6AB) — taking damage (contact or projectile) [confirmed]
-;   $07 = player_special_death($D831) — palette cycling kill (bank04 hazard) [unconfirmed]
+;   $07 = player_special_death($D831) — Doc Flash Time Stopper kill [confirmed]
 ;   $08 = player_rush_marine  ($D858) — riding Rush Marine submarine [confirmed]
 ;   $09 = player_boss_wait    ($D929) — frozen during boss intro (shutters/HP bar) [confirmed]
 ;   $0A = player_top_spin     ($D991) — Top Spin recoil bounce (8 frames) [confirmed]
@@ -2932,9 +3006,9 @@ code_1ED43D:
 code_1ED43E:
   LDY #$01                                  ; $1ED43E |
   JSR code_1FE8D6                           ; $1ED440 |
-  LDA $10                                   ; $1ED443 |
-  AND #$10                                  ; $1ED445 |
-  BNE code_1ED470                           ; $1ED447 |
+  LDA $10                                   ; $1ED443 |\ bit 4 = solid ground under feet
+  AND #$10                                  ; $1ED445 | | ($10,$30,$50,$70 all have bit 4)
+  BNE code_1ED470                           ; $1ED447 |/ on ground → return
   STA $33                                   ; $1ED449 |
   STA $30                                   ; $1ED44B |
   LDA $14                                   ; $1ED44D |
@@ -2969,23 +3043,23 @@ code_1ED471:
 code_1ED47E:
   LDA $03E0                                 ; $1ED47E |
   BNE code_1ED4C7                           ; $1ED481 |
-  LDA $16                                   ; $1ED483 |
-  AND #$08                                  ; $1ED485 |
-  BEQ code_1ED4C8                           ; $1ED487 |
+  LDA $16                                   ; $1ED483 |\ pressing Up?
+  AND #$08                                  ; $1ED485 | | (Up = bit 3)
+  BEQ code_1ED4C8                           ; $1ED487 |/
   PHP                                       ; $1ED489 |
-code_1ED48A:
+.check_ladder_entry:
   LDY #$04                                  ; $1ED48A |
-  JSR code_1FE9E3                           ; $1ED48C |
-  LDA $44                                   ; $1ED48F |
-  CMP #$20                                  ; $1ED491 |
-  BEQ code_1ED4A3                           ; $1ED493 |
-  CMP #$40                                  ; $1ED495 |
-  BEQ code_1ED4A3                           ; $1ED497 |
-  LDA $43                                   ; $1ED499 |
-  CMP #$20                                  ; $1ED49B |
-  BEQ code_1ED4A3                           ; $1ED49D |
-  CMP #$40                                  ; $1ED49F |
-  BNE code_1ED4C6                           ; $1ED4A1 |
+  JSR check_tile_collision                           ; $1ED48C |
+  LDA $44                                   ; $1ED48F |\ check both foot tiles
+  CMP #$20                                  ; $1ED491 | | for ladder ($20) or
+  BEQ code_1ED4A3                           ; $1ED493 | | ladder top ($40)
+  CMP #$40                                  ; $1ED495 | |
+  BEQ code_1ED4A3                           ; $1ED497 |/
+  LDA $43                                   ; $1ED499 |\ same check on other foot
+  CMP #$20                                  ; $1ED49B | |
+  BEQ code_1ED4A3                           ; $1ED49D | |
+  CMP #$40                                  ; $1ED49F | |
+  BNE code_1ED4C6                           ; $1ED4A1 |/
 code_1ED4A3:
   PLP                                       ; $1ED4A3 |
   LDA $12                                   ; $1ED4A4 |
@@ -3086,7 +3160,7 @@ code_1ED53B:
 
 code_1ED54D:
   LDY #$04                                  ; $1ED54D |
-  JSR code_1FE9E3                           ; $1ED54F |
+  JSR check_tile_collision                           ; $1ED54F |
   LDA $44                                   ; $1ED552 |
   CMP #$20                                  ; $1ED554 |
   BEQ code_1ED5B9                           ; $1ED556 |
@@ -3113,7 +3187,7 @@ code_1ED57A:
   CMP #$10                                  ; $1ED57D |
   BCC code_1ED5B9                           ; $1ED57F |
   LDY #$04                                  ; $1ED581 |
-  JSR code_1FE9E3                           ; $1ED583 |
+  JSR check_tile_collision                           ; $1ED583 |
   LDA $44                                   ; $1ED586 |
   CMP #$20                                  ; $1ED588 |
   BEQ code_1ED5B9                           ; $1ED58A |
@@ -3439,7 +3513,7 @@ code_1ED7F0:
   db $FD, $FD, $00, $02, $03, $02, $00, $FD ; $1ED821 |
   db $FE, $FE, $00, $01, $01, $01, $00, $FE ; $1ED829 |
 
-; player state $07: palette cycling kill (bank04 hazard) [unconfirmed]
+; player state $07: Doc Flash Time Stopper kill [confirmed]
 player_special_death:
   LDA #$00                                  ; $1ED831 |
   STA $05E0                                 ; $1ED833 |
@@ -4004,36 +4078,39 @@ code_1EDC2C:
   ADC #$00                                  ; $1EDC44 |
   STA $0460                                 ; $1EDC46 |
   JSR move_sprite_up                        ; $1EDC49 |
-  LDA $03E0                                 ; $1EDC4C |
-  BEQ code_1EDC73                           ; $1EDC4F |
-  LDY $22                                   ; $1EDC51 |
-  CPY #$0C                                  ; $1EDC53 |
-  BCS code_1EDC74                           ; $1EDC55 |
-  LDA $61                                   ; $1EDC57 |
-  ORA $DEC2,y                               ; $1EDC59 |
-  STA $61                                   ; $1EDC5C |
-  INC $59                                   ; $1EDC5E |
-  LDA $22                                   ; $1EDC60 |
-  CMP #$00                                  ; $1EDC62 |
-  BEQ code_1EDC6F                           ; $1EDC64 |
-  CMP #$07                                  ; $1EDC66 |
-  BNE code_1EDC73                           ; $1EDC68 |
-  LDA #$9C                                  ; $1EDC6A |
-  STA $AB                                   ; $1EDC6C |
+; --- boss defeat tracking ---
+; called during teleport-away after boss explodes
+; sets bit in $61 for defeated stage, awards special weapons
+  LDA $03E0                                 ; $1EDC4C |\ if boss not defeated,
+  BEQ code_1EDC73                           ; $1EDC4F |/ skip defeat tracking
+  LDY $22                                   ; $1EDC51 |\ stage index
+  CPY #$0C                                  ; $1EDC53 | | if stage >= $0C (Wily fortress),
+  BCS .wily_stage_clear                     ; $1EDC55 |/ handle separately
+  LDA $61                                   ; $1EDC57 |\ $61 |= (1 << stage_index)
+  ORA $DEC2,y                               ; $1EDC59 | | mark this stage's boss as defeated
+  STA $61                                   ; $1EDC5C |/ ($FF = all 8 Robot Masters beaten)
+  INC $59                                   ; $1EDC5E |  advance stage progression
+  LDA $22                                   ; $1EDC60 |\ stage $00 (Needle Man):
+  CMP #$00                                  ; $1EDC62 | | awards Rush Jet
+  BEQ .award_rush_jet                       ; $1EDC64 |/
+  CMP #$07                                  ; $1EDC66 |\ stage $07 (Shadow Man):
+  BNE code_1EDC73                           ; $1EDC68 |/ awards Rush Marine
+  LDA #$9C                                  ; $1EDC6A |\ fill Rush Marine energy ($AB)
+  STA $AB                                   ; $1EDC6C |/ $9C = full
   RTS                                       ; $1EDC6E |
 
-code_1EDC6F:
-  LDA #$9C                                  ; $1EDC6F |
-  STA $AD                                   ; $1EDC71 |
+.award_rush_jet:
+  LDA #$9C                                  ; $1EDC6F |\ fill Rush Jet energy ($AD)
+  STA $AD                                   ; $1EDC71 |/ $9C = full
 code_1EDC73:
   RTS                                       ; $1EDC73 |
 
-code_1EDC74:
-  LDA #$FF                                  ; $1EDC74 |
-  STA $74                                   ; $1EDC76 |
-  INC $75                                   ; $1EDC78 |
-  LDA #$9C                                  ; $1EDC7A |
-  STA $A2                                   ; $1EDC7C |
+.wily_stage_clear:
+  LDA #$FF                                  ; $1EDC74 |\ mark fortress stage cleared
+  STA $74                                   ; $1EDC76 |/
+  INC $75                                   ; $1EDC78 |  advance fortress progression
+  LDA #$9C                                  ; $1EDC7A |\ refill player health
+  STA $A2                                   ; $1EDC7C |/ $9C = full
   RTS                                       ; $1EDC7E |
 
   db $04, $07, $00, $C2, $00, $C2, $00, $3E ; $1EDC7F |
@@ -4248,8 +4325,11 @@ code_1EDE5D:
   db $26, $28, $29, $00, $02, $02, $02, $02 ; $1EDEB6 |
   db $02, $02, $02, $02                     ; $1EDEBE |
 
+; boss_defeated_bitmask: indexed by stage ($22), sets bit in $61
+; $00=Needle $01=Magnet $02=Gemini $03=Hard $04=Top $05=Snake $06=Spark $07=Shadow
   db $01, $02, $04, $08, $10, $20, $40, $80 ; $1EDEC2 |
 
+; Doc Robot stage bitmask (4 stages: Needle=$08, Gemini=$09, Spark=$0A, Shadow=$0B)
   db $01, $04, $40, $80                     ; $1EDECA |
 
 decrease_ammo:
@@ -4938,7 +5018,7 @@ code_1FE3AD:
   JSR code_1EC83D                           ; $1FE3B6 |
   LDX #$00                                  ; $1FE3B9 |
   LDY #$04                                  ; $1FE3BB |
-  JSR code_1FE9E3                           ; $1FE3BD |
+  JSR check_tile_collision                           ; $1FE3BD |
   LDA $10                                   ; $1FE3C0 |
   BNE code_1FE3C6                           ; $1FE3C2 |
   STA $30                                   ; $1FE3C4 |
@@ -5781,18 +5861,36 @@ code_1FE9BA:
   CMP #$0E                                  ; $1FE9CC |
   BEQ code_1FE9E0                           ; $1FE9CE |
   LDY #$06                                  ; $1FE9D0 |
-  LDA $41                                   ; $1FE9D2 |
-  CMP #$30                                  ; $1FE9D4 |
-  BEQ code_1FE9DE                           ; $1FE9D6 |
-  LDY #$0E                                  ; $1FE9D8 |
-  CMP #$50                                  ; $1FE9DA |
-  BNE code_1FE9E0                           ; $1FE9DC |
+  LDA $41                                   ; $1FE9D2 |\ $41 = max tile type encountered
+  CMP #$30                                  ; $1FE9D4 | | $30 = damage tile → $3D=$06
+  BEQ code_1FE9DE                           ; $1FE9D6 |/
+  LDY #$0E                                  ; $1FE9D8 |\ $50 = spike → $3D=$0E (death)
+  CMP #$50                                  ; $1FE9DA | |
+  BNE code_1FE9E0                           ; $1FE9DC |/
 code_1FE9DE:
-  STY $3D                                   ; $1FE9DE |
+  STY $3D                                   ; $1FE9DE |  set pending damage/death
 code_1FE9E0:
   JMP code_1FEB24                           ; $1FE9E0 |
 
-code_1FE9E3:
+; -----------------------------------------------
+; check_tile_collision: reads tile attributes under sprite
+; looks up metatile at sprite's position in the level bank,
+; reads collision type from $BF00 tile attribute table.
+; upper nibble of $BF00,y = collision type:
+;   $00 = air (passthrough)
+;   $10 = solid ground
+;   $20 = ladder (climbable, passthrough)
+;   $30 = damage tile (lava/fire — triggers player_damage)
+;   $40 = ladder top (climbable, grab point from above)
+;   $50 = spikes (instant kill — triggers death)
+;   $70 = disappearing block (Gemini Man stages $02/$09 only)
+; results stored in:
+;   $43/$44 = tile type at each foot check point
+;   $41     = max (highest priority) tile type encountered
+;   $10     = OR of all tile types (AND #$10 tests solid ground)
+; parameters: Y = hitbox offset index into $ECE1
+; -----------------------------------------------
+check_tile_collision:
   LDA $ECE1,y                               ; $1FE9E3 |
   STA $40                                   ; $1FE9E6 |
   JSR code_1FEB0C                           ; $1FE9E8 |
@@ -5893,20 +5991,20 @@ code_1FEA8F:
   JSR code_1FE882                           ; $1FEA8F |
 code_1FEA92:
   LDY $03                                   ; $1FEA92 |
-  LDA ($00),y                               ; $1FEA94 |
+  LDA ($00),y                               ; $1FEA94 |  metatile index at position
   TAY                                       ; $1FEA96 |
-  LDA $BF00,y                               ; $1FEA97 |
-  AND #$F0                                  ; $1FEA9A |
-  JSR code_1FEB30                           ; $1FEA9C |
-  JSR code_1FEB8A                           ; $1FEA9F |
+  LDA $BF00,y                               ; $1FEA97 |  tile attribute byte
+  AND #$F0                                  ; $1FEA9A |  upper nibble = collision type
+  JSR code_1FEB30                           ; $1FEA9C |  special: disappearing block ($70)
+  JSR code_1FEB8A                           ; $1FEA9F |  special: Proto Man wall override
   LDY $02                                   ; $1FEAA2 |
-  STA $0042,y                               ; $1FEAA4 |
-  CMP $41                                   ; $1FEAA7 |
-  BCC code_1FEAAD                           ; $1FEAA9 |
-  STA $41                                   ; $1FEAAB |
+  STA $0042,y                               ; $1FEAA4 |  store in $43 or $44
+  CMP $41                                   ; $1FEAA7 |\ track max tile type
+  BCC code_1FEAAD                           ; $1FEAA9 | | (highest priority hazard wins)
+  STA $41                                   ; $1FEAAB |/
 code_1FEAAD:
-  ORA $10                                   ; $1FEAAD |
-  STA $10                                   ; $1FEAAF |
+  ORA $10                                   ; $1FEAAD |\ accumulate all tile types
+  STA $10                                   ; $1FEAAF |/ (AND #$10 later tests solid)
   DEC $02                                   ; $1FEAB1 |
   BMI code_1FEAE9                           ; $1FEAB3 |
   INC $40                                   ; $1FEAB5 |
@@ -5950,11 +6048,11 @@ code_1FEAE9:
   BEQ code_1FEB09                           ; $1FEAF9 |
   CMP #$0E                                  ; $1FEAFB |
   BEQ code_1FEB09                           ; $1FEAFD |
-  LDA $41                                   ; $1FEAFF |
-  CMP #$50                                  ; $1FEB01 |
-  BNE code_1FEB09                           ; $1FEB03 |
-  LDA #$0E                                  ; $1FEB05 |
-  STA $3D                                   ; $1FEB07 |
+  LDA $41                                   ; $1FEAFF |\ $50 = spike tile
+  CMP #$50                                  ; $1FEB01 | | instant kill
+  BNE code_1FEB09                           ; $1FEB03 |/
+  LDA #$0E                                  ; $1FEB05 |\ $3D = $0E → death state
+  STA $3D                                   ; $1FEB07 |/
 code_1FEB09:
   JMP code_1FEB24                           ; $1FEB09 |
 
@@ -5985,16 +6083,20 @@ code_1FEB24:
   TAX                                       ; $1FEB2E |
   RTS                                       ; $1FEB2F |
 
+; disappearing_block_check: tile type $70 special handler
+; only active on stages $02 (Gemini Man) and $09 (Doc Robot Gemini)
+; checks $0110 buffer to see if block is currently visible
+; if not visible, overrides tile type to $00 (passthrough)
 code_1FEB30:
   STA $06                                   ; $1FEB30 |
   STX $05                                   ; $1FEB32 |
-  CMP #$70                                  ; $1FEB34 |
-  BNE code_1FEB68                           ; $1FEB36 |
-  LDA $22                                   ; $1FEB38 |
-  CMP #$02                                  ; $1FEB3A |
-  BEQ code_1FEB42                           ; $1FEB3C |
-  CMP #$09                                  ; $1FEB3E |
-  BNE code_1FEB68                           ; $1FEB40 |
+  CMP #$70                                  ; $1FEB34 |\ only handle $70 tiles
+  BNE code_1FEB68                           ; $1FEB36 |/
+  LDA $22                                   ; $1FEB38 |\ only on Gemini Man stages
+  CMP #$02                                  ; $1FEB3A | | ($02 = Robot Master,
+  BEQ code_1FEB42                           ; $1FEB3C | |  $09 = Doc Robot)
+  CMP #$09                                  ; $1FEB3E | |
+  BNE code_1FEB68                           ; $1FEB40 |/
 code_1FEB42:
   LDA $13                                   ; $1FEB42 |
   AND #$01                                  ; $1FEB44 |
@@ -6043,12 +6145,16 @@ code_1FEB81:
 
   db $80, $40, $20, $10, $08, $04, $02, $01 ; $1FEB82 |
 
+; proto_man_wall_override: when $68 (cutscene-complete) is set,
+; checks if player is at a Proto Man breakable wall position.
+; if so, overrides tile type to $00 (passthrough) to open the path.
+; table at $EBC6 maps stage → wall position data.
 code_1FEB8A:
   STA $05                                   ; $1FEB8A |
   STX $06                                   ; $1FEB8C |
   STY $07                                   ; $1FEB8E |
-  LDA $68                                   ; $1FEB90 |
-  BEQ code_1FEBB9                           ; $1FEB92 |
+  LDA $68                                   ; $1FEB90 |\ $68 = cutscene-complete flag
+  BEQ code_1FEBB9                           ; $1FEB92 |/ no cutscene → skip
   LDY $22                                   ; $1FEB94 |
   LDX $EBC6,y                               ; $1FEB96 |
   BMI code_1FEBC0                           ; $1FEB99 |
@@ -6990,7 +7096,7 @@ code_1FF5AA:
   JMP code_1FF5F4                           ; $1FF5AF |
 
 code_1FF5B2:
-  JSR code_1FE9E3                           ; $1FF5B2 |
+  JSR check_tile_collision                           ; $1FF5B2 |
   JSR code_1FF700                           ; $1FF5B5 |
   CLC                                       ; $1FF5B8 |
   LDA $10                                   ; $1FF5B9 |
@@ -7029,7 +7135,7 @@ code_1FF5EE:
   JMP code_1FF5B2                           ; $1FF5F1 |
 
 code_1FF5F4:
-  JSR code_1FE9E3                           ; $1FF5F4 |
+  JSR check_tile_collision                           ; $1FF5F4 |
   JSR code_1FF700                           ; $1FF5F7 |
   CLC                                       ; $1FF5FA |
   LDA $10                                   ; $1FF5FB |

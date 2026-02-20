@@ -508,10 +508,17 @@ code_03A6F6:
   db $6F, $6F, $6F, $6F, $6F, $7F, $7F, $7F ; $03A757 |
   db $7F, $7F, $7F, $3F, $3F, $70           ; $03A75F |
 
-code_03A765:
-  LDA #$00                                  ; $03A765 |
-  STA $60                                   ; $03A767 |
-  STA $61                                   ; $03A769 |
+; -----------------------------------------------
+; stage_select_progression: rebuilds $60/$61 from save data
+; scans $0150,x completion flags to determine which tier
+; the player is on and which bosses are defeated.
+;   $60 = stage select tier (0=Robot Master, $09=Doc Robot, $12=Wily)
+;   $61 = boss-defeated bitmask ($FF = all beaten in current tier)
+; -----------------------------------------------
+stage_select_progression:
+  LDA #$00                                  ; $03A765 |\ reset tier and defeat
+  STA $60                                   ; $03A767 | | bitmask to start fresh
+  STA $61                                   ; $03A769 |/
   STA $EE                                   ; $03A76B |
   LDY #$0C                                  ; $03A76D |
 code_03A76F:
@@ -565,23 +572,23 @@ code_03A7C4:
   BNE code_03A77C                           ; $03A7CA |
   LDA $A9C8,y                               ; $03A7CC |
 code_03A7CF:
-  ORA $61                                   ; $03A7CF |
-  STA $61                                   ; $03A7D1 |
+  ORA $61                                   ; $03A7CF |\ accumulate defeated bit
+  STA $61                                   ; $03A7D1 |/ into boss-defeated bitmask
 code_03A7D3:
   INY                                       ; $03A7D3 |
   CPY #$04                                  ; $03A7D4 |
   BCC code_03A7A8                           ; $03A7D6 |
   CPY #$06                                  ; $03A7D8 |
   BEQ code_03A816                           ; $03A7DA |
-  LDA $60                                   ; $03A7DC |
-  BNE code_03A7A8                           ; $03A7DE |
-  LDA $61                                   ; $03A7E0 |
-  CMP #$FF                                  ; $03A7E2 |
-  BNE code_03A7F0                           ; $03A7E4 |
-  LDA #$09                                  ; $03A7E6 |
-  STA $60                                   ; $03A7E8 |
-  LDA #$3A                                  ; $03A7EA |
-  STA $61                                   ; $03A7EC |
+  LDA $60                                   ; $03A7DC |\ if already in Doc Robot tier,
+  BNE code_03A7A8                           ; $03A7DE |/ skip Robot Master check
+  LDA $61                                   ; $03A7E0 |\ all 8 Robot Masters beaten?
+  CMP #$FF                                  ; $03A7E2 | | ($FF = bits 0-7 all set)
+  BNE code_03A7F0                           ; $03A7E4 |/
+  LDA #$09                                  ; $03A7E6 |\ advance to Doc Robot tier
+  STA $60                                   ; $03A7E8 |/ $60 = $09 (stage select offset)
+  LDA #$3A                                  ; $03A7EA |\ $61 = $3A (pre-set defeated bits
+  STA $61                                   ; $03A7EC |/ for stages without Doc Robots)
   BNE code_03A7A8                           ; $03A7EE |
 code_03A7F0:
   LDA $0157                                 ; $03A7F0 |
@@ -593,24 +600,24 @@ code_03A7F0:
   JMP code_03A77C                           ; $03A801 |
 
 code_03A804:
-  LDX $A9B7,y                               ; $03A804 |
-  LDA $0150,x                               ; $03A807 |
-  BEQ code_03A7D3                           ; $03A80A |
-  LDA $61                                   ; $03A80C |
-  ORA $A9CE,y                               ; $03A80E |
-  STA $61                                   ; $03A811 |
+  LDX $A9B7,y                               ; $03A804 |\ check Doc Robot completion
+  LDA $0150,x                               ; $03A807 | | for this stage pair
+  BEQ code_03A7D3                           ; $03A80A |/
+  LDA $61                                   ; $03A80C |\ mark Doc Robot stage defeated
+  ORA $A9CE,y                               ; $03A80E | | using Doc Robot bitmask table
+  STA $61                                   ; $03A811 |/
   JMP code_03A7D3                           ; $03A813 |
 
-code_03A816:
-  LDA $61                                   ; $03A816 |
-  CMP #$FF                                  ; $03A818 |
-  BNE code_03A82B                           ; $03A81A |
-  LDA #$12                                  ; $03A81C |
-  STA $60                                   ; $03A81E |
-  LDA $0168                                 ; $03A820 |
-  BEQ code_03A833                           ; $03A823 |
-  LDA #$FF                                  ; $03A825 |
-  STA $60                                   ; $03A827 |
+.check_doc_robot_complete:
+  LDA $61                                   ; $03A816 |\ all 4 Doc Robot stages beaten?
+  CMP #$FF                                  ; $03A818 | | ($FF = all bits set)
+  BNE code_03A82B                           ; $03A81A |/
+  LDA #$12                                  ; $03A81C |\ advance to Wily tier
+  STA $60                                   ; $03A81E |/ $60 = $12
+  LDA $0168                                 ; $03A820 |\ if Break Man defeated too,
+  BEQ code_03A833                           ; $03A823 |/ done
+  LDA #$FF                                  ; $03A825 |\ $60 = $FF marks all stages
+  STA $60                                   ; $03A827 |/ complete (Wily fortress)
   BNE code_03A833                           ; $03A829 |
 code_03A82B:
   LDA $0168                                 ; $03A82B |
@@ -840,6 +847,14 @@ code_03A988:
   LDY $00                                   ; $03A9AE |
   RTS                                       ; $03A9B0 |
 
+; stage_select_progression lookup tables:
+; $A9B1: Robot Master completion slot indices (y=0..5)
+; $A9B7: Doc Robot completion slot indices (y=0..5)
+; $A9BE: E-tank/item slot indices (y=0..9)
+; $A9C8: Robot Master defeat bitmask per pair (y=0..5)
+; $A9CE: Doc Robot defeat bitmask per pair (y=0..5)
+; $A9D4: combined bitmask (both tiers)
+; $A9DF: initial scan slot indices (y=0..12)
   db $14, $0A, $02, $21, $07, $00, $22, $0F ; $03A9B1 |
   db $23, $17, $0B, $03, $18, $10, $1D, $1B ; $03A9B9 |
   db $09, $04, $0C, $13, $0E, $1F, $05, $01 ; $03A9C1 |

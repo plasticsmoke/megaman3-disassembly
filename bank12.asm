@@ -85,19 +85,20 @@ code_12A058:
   STA $01                                   ; $12A066 |
   JMP ($0000)                               ; $12A068 |
 
-  LDA #$09                                  ; $12A06B |
-  CMP $30                                   ; $12A06D |
-  BEQ code_12A082                           ; $12A06F |
-  STA $30                                   ; $12A071 |
-  LDA #$80                                  ; $12A073 |
+; Yellow Devil init — freeze player for boss intro
+  LDA #$09                                  ; $12A06B | state → $09 (boss_wait)
+  CMP $30                                   ; $12A06D | already in boss_wait?
+  BEQ .yd_fill_hp                           ; $12A06F |   skip to HP fill
+  STA $30                                   ; $12A071 | freeze player
+  LDA #$80                                  ; $12A073 | init boss HP display
   STA $B0                                   ; $12A075 |
-  STA $5A                                   ; $12A077 |
-  LDA #$8E                                  ; $12A079 |
+  STA $5A                                   ; $12A077 | boss active flag
+  LDA #$8E                                  ; $12A079 | HP fill target (28 HP)
   STA $B3                                   ; $12A07B |
-  LDA #$0D                                  ; $12A07D |
+  LDA #$0D                                  ; $12A07D | SFX $0D = boss intro music
   JSR submit_sound_ID_D9                    ; $12A07F |
-code_12A082:
-  LDA $B0                                   ; $12A082 |
+.yd_fill_hp:
+  LDA $B0                                   ; $12A082 | has HP bar filled to $9C?
   CMP #$9C                                  ; $12A084 |
   BNE code_12A0A1                           ; $12A086 |
   INC $0300,x                               ; $12A088 |
@@ -1461,20 +1462,21 @@ code_12AD32:
   db $20, $E0, $20, $E0, $20, $00, $F0, $10 ; $12ADD5 |
   db $C0, $D0, $D0                          ; $12ADDD |
 
+; Gamma init phase — same boss_wait pattern as all other bosses
 code_12ADE0:
-  LDA $0300,x                               ; $12ADE0 |
+  LDA $0300,x                               ; $12ADE0 | AI phase
   AND #$0F                                  ; $12ADE3 |
-  BNE code_12AE17                           ; $12ADE5 |
+  BNE code_12AE17                           ; $12ADE5 | skip init if not phase 0
   STA $95                                   ; $12ADE7 |
-  INC $0300,x                               ; $12ADE9 |
-  LDA #$09                                  ; $12ADEC |
-  STA $30                                   ; $12ADEE |
-  LDA #$80                                  ; $12ADF0 |
+  INC $0300,x                               ; $12ADE9 | advance to phase 1
+  LDA #$09                                  ; $12ADEC | state → $09 (boss_wait)
+  STA $30                                   ; $12ADEE | freeze player for HP fill
+  LDA #$80                                  ; $12ADF0 | init boss HP display
   STA $B0                                   ; $12ADF2 |
-  STA $5A                                   ; $12ADF4 |
-  LDA #$8E                                  ; $12ADF6 |
+  STA $5A                                   ; $12ADF4 | boss active flag
+  LDA #$8E                                  ; $12ADF6 | HP fill target (28 HP)
   STA $B3                                   ; $12ADF8 |
-  LDA #$0D                                  ; $12ADFA |
+  LDA #$0D                                  ; $12ADFA | SFX $0D = boss intro music
   JSR submit_sound_ID_D9                    ; $12ADFC |
   LDA #$30                                  ; $12ADFF |
   STA $0500,x                               ; $12AE01 |
@@ -1526,12 +1528,13 @@ code_12AE47:
 code_12AE5B:
   LDA #$80                                  ; $12AE5B |
   STA $B0                                   ; $12AE5D |
+; Wait for boss HP bar to fill, then release player
 code_12AE5F:
-  LDA $B0                                   ; $12AE5F |
-  CMP #$9C                                  ; $12AE61 |
-  BNE code_12AE7B                           ; $12AE63 |
-  LDA #$00                                  ; $12AE65 |
-  STA $30                                   ; $12AE67 |
+  LDA $B0                                   ; $12AE5F | HP bar position
+  CMP #$9C                                  ; $12AE61 | filled to max?
+  BNE code_12AE7B                           ; $12AE63 | no → keep filling
+  LDA #$00                                  ; $12AE65 | state → $00 (on_ground)
+  STA $30                                   ; $12AE67 | release player, fight begins
   STA $0500,x                               ; $12AE69 |
   LDA #$C0                                  ; $12AE6C |
   STA $0300,x                               ; $12AE6E |
@@ -1624,8 +1627,9 @@ code_12AEF7:
   DEY                                       ; $12AF33 |
   CPY #$07                                  ; $12AF34 |
   BNE code_12AEED                           ; $12AF36 |
-  LDA #$10                                  ; $12AF38 |
-  STA $30                                   ; $12AF3A |
+; Gamma phase transition — scroll screen vertically
+  LDA #$10                                  ; $12AF38 | state → $10 (screen_scroll)
+  STA $30                                   ; $12AF3A | player frozen during scroll
   LDA #$C0                                  ; $12AF3C |
   STA $0300,x                               ; $12AF3E |
   LDA #$00                                  ; $12AF41 |
@@ -1904,15 +1908,16 @@ code_12B17B:
 code_12B1A7:
   PLA                                       ; $12B1A7 |
   STA $03C0                                 ; $12B1A8 |
-  LDA $04C0,x                               ; $12B1AB |
-  CMP #$0D                                  ; $12B1AE |
+; Gamma/fortress hazard — instant kill on contact
+  LDA $04C0,x                               ; $12B1AB | entity sub-type
+  CMP #$0D                                  ; $12B1AE | $0D = ??? skip
   BEQ code_12B1BF                           ; $12B1B0 |
-  LDA $39                                   ; $12B1B2 |
-  BNE code_12B1BF                           ; $12B1B4 |
-  JSR check_player_collision                ; $12B1B6 |
-  BCS code_12B1BF                           ; $12B1B9 |
-  LDA #$0E                                  ; $12B1BB |
-  STA $30                                   ; $12B1BD |
+  LDA $39                                   ; $12B1B2 | i-frames active?
+  BNE code_12B1BF                           ; $12B1B4 |   skip
+  JSR check_player_collision                ; $12B1B6 | AABB collision test
+  BCS code_12B1BF                           ; $12B1B9 | no collision → skip
+  LDA #$0E                                  ; $12B1BB | state → $0E (death)
+  STA $30                                   ; $12B1BD | instant kill, no damage calc
 code_12B1BF:
   LDA $0580,x                               ; $12B1BF |
   ORA #$04                                  ; $12B1C2 |
@@ -1930,27 +1935,33 @@ code_12B1DA:
 
   db $80, $40, $10                          ; $12B1DB |
 
+; ---------------------------------------------------------------------------
+; Teleporter tube — player steps in, warps to boss refight room
+; Sets state $11 (warp_init), which transitions to $12 (warp_anim),
+; then back to $00 (on_ground) in the destination room.
+; $6C = destination index (from entity sub-type).
+; ---------------------------------------------------------------------------
 code_12B1DE:
-  JSR check_player_collision                ; $12B1DE |
-  BCS code_12B20F                           ; $12B1E1 |
-  JSR code_1FF8C2                           ; $12B1E3 |
-  CMP #$02                                  ; $12B1E6 |
-  BCS code_12B20F                           ; $12B1E8 |
-  LDA $0360,x                               ; $12B1EA |
+  JSR check_player_collision                ; $12B1DE | is player touching teleporter?
+  BCS code_12B20F                           ; $12B1E1 | no → return
+  JSR code_1FF8C2                           ; $12B1E3 | detailed alignment check
+  CMP #$02                                  ; $12B1E6 | close enough to center?
+  BCS code_12B20F                           ; $12B1E8 | no → return
+  LDA $0360,x                               ; $12B1EA | snap player X to teleporter X
   STA $0360                                 ; $12B1ED |
-  LDA $04C0,x                               ; $12B1F0 |
-  SBC #$0E                                  ; $12B1F3 |
+  LDA $04C0,x                               ; $12B1F0 | entity sub-type - $0E =
+  SBC #$0E                                  ; $12B1F3 | destination index
   CMP #$01                                  ; $12B1F5 |
-  BEQ code_12B20F                           ; $12B1F7 |
-  STA $6C                                   ; $12B1F9 |
-  LDA #$11                                  ; $12B1FB |
-  STA $30                                   ; $12B1FD |
-  LDA #$13                                  ; $12B1FF |
+  BEQ code_12B20F                           ; $12B1F7 | destination 1 = invalid? skip
+  STA $6C                                   ; $12B1F9 | $6C = warp destination
+  LDA #$11                                  ; $12B1FB | state → $11 (warp_init)
+  STA $30                                   ; $12B1FD | begin teleporter sequence
+  LDA #$13                                  ; $12B1FF | player OAM $13 = teleport beam
   STA $05C0                                 ; $12B201 |
   LDA #$00                                  ; $12B204 |
-  STA $05E0                                 ; $12B206 |
-  STA $05A0                                 ; $12B209 |
-  STA $0300,x                               ; $12B20C |
+  STA $05E0                                 ; $12B206 | reset animation counter
+  STA $05A0                                 ; $12B209 | reset animation frame
+  STA $0300,x                               ; $12B20C | despawn teleporter entity
 code_12B20F:
   RTS                                       ; $12B20F |
 
@@ -2167,9 +2178,9 @@ code_12B3A7:
   LDA #$00                                  ; $12B3C2 |
   LDY $0560                                 ; $12B3C4 |
   STA $0300,y                               ; $12B3C7 |
-  STA $0500                                 ; $12B3CA |
-  LDA #$0D                                  ; $12B3CD |
-  STA $30                                   ; $12B3CF |
+  STA $0500                                 ; $12B3CA | clear player timer
+  LDA #$0D                                  ; $12B3CD | state → $0D (teleport)
+  STA $30                                   ; $12B3CF | player teleports away (end stage)
   LDA $0580                                 ; $12B3D1 |
   AND #$FB                                  ; $12B3D4 |
   STA $0580                                 ; $12B3D6 |

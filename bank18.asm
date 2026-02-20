@@ -819,34 +819,37 @@ code_189258:
   BEQ code_189261                           ; $18925C |
   JMP code_189300                           ; $18925E |
 
+; --- Stage select d-pad handling ---
+; $12 = cursor column (0-2), $13 = cursor row offset (0/3/6)
+; Combined ($12+$13) = grid index 0-8 into stage lookup table at $9CE1
 code_189261:
-  LDA $14                                   ; $189261 |
-  AND #$03                                  ; $189263 |
-  BEQ code_189279                           ; $189265 |
+  LDA $14                                   ; $189261 | new button presses
+  AND #$03                                  ; $189263 | $02=Left, $01=Right
+  BEQ code_189279                           ; $189265 | no horizontal input → skip
   TAY                                       ; $189267 |
-  LDA $12                                   ; $189268 |
+  LDA $12                                   ; $189268 | current column
   CLC                                       ; $18926A |
-  ADC $9D0D,y                               ; $18926B |
-  CMP #$03                                  ; $18926E |
-  BCS code_189279                           ; $189270 |
-  STA $12                                   ; $189272 |
-  LDA #$1B                                  ; $189274 |
+  ADC $9D0D,y                               ; $18926B | add direction offset from table
+  CMP #$03                                  ; $18926E | clamp to 0-2
+  BCS code_189279                           ; $189270 | out of range → ignore
+  STA $12                                   ; $189272 | update column
+  LDA #$1B                                  ; $189274 | SFX $1B = cursor move
   JSR submit_sound_ID                       ; $189276 |
 code_189279:
-  LDA $14                                   ; $189279 |
-  AND #$0C                                  ; $18927B |
-  BEQ code_189291                           ; $18927D |
+  LDA $14                                   ; $189279 | new button presses
+  AND #$0C                                  ; $18927B | $08=Up, $04=Down
+  BEQ code_189291                           ; $18927D | no vertical input → skip
   TAY                                       ; $18927F |
-  LDA $13                                   ; $189280 |
+  LDA $13                                   ; $189280 | current row offset
   CLC                                       ; $189282 |
-  ADC $9D0D,y                               ; $189283 |
-  CMP #$07                                  ; $189286 |
-  BCS code_189291                           ; $189288 |
-  STA $13                                   ; $18928A |
-  LDA #$1B                                  ; $18928C |
+  ADC $9D0D,y                               ; $189283 | add direction offset
+  CMP #$07                                  ; $189286 | clamp to 0-6 (rows 0/3/6)
+  BCS code_189291                           ; $189288 | out of range → ignore
+  STA $13                                   ; $18928A | update row
+  LDA #$1B                                  ; $18928C | SFX $1B = cursor move
   JSR submit_sound_ID                       ; $18928E |
 code_189291:
-  LDA $12                                   ; $189291 |
+  LDA $12                                   ; $189291 | combine column + row
   CLC                                       ; $189293 |
   ADC $13                                   ; $189294 |
   STA $00                                   ; $189296 |
@@ -910,33 +913,39 @@ code_1892F2:
   INC $95                                   ; $1892FB |
   JMP code_189258                           ; $1892FD |
 
+; --- Stage select confirmation (A or Start pressed) ---
 code_189300:
   JSR code_1EC628                           ; $189300 |
-  LDA $12                                   ; $189303 |
+  LDA $12                                   ; $189303 | column
   CLC                                       ; $189305 |
-  ADC $13                                   ; $189306 |
-  TAY                                       ; $189308 |
-  CPY #$04                                  ; $189309 |
-  BNE code_189316                           ; $18930B |
-  LDA $60                                   ; $18930D |
-  CMP #$12                                  ; $18930F |
+  ADC $13                                   ; $189306 | + row offset
+  TAY                                       ; $189308 | Y = grid index (0-8)
+  CPY #$04                                  ; $189309 | index 4 = center position
+  BNE code_189316                           ; $18930B | not center → try select
+  LDA $60                                   ; $18930D | center only works when
+  CMP #$12                                  ; $18930F | $60 == $12 (Doc Robot complete?)
   BNE code_189316                           ; $189311 |
-  JMP code_189ABC                           ; $189313 |
+  JMP code_189ABC                           ; $189313 | → special center action
 
 code_189316:
-  LDA $61                                   ; $189316 |
-  AND $9DED,y                               ; $189318 |
-  BNE code_1892F2                           ; $18931B |
-  LDA $60                                   ; $18931D |
-  CMP #$0A                                  ; $18931F |
+  LDA $61                                   ; $189316 | $61 = boss-defeated bitmask
+  AND $9DED,y                               ; $189318 | check if this boss already beaten
+  BNE code_1892F2                           ; $18931B | already beaten → can't select
+  LDA $60                                   ; $18931D | stage page offset
+  CMP #$0A                                  ; $18931F | >= $0A = invalid
   BCS code_1892F2                           ; $189321 |
-  TYA                                       ; $189323 |
+  TYA                                       ; $189323 | Y = grid index
   CLC                                       ; $189324 |
-  ADC $60                                   ; $189325 |
+  ADC $60                                   ; $189325 | + page offset (0 for Robot Masters)
   TAY                                       ; $189327 |
-  LDA $9CE1,y                               ; $189328 |
-  BMI code_1892F2                           ; $18932B |
-  STA $22                                   ; $18932D |
+; Stage select lookup table at $9CE1:
+;   Index: 0     1     2     3     4     5     6     7     8
+;   Value: $06   $05   $00   $03   $FF   $04   $02   $01   $07
+;   Boss:  Spark Snake Needl Hard  (n/a) Top   Gemin Magnt Shadw
+;   Grid:  TL    TM    TR    ML    CTR   MR    BL    BM    BR
+  LDA $9CE1,y                               ; $189328 | look up stage index
+  BMI code_1892F2                           ; $18932B | $FF = not selectable (center)
+  STA $22                                   ; $18932D | set current stage
   STY $0F                                   ; $18932F |
   LDA #$13                                  ; $189331 |
   STA $F5                                   ; $189333 |
@@ -1070,10 +1079,10 @@ code_189412:
 code_18941C:
   DEY                                       ; $18941C |
   BPL code_189412                           ; $18941D |
-  LDA $22                                   ; $18941F |
-  CMP #$08                                  ; $189421 |
-  BCC code_189428                           ; $189423 |
-  JMP code_189581                           ; $189425 |
+  LDA $22                                   ; $18941F |\ stage < $08 = Robot Master stage
+  CMP #$08                                  ; $189421 | | stage >= $08 = Doc Robot/Wily
+  BCC code_189428                           ; $189423 |/
+  JMP code_189581                           ; $189425 |  handle Doc Robot/Wily stage init
 
 code_189428:
   JSR code_1EC752                           ; $189428 |

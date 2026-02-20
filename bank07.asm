@@ -128,14 +128,15 @@ code_07A0DE:
   STA $05A0,x                               ; $07A0EC |
   LDA #$00                                  ; $07A0EF |
   STA $05E0,x                               ; $07A0F1 |
-  INC $0300,x                               ; $07A0F4 |
-  LDA $30                                   ; $07A0F7 |
-  CMP #$0E                                  ; $07A0F9 |
+  INC $0300,x                               ; $07A0F4 | advance Hard Man AI phase
+; Hard Man ground slam — stun the player
+  LDA $30                                   ; $07A0F7 | check player state
+  CMP #$0E                                  ; $07A0F9 | if dead, don't stun
   BEQ code_07A165                           ; $07A0FB |
-  CMP #$0F                                  ; $07A0FD |
+  CMP #$0F                                  ; $07A0FD | if already stunned, skip
   BEQ code_07A165                           ; $07A0FF |
-  LDA #$0F                                  ; $07A101 |
-  STA $30                                   ; $07A103 |
+  LDA #$0F                                  ; $07A101 | state → $0F (stunned)
+  STA $30                                   ; $07A103 | player frozen in midair
   RTS                                       ; $07A105 |
 
 code_07A106:
@@ -175,13 +176,14 @@ code_07A128:
   LDA #$00                                  ; $07A14F |
   STA $05E0,x                               ; $07A151 |
   INC $0300,x                               ; $07A154 |
-  LDA $30                                   ; $07A157 |
-  CMP #$0E                                  ; $07A159 |
+; Hard Man body slam — stun the player (second attack variant)
+  LDA $30                                   ; $07A157 | check player state
+  CMP #$0E                                  ; $07A159 | if dead, don't stun
   BEQ code_07A165                           ; $07A15B |
-  CMP #$0F                                  ; $07A15D |
+  CMP #$0F                                  ; $07A15D | if already stunned, skip
   BEQ code_07A165                           ; $07A15F |
-  LDA #$0F                                  ; $07A161 |
-  STA $30                                   ; $07A163 |
+  LDA #$0F                                  ; $07A161 | state → $0F (stunned)
+  STA $30                                   ; $07A163 | player frozen in midair
 code_07A165:
   RTS                                       ; $07A165 |
 
@@ -215,15 +217,16 @@ code_07A198:
   STA $FA                                   ; $07A19D |
   RTS                                       ; $07A19F |
 
+; Hard Man landing — launches player into the air on impact
 code_07A1A0:
-  LDY #$26                                  ; $07A1A0 |
-  JSR code_1FF67C                           ; $07A1A2 |
-  BCC code_07A1BA                           ; $07A1A5 |
-  LDA $30                                   ; $07A1A7 |
-  CMP #$0E                                  ; $07A1A9 |
+  LDY #$26                                  ; $07A1A0 | collision check
+  JSR code_1FF67C                           ; $07A1A2 | is Hard Man near ground?
+  BCC code_07A1BA                           ; $07A1A5 | no → still falling
+  LDA $30                                   ; $07A1A7 | if player dead ($0E),
+  CMP #$0E                                  ; $07A1A9 | don't launch
   BEQ code_07A1B1                           ; $07A1AB |
-  LDA #$01                                  ; $07A1AD |
-  STA $30                                   ; $07A1AF |
+  LDA #$01                                  ; $07A1AD | state → $01 (airborne)
+  STA $30                                   ; $07A1AF | player bounced into the air
 code_07A1B1:
   INC $0300,x                               ; $07A1B1 |
   LDA #$10                                  ; $07A1B4 |

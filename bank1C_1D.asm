@@ -52,8 +52,8 @@ code_1C8003:
   JMP check_player_hit                      ; $1C8009 |
 
 process_sprites:
-  LDA #$55                                  ; $1C800C |
-  STA $99                                   ; $1C800E |
+  LDA #$55                                  ; $1C800C |\ gravity = $00.55 (0.332 px/frame²)
+  STA $99                                   ; $1C800E |/ set each frame for gameplay physics
   LDX #$01                                  ; $1C8010 |\ start at weapons
   STX $EF                                   ; $1C8012 |/ (skip mega man)
 .loop_sprite:
@@ -137,60 +137,70 @@ process_sprites:
 ; applies damage if so
 ; parameters:
 ; X: sprite slot
+; ---------------------------------------------------------------------------
+; check_player_hit — contact damage from entity to player
+; Called from process_sprites for entities with bit 7 of $0480,x set.
+; Checks AABB collision between entity X and player, applies damage.
+; State transitions: → $06 (damage) on hit, → $0E (death) if HP depleted.
+; Immune during: $06 (already damaged), $0E (dead), $0C (victory).
+; Also immune if $39 != 0 (i-frames / invincibility timer).
+; $A2 = player HP (low 5 bits = current HP, bit 7 = death flag)
+; Damage amount comes from table at $A000 indexed by entity routine $0320,x.
+; ---------------------------------------------------------------------------
 check_player_hit:
-  LDA $05C0                                 ; $1C8097 |
-  CMP #$A4                                  ; $1C809A |
+  LDA $05C0                                 ; $1C8097 | check player animation
+  CMP #$A4                                  ; $1C809A | $A4 = ??? (skip if this anim)
   BEQ process_sprites.ret                   ; $1C809C |
-  STX $0F                                   ; $1C809E |
-  LDA $F5                                   ; $1C80A0 |
+  STX $0F                                   ; $1C809E | save entity slot
+  LDA $F5                                   ; $1C80A0 | save current bank
   PHA                                       ; $1C80A2 |
-  LDA #$0A                                  ; $1C80A3 |
-  STA $F5                                   ; $1C80A5 |
+  LDA #$0A                                  ; $1C80A3 | switch to bank $0A
+  STA $F5                                   ; $1C80A5 | (damage tables at $A000)
   JSR select_PRG_banks                      ; $1C80A7 |
-  LDX $0F                                   ; $1C80AA |
-  LDA $39                                   ; $1C80AC |
-  BNE code_1C80F9                           ; $1C80AE |
-  LDA $30                                   ; $1C80B0 |
-  CMP #$06                                  ; $1C80B2 |
-  BEQ code_1C80F9                           ; $1C80B4 |
-  CMP #$0E                                  ; $1C80B6 |
-  BEQ code_1C80F9                           ; $1C80B8 |
-  CMP #$0C                                  ; $1C80BA |
-  BEQ code_1C80F9                           ; $1C80BC |
-  JSR check_player_collision                ; $1C80BE |
-  BCS code_1C80F9                           ; $1C80C1 |
-  LDA #$06                                  ; $1C80C3 |
-  STA $30                                   ; $1C80C5 |
-  LDA #$16                                  ; $1C80C7 |
+  LDX $0F                                   ; $1C80AA | restore entity slot
+  LDA $39                                   ; $1C80AC | i-frames timer
+  BNE code_1C80F9                           ; $1C80AE | skip if invincible
+  LDA $30                                   ; $1C80B0 | check player state
+  CMP #$06                                  ; $1C80B2 | already taking damage?
+  BEQ code_1C80F9                           ; $1C80B4 |   skip
+  CMP #$0E                                  ; $1C80B6 | already dead?
+  BEQ code_1C80F9                           ; $1C80B8 |   skip
+  CMP #$0C                                  ; $1C80BA | victory cutscene?
+  BEQ code_1C80F9                           ; $1C80BC |   skip
+  JSR check_player_collision                ; $1C80BE | AABB overlap test
+  BCS code_1C80F9                           ; $1C80C1 | no collision → skip
+  LDA #$06                                  ; $1C80C3 | --- CONTACT HIT ---
+  STA $30                                   ; $1C80C5 | state → $06 (damage)
+  LDA #$16                                  ; $1C80C7 | SFX $16 = damage sound
   JSR submit_sound_ID                       ; $1C80C9 |
-  LDA $A2                                   ; $1C80CC |
-  AND #$1F                                  ; $1C80CE |
-  BEQ code_1C80F9                           ; $1C80D0 |
-  LDY $0320,x                               ; $1C80D2 |
-  LDA $A2                                   ; $1C80D5 |
+  LDA $A2                                   ; $1C80CC | player HP
+  AND #$1F                                  ; $1C80CE | isolate HP value (0-28)
+  BEQ code_1C80F9                           ; $1C80D0 | already 0 → skip damage calc
+  LDY $0320,x                               ; $1C80D2 | entity routine index
+  LDA $A2                                   ; $1C80D5 | current HP
   AND #$1F                                  ; $1C80D7 |
   SEC                                       ; $1C80D9 |
-  SBC $A000,y                               ; $1C80DA |
-  PHP                                       ; $1C80DD |
-  ORA #$80                                  ; $1C80DE |
+  SBC $A000,y                               ; $1C80DA | subtract damage from table
+  PHP                                       ; $1C80DD | save carry (underflow = dead)
+  ORA #$80                                  ; $1C80DE | set bit 7 (HP dirty flag)
   STA $A2                                   ; $1C80E0 |
   PLP                                       ; $1C80E2 |
-  BEQ code_1C80E7                           ; $1C80E3 |
-  BCS code_1C80F9                           ; $1C80E5 |
-code_1C80E7:
-  LDA #$80                                  ; $1C80E7 |
-  STA $A2                                   ; $1C80E9 |
-  LDA #$0E                                  ; $1C80EB |
+  BEQ .player_killed                        ; $1C80E3 | HP == 0 → dead
+  BCS code_1C80F9                           ; $1C80E5 | HP > 0 → survived, done
+.player_killed:
+  LDA #$80                                  ; $1C80E7 | --- PLAYER KILLED ---
+  STA $A2                                   ; $1C80E9 | HP = 0 with dirty flag
+  LDA #$0E                                  ; $1C80EB | state → $0E (death)
   STA $30                                   ; $1C80ED |
-  LDA #$F2                                  ; $1C80EF |
+  LDA #$F2                                  ; $1C80EF | SFX $F2 = stop music
   JSR submit_sound_ID                       ; $1C80F1 |
-  LDA #$17                                  ; $1C80F4 |
+  LDA #$17                                  ; $1C80F4 | SFX $17 = death sound
   JSR submit_sound_ID                       ; $1C80F6 |
 code_1C80F9:
-  PLA                                       ; $1C80F9 |
+  PLA                                       ; $1C80F9 | restore bank
   STA $F5                                   ; $1C80FA |
   JSR select_PRG_banks                      ; $1C80FC |
-  LDX $0F                                   ; $1C80FF |
+  LDX $0F                                   ; $1C80FF | restore entity slot
   RTS                                       ; $1C8101 |
 
 ; checks for and applies effects/damage
@@ -393,18 +403,18 @@ check_weapon_hit:
   STA $00                                   ; $1C827E | |
   LDA weapon_damage_ptr_hi                  ; $1C8280 | |
   STA $01                                   ; $1C8283 |/
-  LDA $A7                                   ; $1C8285 |
-  AND #$1F                                  ; $1C8287 |
+  LDA $A7                                   ; $1C8285 | Top Spin ammo
+  AND #$1F                                  ; $1C8287 | isolate ammo count
   SEC                                       ; $1C8289 |
-  SBC ($00),y                               ; $1C828A |
+  SBC ($00),y                               ; $1C828A | subtract cost from damage table
   BCS .code_1C8290                          ; $1C828C |
-  LDA #$00                                  ; $1C828E |
+  LDA #$00                                  ; $1C828E | clamp to 0
 .code_1C8290:
-  ORA #$80                                  ; $1C8290 |
+  ORA #$80                                  ; $1C8290 | set dirty flag
   STA $A7                                   ; $1C8292 |
-  LDA #$0A                                  ; $1C8294 |
-  STA $30                                   ; $1C8296 |
-  LDA #$08                                  ; $1C8298 |
+  LDA #$0A                                  ; $1C8294 | state → $0A (Top Spin recoil)
+  STA $30                                   ; $1C8296 | player bounces back from contact
+  LDA #$08                                  ; $1C8298 | recoil timer = 8 frames
   STA $0500                                 ; $1C829A |
   LDA $83B4                                 ; $1C829D |
   STA $00                                   ; $1C82A0 |
@@ -422,9 +432,9 @@ check_weapon_hit:
   RTS                                       ; $1C82B7 | if not, return
 
 .boss_death:
-  LDA #$F2                                  ; $1C82B8 |
+  LDA #$F2                                  ; $1C82B8 | SFX $F2 = stop music
   JSR submit_sound_ID_D9                    ; $1C82BA |
-  LDA #$17                                  ; $1C82BD |
+  LDA #$17                                  ; $1C82BD | SFX $17 = boss death sound
   JSR submit_sound_ID                       ; $1C82BF |
   LDY #$1F                                  ; $1C82C2 |
 code_1C82C4:
@@ -472,36 +482,38 @@ code_1C831E:
   STA $0302                                 ; $1C8323 |
   STA $0303                                 ; $1C8326 |
   STA $0520                                 ; $1C8329 |
-  LDA $22                                   ; $1C832C |
-  CMP #$0F                                  ; $1C832E |
-  BEQ code_1C8360                           ; $1C8330 |
-  LDA $30                                   ; $1C8332 |
-  CMP #$0E                                  ; $1C8334 |
-  BEQ code_1C83AD                           ; $1C8336 |
-  LDA #$0C                                  ; $1C8338 |
-  STA $30                                   ; $1C833A |
+  LDA $22                                   ; $1C832C | current stage
+  CMP #$0F                                  ; $1C832E | stage $0F = Wily 4 (refights)
+  BEQ .wily4_boss_death                     ; $1C8330 | special handling for refights
+  LDA $30                                   ; $1C8332 | check player state
+  CMP #$0E                                  ; $1C8334 | if player is dead ($0E),
+  BEQ code_1C83AD                           ; $1C8336 | don't start victory cutscene
+  LDA #$0C                                  ; $1C8338 | state → $0C (victory)
+  STA $30                                   ; $1C833A | begin boss defeated cutscene
   LDA #$00                                  ; $1C833C |
-  STA $32                                   ; $1C833E |
-  STA $0500                                 ; $1C8340 |
-  STA $0301                                 ; $1C8343 |
+  STA $32                                   ; $1C833E | clear sub-state
+  STA $0500                                 ; $1C8340 | clear player timer
+  STA $0301                                 ; $1C8343 | despawn weapon slots 1-3
   STA $0302                                 ; $1C8346 |
   STA $0303                                 ; $1C8349 |
-  LDA #$01                                  ; $1C834C |
-  CMP $05C0                                 ; $1C834E |
-  BEQ code_1C835E                           ; $1C8351 |
+  LDA #$01                                  ; $1C834C | set player OAM to $01 (standing)
+  CMP $05C0                                 ; $1C834E | already standing?
+  BEQ .victory_done                         ; $1C8351 |   skip animation reset
   STA $05C0                                 ; $1C8353 |
   LDA #$00                                  ; $1C8356 |
-  STA $05A0                                 ; $1C8358 |
-  STA $05E0                                 ; $1C835B |
-code_1C835E:
+  STA $05A0                                 ; $1C8358 | reset animation frame
+  STA $05E0                                 ; $1C835B | reset animation counter
+.victory_done:
   CLC                                       ; $1C835E |
   RTS                                       ; $1C835F |
 
-code_1C8360:
+; Wily 4 (stage $0F) boss refight — no victory cutscene, just unstun and
+; spawn the "boss defeated" entity at the boss's position
+.wily4_boss_death:
   LDA $30                                   ; $1C8360 |
-  CMP #$0F                                  ; $1C8362 |
+  CMP #$0F                                  ; $1C8362 | if player was stunned ($0F),
   BNE code_1C836A                           ; $1C8364 |
-  LDA #$00                                  ; $1C8366 |
+  LDA #$00                                  ; $1C8366 | release to on_ground ($00)
   STA $30                                   ; $1C8368 |
 code_1C836A:
   LDA #$80                                  ; $1C836A |
@@ -3656,73 +3668,81 @@ code_1C9AA1:
   db $DB, $00, $DB, $00, $00, $00, $DB, $33 ; $1C9AAC |
   db $DB, $00, $01, $00, $02, $01, $01      ; $1C9AB4 |
 
+; ---------------------------------------------------------------------------
+; main_mag_fly — Mag Fly (moving platform enemy)
+; This is the ONLY entity that triggers state $05 (entity_ride).
+; Player rides the Mag Fly when colliding while in state $00/$01.
+; $34 = slot index of entity being ridden (player tracks this entity).
+; State $05 was never triggered during Mesen testing — Mag Fly may only
+; appear in Snake Man's stage or specific sections not tested.
+; ---------------------------------------------------------------------------
 main_mag_fly:
-  LDA $04A0,x                               ; $1C9ABB |
+  LDA $04A0,x                               ; $1C9ABB | direction flag
   AND #$01                                  ; $1C9ABE |
-  BEQ code_1C9AC8                           ; $1C9AC0 |
+  BEQ .mag_fly_left                         ; $1C9AC0 |
   JSR move_sprite_right                     ; $1C9AC2 |
-  JMP code_1C9ACB                           ; $1C9AC5 |
+  JMP .mag_fly_check_player                 ; $1C9AC5 |
 
-code_1C9AC8:
+.mag_fly_left:
   JSR move_sprite_left                      ; $1C9AC8 |
-code_1C9ACB:
-  JSR code_1FF8B3                           ; $1C9ACB |
-  BCC code_1C9B2B                           ; $1C9ACE |
-  JSR code_1FF8C2                           ; $1C9AD0 |
-  CMP #$10                                  ; $1C9AD3 |
-  BCS code_1C9B2B                           ; $1C9AD5 |
-  LDA $30                                   ; $1C9AD7 |
-  CMP #$02                                  ; $1C9AD9 |
-  BCS code_1C9B08                           ; $1C9ADB |
-  LDA #$05                                  ; $1C9ADD |
+.mag_fly_check_player:
+  JSR code_1FF8B3                           ; $1C9ACB | check player proximity
+  BCC .mag_fly_dismount_check               ; $1C9ACE | no overlap → check dismount
+  JSR code_1FF8C2                           ; $1C9AD0 | detailed collision check
+  CMP #$10                                  ; $1C9AD3 | too far away?
+  BCS .mag_fly_dismount_check               ; $1C9AD5 |
+  LDA $30                                   ; $1C9AD7 | only mount if state < $02
+  CMP #$02                                  ; $1C9AD9 | (on_ground or airborne)
+  BCS .mag_fly_already_riding               ; $1C9ADB |
+  LDA #$05                                  ; $1C9ADD | state → $05 (entity_ride)
   STA $30                                   ; $1C9ADF |
-  STX $34                                   ; $1C9AE1 |
-  LDA #$07                                  ; $1C9AE3 |
+  STX $34                                   ; $1C9AE1 | $34 = ridden entity slot
+  LDA #$07                                  ; $1C9AE3 | player OAM $07 (riding anim)
   STA $05C0                                 ; $1C9AE5 |
   LDA #$00                                  ; $1C9AE8 |
-  STA $05E0                                 ; $1C9AEA |
-  STA $05A0                                 ; $1C9AED |
-  STA $32                                   ; $1C9AF0 |
-  LDA $03C0                                 ; $1C9AF2 |
+  STA $05E0                                 ; $1C9AEA | reset animation counter
+  STA $05A0                                 ; $1C9AED | reset animation frame
+  STA $32                                   ; $1C9AF0 | clear sub-state
+  LDA $03C0                                 ; $1C9AF2 | save player Y as reference
   STA $0500,x                               ; $1C9AF5 |
-  LDA $0460                                 ; $1C9AF8 |
-  BPL code_1C9B43                           ; $1C9AFB |
-  LDA #$55                                  ; $1C9AFD |
-  STA $0440                                 ; $1C9AFF |
-  LDA #$00                                  ; $1C9B02 |
-  STA $0460                                 ; $1C9B04 |
+  LDA $0460                                 ; $1C9AF8 | player Y velocity (high byte)
+  BPL code_1C9B43                           ; $1C9AFB | if falling down, done
+  LDA #$55                                  ; $1C9AFD |\ if moving up, zero out velocity
+  STA $0440                                 ; $1C9AFF | | $0440/$0460 = $55/$00
+  LDA #$00                                  ; $1C9B02 | | (gravity baseline, not moving)
+  STA $0460                                 ; $1C9B04 |/
   RTS                                       ; $1C9B07 |
 
-code_1C9B08:
+.mag_fly_already_riding:
   LDA $30                                   ; $1C9B08 |
-  CMP #$05                                  ; $1C9B0A |
+  CMP #$05                                  ; $1C9B0A | if not in entity_ride, skip
   BNE code_1C9B43                           ; $1C9B0C |
-  CPX $34                                   ; $1C9B0E |
+  CPX $34                                   ; $1C9B0E | if riding different entity, skip
   BNE code_1C9B43                           ; $1C9B10 |
-  LDA $0500,x                               ; $1C9B12 |
+  LDA $0500,x                               ; $1C9B12 | check Y distance from mount point
   SEC                                       ; $1C9B15 |
   SBC $03C0                                 ; $1C9B16 |
-  CMP #$20                                  ; $1C9B19 |
-  BCC code_1C9B43                           ; $1C9B1B |
-  LDA #$00                                  ; $1C9B1D |
+  CMP #$20                                  ; $1C9B19 | if player drifted > 32px away,
+  BCC code_1C9B43                           ; $1C9B1B | stay mounted
+  LDA #$00                                  ; $1C9B1D | dismount: clear player velocity
   STA $0440                                 ; $1C9B1F |
   STA $0460                                 ; $1C9B22 |
-  LDA $04A0,x                               ; $1C9B25 |
-  STA $35                                   ; $1C9B28 |
+  LDA $04A0,x                               ; $1C9B25 | $35 = Mag Fly's direction
+  STA $35                                   ; $1C9B28 | (player inherits movement dir)
   RTS                                       ; $1C9B2A |
 
-code_1C9B2B:
-  LDA $30                                   ; $1C9B2B |
+.mag_fly_dismount_check:
+  LDA $30                                   ; $1C9B2B | if player is riding ($05)
   CMP #$05                                  ; $1C9B2D |
-  BNE code_1C9B43                           ; $1C9B2F |
+  BNE code_1C9B43                           ; $1C9B2F | and it's THIS entity
   CPX $34                                   ; $1C9B31 |
   BNE code_1C9B43                           ; $1C9B33 |
-  LDA #$AB                                  ; $1C9B35 |
+  LDA #$AB                                  ; $1C9B35 | set fall velocity
   STA $0440                                 ; $1C9B37 |
   LDA #$FF                                  ; $1C9B3A |
   STA $0460                                 ; $1C9B3C |
-  LDA #$00                                  ; $1C9B3F |
-  STA $30                                   ; $1C9B41 |
+  LDA #$00                                  ; $1C9B3F | state → $00 (on_ground)
+  STA $30                                   ; $1C9B41 | dismount complete
 code_1C9B43:
   RTS                                       ; $1C9B43 |
 
@@ -4559,25 +4579,32 @@ code_1DA1C4:
   BEQ code_1DA1E1                           ; $1DA1CA |
   LDA #$00                                  ; $1DA1CC |
   STA $0300,x                               ; $1DA1CE |
-  LDA $0320,x                               ; $1DA1D1 |
-  CMP #$53                                  ; $1DA1D4 |
+  LDA $0320,x                               ; $1DA1D1 | entity routine index
+  CMP #$53                                  ; $1DA1D4 | $53 = Proto Man (cutscene entity)
   BNE code_1DA1DD                           ; $1DA1D6 |
-  LDA #$13                                  ; $1DA1D8 |
-  STA $30                                   ; $1DA1DA |
+  LDA #$13                                  ; $1DA1D8 | state → $13 (teleport_beam)
+  STA $30                                   ; $1DA1DA | Proto Man flies away → player beams
   RTS                                       ; $1DA1DC |
 
 code_1DA1DD:
-  LDA #$80                                  ; $1DA1DD |
+  LDA #$80                                  ; $1DA1DD | $68 = cutscene-complete flag
   STA $68                                   ; $1DA1DF |
 code_1DA1E1:
   RTS                                       ; $1DA1E1 |
 
+; ---------------------------------------------------------------------------
+; main_proto_man_gemini_cutscene — Proto Man / Gemini Man intro cutscene
+; Freezes player in state $0F (stunned) while cutscene plays.
+; Proto Man whistles, drops down, then flies away.
+; When done, releases player back to state $00 (on_ground).
+; Entity routine $53 = Proto Man triggers state $13 (teleport_beam) on exit.
+; ---------------------------------------------------------------------------
 main_proto_man_gemini_cutscene:
-  JSR code_1DA249                           ; $1DA1E2 |
-  LDA $0560,x                               ; $1DA1E5 |
-  BEQ code_1DA1E1                           ; $1DA1E8 |
-  LDA #$0F                                  ; $1DA1EA |
-  STA $30                                   ; $1DA1EC |
+  JSR code_1DA249                           ; $1DA1E2 | cutscene init/whistle
+  LDA $0560,x                               ; $1DA1E5 | phase flag
+  BEQ code_1DA1E1                           ; $1DA1E8 | not started yet → return
+  LDA #$0F                                  ; $1DA1EA | state → $0F (stunned)
+  STA $30                                   ; $1DA1EC | freeze player during cutscene
   LDA $0300,x                               ; $1DA1EE |
   AND #$0F                                  ; $1DA1F1 |
   BNE code_1DA216                           ; $1DA1F3 |
@@ -4607,11 +4634,11 @@ code_1DA216:
   STA $0460,x                               ; $1DA22D |
 code_1DA230:
   JSR code_1DA1A2                           ; $1DA230 |
-  LDA $68                                   ; $1DA233 |
-  BEQ code_1DA248                           ; $1DA235 |
-  LDA #$00                                  ; $1DA237 |
-  STA $30                                   ; $1DA239 |
-  LDY #$0F                                  ; $1DA23B |
+  LDA $68                                   ; $1DA233 | cutscene-complete flag
+  BEQ code_1DA248                           ; $1DA235 | not done yet → return
+  LDA #$00                                  ; $1DA237 | state → $00 (on_ground)
+  STA $30                                   ; $1DA239 | release player from stun
+  LDY #$0F                                  ; $1DA23B | clear all weapon slots
 code_1DA23D:
   STA $0310,y                               ; $1DA23D |
   DEY                                       ; $1DA240 |
@@ -4622,16 +4649,17 @@ code_1DA243:
 code_1DA248:
   RTS                                       ; $1DA248 |
 
-code_1DA249:
-  LDA $0560,x                               ; $1DA249 |
-  BNE code_1DA292                           ; $1DA24C |
-  LDA $30                                   ; $1DA24E |
-  BNE code_1DA25D                           ; $1DA250 |
-  LDA $05C0                                 ; $1DA252 |
-  CMP #$13                                  ; $1DA255 |
+; cutscene init — freeze player and play Proto Man's whistle
+.cutscene_init:
+  LDA $0560,x                               ; $1DA249 | if phase already started,
+  BNE code_1DA292                           ; $1DA24C | skip init
+  LDA $30                                   ; $1DA24E | if player already stunned,
+  BNE code_1DA25D                           ; $1DA250 | skip to whistle
+  LDA $05C0                                 ; $1DA252 | player OAM ID
+  CMP #$13                                  ; $1DA255 | $13 = teleporting? skip
   BEQ code_1DA292                           ; $1DA257 |
-  LDA #$0F                                  ; $1DA259 |
-  STA $30                                   ; $1DA25B |
+  LDA #$0F                                  ; $1DA259 | state → $0F (stunned)
+  STA $30                                   ; $1DA25B | freeze player for cutscene
 code_1DA25D:
   LDA #$11                                  ; $1DA25D |
   CMP $D9                                   ; $1DA25F |
@@ -4642,22 +4670,22 @@ code_1DA25D:
 code_1DA26B:
   DEC $0500,x                               ; $1DA26B |
   BNE code_1DA292                           ; $1DA26E |
-  LDA #$00                                  ; $1DA270 |
-  STA $30                                   ; $1DA272 |
-  INC $0560,x                               ; $1DA274 |
+  LDA #$00                                  ; $1DA270 | state → $00 (on_ground)
+  STA $30                                   ; $1DA272 | whistle done, release player
+  INC $0560,x                               ; $1DA274 | advance to next cutscene phase
   LDA $0580,x                               ; $1DA277 |
-  AND #$FB                                  ; $1DA27A |
+  AND #$FB                                  ; $1DA27A | clear bit 2 (??? flag)
   STA $0580,x                               ; $1DA27C |
-  LDA $0320,x                               ; $1DA27F |
-  CMP #$53                                  ; $1DA282 |
-  BNE code_1DA28A                           ; $1DA284 |
-  LDA #$0C                                  ; $1DA286 |
-  BNE code_1DA28F                           ; $1DA288 |
-code_1DA28A:
-  LDA $22                                   ; $1DA28A |
-  CLC                                       ; $1DA28C |
+  LDA $0320,x                               ; $1DA27F | entity routine index
+  CMP #$53                                  ; $1DA282 | $53 = Proto Man
+  BNE .not_proto_man                        ; $1DA284 |
+  LDA #$0C                                  ; $1DA286 | Proto Man stage music ($0C)
+  BNE .play_music                           ; $1DA288 |
+.not_proto_man:
+  LDA $22                                   ; $1DA28A | else play stage music
+  CLC                                       ; $1DA28C | (stage index + 1)
   ADC #$01                                  ; $1DA28D |
-code_1DA28F:
+.play_music:
   JSR submit_sound_ID_D9                    ; $1DA28F |
 code_1DA292:
   RTS                                       ; $1DA292 |
@@ -7248,15 +7276,22 @@ code_1DB7D9:
   STA $0300,x                               ; $1DB7DB |
   RTS                                       ; $1DB7DE |
 
-code_1DB7DF:
-  LDA #$09                                  ; $1DB7DF |
-  STA $30                                   ; $1DB7E1 |
-  LDA #$80                                  ; $1DB7E3 |
-  STA $B0                                   ; $1DB7E5 |
-  STA $5A                                   ; $1DB7E7 |
-  LDA #$8E                                  ; $1DB7E9 |
-  STA $B3                                   ; $1DB7EB |
-  LDA #$0C                                  ; $1DB7ED |
+; ---------------------------------------------------------------------------
+; init_boss_wait — freeze player for boss intro sequence
+; Called when boss shutter closes. Sets state $09 (boss_wait):
+; player frozen while boss HP bar fills, then released to $00.
+; Same pattern used by all Robot Masters, Doc Robots, and fortress bosses.
+; $B0 = boss HP meter position, $B3 = HP fill target ($8E = 28 HP).
+; ---------------------------------------------------------------------------
+init_boss_wait:
+  LDA #$09                                  ; $1DB7DF | state → $09 (boss_wait)
+  STA $30                                   ; $1DB7E1 | freeze player
+  LDA #$80                                  ; $1DB7E3 | init boss HP display
+  STA $B0                                   ; $1DB7E5 | $B0 = HP bar position
+  STA $5A                                   ; $1DB7E7 | $5A = boss active flag
+  LDA #$8E                                  ; $1DB7E9 | $B3 = HP fill target
+  STA $B3                                   ; $1DB7EB | ($8E = $80 + 14 ticks = 28 HP)
+  LDA #$0C                                  ; $1DB7ED | SFX $0C = boss intro music
   JSR submit_sound_ID_D9                    ; $1DB7EF |
   RTS                                       ; $1DB7F2 |
 

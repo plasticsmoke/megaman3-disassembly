@@ -126,11 +126,11 @@ code_04A0DD:
   LDA #$60                                  ; $04A0E2 |
   STA $0500,x                               ; $04A0E4 |
   DEC $0300,x                               ; $04A0E7 |
-  LDA $30                                   ; $04A0EA |
-  CMP #$0E                                  ; $04A0EC |
+  LDA $30                                   ; $04A0EA | if player already dead ($0E),
+  CMP #$0E                                  ; $04A0EC | don't reset state
   BEQ code_04A0F4                           ; $04A0EE |
-  LDA #$00                                  ; $04A0F0 |
-  STA $30                                   ; $04A0F2 |
+  LDA #$00                                  ; $04A0F0 | state → $00 (on_ground)
+  STA $30                                   ; $04A0F2 | release player from Doc Robot
 code_04A0F4:
   RTS                                       ; $04A0F4 |
 
@@ -236,12 +236,16 @@ code_04A1B6:
   DEY                                       ; $04A1D0 |
   DEY                                       ; $04A1D1 |
   BPL code_04A1B6                           ; $04A1D2 |
-  LDA $30                                   ; $04A1D4 |
-  CMP #$0E                                  ; $04A1D6 |
+; This is the ONLY trigger for state $07 (special_death) in the entire game.
+; Copies explosion OAM data to sprite page, then sets palette-cycling kill.
+; Triggered by Doc Flash Man's Time Stopper attack (Gemini Man Doc Robot stage).
+; [confirmed via Mesen]
+  LDA $30                                   ; $04A1D4 | if player already dead ($0E),
+  CMP #$0E                                  ; $04A1D6 | don't overwrite with special_death
   BEQ code_04A1E3                           ; $04A1D8 |
-  LDA #$07                                  ; $04A1DA |
-  STA $30                                   ; $04A1DC |
-  LDA #$1E                                  ; $04A1DE |
+  LDA #$07                                  ; $04A1DA | state → $07 (special_death)
+  STA $30                                   ; $04A1DC | palette cycling kill effect
+  LDA #$1E                                  ; $04A1DE | timer = 30 frames
   STA $0500                                 ; $04A1E0 |
 code_04A1E3:
   RTS                                       ; $04A1E3 |
