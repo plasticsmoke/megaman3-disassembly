@@ -246,8 +246,8 @@
 ;   Gravity (enemies): $FFAB as velocity = -0.332 px/frame²
 ;   Terminal velocity: $07.00 = 7.0 px/frame downward (clamped at $0460 >= $07)
 ;   Walk speed:        $01.4C = 1.297 px/frame (same as MM4)
-;   Slide speed:       (TODO: verify from player slide state)
-;   Jump velocity:     (TODO: verify from player_on_ground.jump)
+;   Slide speed:       (TODO: verify via Mesen memory watch in state $02)
+;   Jump velocity:     $04.E5 = ~4.898 px/frame upward (confirmed, see .jump at $ECEB3)
 ;
 ; PLAYER STATES (22 states, index in $30, dispatched via player_state_ptr tables):
 ; Verified via Mesen 0.9.9 write breakpoint on $0030 during full playthrough.
@@ -256,7 +256,7 @@
 ;   $02 = player_slide        ($D3FD) — sliding on ground [confirmed]
 ;   $03 = player_ladder       ($D4EB) — on ladder (climb, fire, jump off) [confirmed]
 ;   $04 = player_reappear     ($D5BA) — respawn/reappear (death, unpause, stage start) [confirmed]
-;   $05 = player_entity_ride  ($D613) — riding entity at slot $34 (anim $62) [unconfirmed]
+;   $05 = player_entity_ride  ($D613) — riding Mag Fly (magnetic pull, Magnet Man stage) [confirmed]
 ;   $06 = player_damage       ($D6AB) — taking damage (contact or projectile) [confirmed]
 ;   $07 = player_special_death($D831) — Doc Flash Time Stopper kill [confirmed]
 ;   $08 = player_rush_marine  ($D858) — riding Rush Marine submarine [confirmed]
@@ -270,7 +270,7 @@
 ;   $10 = player_screen_scroll($DD14) — vertical scroll transition between sections [confirmed]
 ;   $11 = player_warp_init    ($DDAA) — teleporter tube area initialization [confirmed]
 ;   $12 = player_warp_anim    ($DE52) — wait for warp animation, return to $00 [confirmed]
-;   $13 = player_teleport_beam($DF33) — teleport beam landing w/ gravity [unconfirmed]
+;   $13 = player_teleport_beam($DF33) — Proto Man exit beam (Wily gate scene) [confirmed]
 ;   $14 = player_auto_walk    ($DF8A) — scripted walk to X=$50 (post-Wily) [confirmed]
 ;   $15 = player_auto_walk_2  ($E08C) — scripted walk to X=$68 (ending cutscene) [confirmed]
 ;
@@ -2306,7 +2306,7 @@ code_1ECD8B:
 ;   $02 = player_slide        ($D3FD) — sliding on ground [confirmed]
 ;   $03 = player_ladder       ($D4EB) — on ladder (climb, fire, jump off) [confirmed]
 ;   $04 = player_reappear     ($D5BA) — respawn/reappear (death, unpause, stage start) [confirmed]
-;   $05 = player_entity_ride  ($D613) — riding entity at slot $34 (anim $62) [unconfirmed]
+;   $05 = player_entity_ride  ($D613) — riding Mag Fly (magnetic pull, Magnet Man stage) [confirmed]
 ;   $06 = player_damage       ($D6AB) — taking damage (contact or projectile) [confirmed]
 ;   $07 = player_special_death($D831) — Doc Flash Time Stopper kill [confirmed]
 ;   $08 = player_rush_marine  ($D858) — riding Rush Marine submarine [confirmed]
@@ -2320,7 +2320,7 @@ code_1ECD8B:
 ;   $10 = player_screen_scroll($DD14) — vertical scroll transition between sections [confirmed]
 ;   $11 = player_warp_init    ($DDAA) — teleporter tube area initialization [confirmed]
 ;   $12 = player_warp_anim    ($DE52) — wait for warp animation, return to $00 [confirmed]
-;   $13 = player_teleport_beam($DF33) — teleport beam landing w/ gravity [unconfirmed]
+;   $13 = player_teleport_beam($DF33) — Proto Man exit beam (Wily gate scene) [confirmed]
 ;   $14 = player_auto_walk    ($DF8A) — scripted walk to X=$50 (post-Wily) [confirmed]
 ;   $15 = player_auto_walk_2  ($E08C) — scripted walk to X=$68 (ending cutscene) [confirmed]
 ;
@@ -2488,17 +2488,17 @@ player_on_ground:
   BEQ code_1ECE35                           ; $1ECE93 | | newpressing A
   LDA $16                                   ; $1ECE95 | | and not holding down?
   AND #$04                                  ; $1ECE97 | | return, else go on
-  BEQ code_1ECE35                           ; $1ECE99 | | to ???
-  JMP code_1ED38E                           ; $1ECE9B |/
+  BEQ code_1ECE35                           ; $1ECE99 | | return (no slide)
+  JMP code_1ED38E                           ; $1ECE9B |/ initiate slide
 
 .check_jump:
   LDA $14                                   ; $1ECE9E |\
   AND #$80                                  ; $1ECEA0 | | newpressing A
   BEQ code_1ECECD                           ; $1ECEA2 | | and not holding down
   LDA $16                                   ; $1ECEA4 | | means jumping
-  AND #$04                                  ; $1ECEA6 | | else go on to ???
+  AND #$04                                  ; $1ECEA6 | | holding down → slide instead
   BEQ .jump                                 ; $1ECEA8 | |
-  JMP code_1ED38E                           ; $1ECEAA |/
+  JMP code_1ED38E                           ; $1ECEAA |/ initiate slide
 
 .jump:
   LDA $17                                   ; $1ECEAD |\  check controller 2
@@ -3550,7 +3550,7 @@ code_1ED60C:
   STA $30                                   ; $1ED60E |
   JMP reset_gravity                         ; $1ED610 |
 
-; player state $05: riding entity at slot $34 (anim $62) [unconfirmed]
+; player state $05: riding Mag Fly — magnetic pull, Magnet Man stage [confirmed]
 player_entity_ride:
   LDY $34                                   ; $1ED613 |
   LDA $0300,y                               ; $1ED615 |
@@ -4688,7 +4688,9 @@ weapon_framerate:
   db $02                                    ; $1EDF31 | Shadow Blade
   db $1E                                    ; $1EDF32 | Rush Jet
 
-; player state $13: teleport beam landing w/ gravity [unconfirmed]
+; player state $13: Proto Man exit beam — Wily gate scene after all Doc Robots [confirmed]
+; Triggered only by Proto Man routine $53 (bank18 scripted spawn, $60=$12).
+; Player beams in with gravity, lands, then rises off-screen.
 player_teleport_beam:
   LDA $05C0                                 ; $1EDF33 |
   CMP #$13                                  ; $1EDF36 |
@@ -7144,8 +7146,8 @@ process_entity_display:
   STA $0580,x                               ; $1FF0B4 |/
   CPX #$00                                  ; $1FF0B7 |\ not player? skip to sprite draw
   BNE .draw                                 ; $1FF0B9 |/
-  LDA $17                                   ; $1FF0BB |\ $17 bit 0 = ??? flag
-  AND #$01                                  ; $1FF0BD | |
+  LDA $17                                   ; $1FF0BB |\ controller 2 Right held?
+  AND #$01                                  ; $1FF0BD | | (debug: prevents off-screen death)
   BNE .player_check_landing                 ; $1FF0BF |/
   LDA $03E0                                 ; $1FF0C1 |\ player Y screen negative? draw
   BMI .draw                                 ; $1FF0C4 |/
@@ -8652,8 +8654,8 @@ check_player_collision:
   BEQ .ret                                  ; $1FFAEA |/
   SEC                                       ; $1FFAEC |
   LDA $0580,x                               ; $1FFAED |\
-  BPL .ret                                  ; $1FFAF0 | | if ??? sprite flag off
-  AND #$04                                  ; $1FFAF2 | | or ??? sprite flag on
+  BPL .ret                                  ; $1FFAF0 | | if not active (bit 7 clear)
+  AND #$04                                  ; $1FFAF2 | | or disabled (bit 2 set)
   BNE .ret                                  ; $1FFAF4 |/  return
 .height:
   LDA $0480,x                               ; $1FFAF6 |\
@@ -8731,9 +8733,9 @@ check_sprite_weapon_collision:
   LDA $0300,y                               ; $1FFB8B |\
   BPL .next_weapon                          ; $1FFB8E | | if weapon
   LDA $0580,y                               ; $1FFB90 | | is inactive
-  BPL .next_weapon                          ; $1FFB93 | | or flag ???
+  BPL .next_weapon                          ; $1FFB93 | | or not active (bit 7 clear)
   LDA $0320,y                               ; $1FFB95 | |
-  CMP #$0F                                  ; $1FFB98 | | or main routine index ???
+  CMP #$0F                                  ; $1FFB98 | | or routine $0F (item pickup dying)
   BEQ .next_weapon                          ; $1FFB9A | |
   LDA $05C0,y                               ; $1FFB9C | |
   CMP #$13                                  ; $1FFB9F | | or OAM ID $13
@@ -8744,8 +8746,8 @@ check_sprite_weapon_collision:
   BEQ .next_weapon                          ; $1FFBA9 | |
   CMP #$D9                                  ; $1FFBAB | | or $D9
   BEQ .next_weapon                          ; $1FFBAD | | or if current sprite (passed in)
-  LDA $0580,x                               ; $1FFBAF | | flags ???
-  BPL .next_weapon                          ; $1FFBB2 | | or flags ???
+  LDA $0580,x                               ; $1FFBAF | | not active (bit 7 clear)
+  BPL .next_weapon                          ; $1FFBB2 | | or disabled (bit 2 set)
   AND #$04                                  ; $1FFBB4 | | then don't check collision
   BNE .next_weapon                          ; $1FFBB6 |/
   LDA $0360,y                               ; $1FFBB8 |\

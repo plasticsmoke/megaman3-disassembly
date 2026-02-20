@@ -149,7 +149,7 @@ process_sprites:
 ; ---------------------------------------------------------------------------
 check_player_hit:
   LDA $05C0                                 ; $1C8097 | check player animation
-  CMP #$A4                                  ; $1C809A | $A4 = ??? (skip if this anim)
+  CMP #$A4                                  ; $1C809A | $A4 = death/invincible anim (skip)
   BEQ process_sprites.ret                   ; $1C809C |
   STX $0F                                   ; $1C809E | save entity slot
   LDA $F5                                   ; $1C80A0 | save current bank
@@ -296,9 +296,9 @@ check_weapon_hit:
   JMP .check_boss                           ; $1C81B3 |
 
 .check_damage:
-  LDA $04E0,x                               ; $1C81B6 |\  if all three ??? flags
-  AND #$E0                                  ; $1C81B9 | | are off, apply damage
-  BEQ .apply_damage                         ; $1C81BB |/
+  LDA $04E0,x                               ; $1C81B6 |\  if any hit-ack flags set
+  AND #$E0                                  ; $1C81B9 | | (bits 7/6/5 = already hit)
+  BEQ .apply_damage                         ; $1C81BB |/  skip — already took damage
   JMP .despawn_shot                         ; $1C81BD | else don't
 .apply_damage:
   LDY $0320,x                               ; $1C81C0 |\
@@ -312,13 +312,13 @@ check_weapon_hit:
   BNE .check_health                         ; $1C81D0 |/ if nonzero, we're still alive
 ; dead
   LDA $0320,x                               ; $1C81D2 |\
-  CMP #$52                                  ; $1C81D5 | | if proto man or ???
-  BEQ .check_health                         ; $1C81D7 | | don't do normal death
-  CMP #$53                                  ; $1C81D9 | |
-  BEQ .check_health                         ; $1C81DB |/
+  CMP #$52                                  ; $1C81D5 | | if Proto Man ($52 or $53)
+  BEQ .check_health                         ; $1C81D7 | | don't do normal death —
+  CMP #$53                                  ; $1C81D9 | | Proto Man has his own
+  BEQ .check_health                         ; $1C81DB |/  fly-away exit in main_proto_man
   LDA $5A                                   ; $1C81DD |\
-  BPL .code_1C81E5                          ; $1C81DF | | OAM ID $71 for ???
-  LDA #$59                                  ; $1C81E1 | | else OAM ID $59
+  BPL .code_1C81E5                          ; $1C81DF | | $5A<0: boss active → OAM $71
+  LDA #$59                                  ; $1C81E1 | | $5A>=0: normal → OAM $59
   BNE .death_animation                      ; $1C81E3 |/
 .code_1C81E5:
   LDA #$71                                  ; $1C81E5 |
@@ -346,8 +346,8 @@ check_weapon_hit:
   AND #$40                                  ; $1C820F | | if sprite is a boss
   BNE .boss_flags                           ; $1C8211 |/
   LDA $04E0,x                               ; $1C8213 |\
-  ORA #$20                                  ; $1C8216 | | if not, turn on
-  STA $04E0,x                               ; $1C8218 |/  ??? flag
+  ORA #$20                                  ; $1C8216 | | set bit 5 = hit-ack flag
+  STA $04E0,x                               ; $1C8218 |/  (prevents double-damage this frame)
   BNE .despawn_shot                         ; $1C821B |
 .boss_flags:
   LDA $22                                   ; $1C821D |\  if stage == Wily 4
@@ -358,7 +358,7 @@ check_weapon_hit:
 .doc_robot_master_flags:
   LDA $04E0,x                               ; $1C8227 |\
   ORA #$E0                                  ; $1C822A | | for doc/robot masters,
-  STA $04E0,x                               ; $1C822C |/  turn on ??? flags
+  STA $04E0,x                               ; $1C822C |/  set all hit-ack flags (bits 7/6/5)
 .despawn_shot:
   LDA $A0                                   ; $1C822F |\
   CMP #$05                                  ; $1C8231 | | if weapon is top spin
@@ -424,9 +424,9 @@ check_weapon_hit:
 
 .boss_hit:
   LDA $04E0,x                               ; $1C82AA |\  boss health bits
-  AND #$1F                                  ; $1C82AD | | turn ??? flag on
-  ORA #$80                                  ; $1C82AF | | -> new boss health
-  STA $B0                                   ; $1C82B1 |/
+  AND #$1F                                  ; $1C82AD | | mask to HP (low 5 bits)
+  ORA #$80                                  ; $1C82AF | | set bit 7 = "boss was hit" flag
+  STA $B0                                   ; $1C82B1 |/ store to boss HP mirror
   AND #$7F                                  ; $1C82B3 |\ did boss die?
   BEQ .boss_death                           ; $1C82B5 |/
   RTS                                       ; $1C82B7 | if not, return
@@ -3669,12 +3669,13 @@ code_1C9AA1:
   db $DB, $00, $01, $00, $02, $01, $01      ; $1C9AB4 |
 
 ; ---------------------------------------------------------------------------
-; main_mag_fly — Mag Fly (moving platform enemy)
-; This is the ONLY entity that triggers state $05 (entity_ride).
-; Player rides the Mag Fly when colliding while in state $00/$01.
+; main_mag_fly — Mag Fly (flying horseshoe magnet, Magnet Man stage)
+; Flying magnet enemy that magnetically pulls Mega Man upward.
+; This is the ONLY entity that triggers player state $05 (entity_ride).
+; Player mounts when within X distance < $10 and Y overlap, state $00/$01.
 ; $34 = slot index of entity being ridden (player tracks this entity).
-; State $05 was never triggered during Mesen testing — Mag Fly may only
-; appear in Snake Man's stage or specific sections not tested.
+; Confirmed via Mesen breakpoint — triggered by magnetic pull while
+; standing or jumping near a Mag Fly in Magnet Man's stage.
 ; ---------------------------------------------------------------------------
 main_mag_fly:
   LDA $04A0,x                               ; $1C9ABB | direction flag
@@ -4335,6 +4336,14 @@ code_1C9FE2:
   db $04, $03, $04, $03, $CC, $80, $CC, $80 ; $1C9FEB |
   db $00, $00, $00, $00                     ; $1C9FF3 |
 
+; ---------------------------------------------------------------------------
+; main_proto_man — Proto Man (Break Man) fighting encounter
+; Used by both routine $52 (normal) and $53 (Hard Man scripted).
+; Routine $52: Magnet Man stage (global enemy ID $3E). On defeat → $68=$80.
+; Routine $53: Hard Man stage (hardcoded spawn in bank18, slot $1F).
+;   On defeat → player state $13 (teleport_beam). Only $53 triggers this.
+; $0320 - $52 indexes into data tables at $A176+ for per-variant animations.
+; ---------------------------------------------------------------------------
 main_proto_man:
   JSR $A249                                 ; $1C9FF7 |
   LDA $0560,x                               ; $1C9FFA |
@@ -4580,10 +4589,10 @@ code_1DA1C4:
   LDA #$00                                  ; $1DA1CC |
   STA $0300,x                               ; $1DA1CE |
   LDA $0320,x                               ; $1DA1D1 | entity routine index
-  CMP #$53                                  ; $1DA1D4 | $53 = Proto Man (cutscene entity)
-  BNE code_1DA1DD                           ; $1DA1D6 |
+  CMP #$53                                  ; $1DA1D4 | $53 = Hard Man stage Proto Man
+  BNE code_1DA1DD                           ; $1DA1D6 | $52 = normal → skip, set $68
   LDA #$13                                  ; $1DA1D8 | state → $13 (teleport_beam)
-  STA $30                                   ; $1DA1DA | Proto Man flies away → player beams
+  STA $30                                   ; $1DA1DA | Proto Man defeated → player beams out
   RTS                                       ; $1DA1DC |
 
 code_1DA1DD:
@@ -4674,7 +4683,7 @@ code_1DA26B:
   STA $30                                   ; $1DA272 | whistle done, release player
   INC $0560,x                               ; $1DA274 | advance to next cutscene phase
   LDA $0580,x                               ; $1DA277 |
-  AND #$FB                                  ; $1DA27A | clear bit 2 (??? flag)
+  AND #$FB                                  ; $1DA27A | clear bit 2 (disabled flag)
   STA $0580,x                               ; $1DA27C |
   LDA $0320,x                               ; $1DA27F | entity routine index
   CMP #$53                                  ; $1DA282 | $53 = Proto Man
@@ -6321,7 +6330,7 @@ main_wanaan:
   LDA $0580,x                               ; $1DB019 |\  on expiration,
   EOR #$04                                  ; $1DB01C | | turn $04 sprite flag on
   STA $0580,x                               ; $1DB01E |/
-  LDA #$A3                                  ; $1DB021 |\ and set shape to ???
+  LDA #$A3                                  ; $1DB021 |\ set shape $A3 (extended hitbox)
   STA $0480,x                               ; $1DB023 |/
 
 .snapping:
@@ -6355,9 +6364,9 @@ main_wanaan:
   LDA $0540,x                               ; $1DB066 |\ restore original presnap
   STA $03C0,x                               ; $1DB069 |/ Y position
   LDA $0580,x                               ; $1DB06C |\
-  ORA #$94                                  ; $1DB06F | | sprite flags ???
+  ORA #$94                                  ; $1DB06F | | flags: active+bit4+disabled ($94)
   STA $0580,x                               ; $1DB071 |/
-  LDA #$80                                  ; $1DB074 |\ sprite state ???
+  LDA #$80                                  ; $1DB074 |\ reset entity to active/idle
   STA $0300,x                               ; $1DB076 |/
   LDA #$83                                  ; $1DB079 |\ reset shape
   STA $0480,x                               ; $1DB07B |/

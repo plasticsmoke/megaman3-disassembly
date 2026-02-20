@@ -4,7 +4,7 @@ Fork of [refreshing-lemonade/megaman3-disassembly](https://github.com/refreshing
 
 ## What This Fork Adds
 
-- **Mesen-verified player state labels**: All 22 player states identified by setting write breakpoints on $0030. 20 confirmed, 2 unconfirmed.
+- **Mesen-verified player state labels**: All 22 player states identified and confirmed by setting write breakpoints on $0030. Includes hard-to-trigger states: $05 (Mag Fly magnetic pull, Magnet Man stage), $07 (Doc Flash Time Stopper kill), $13 (Proto Man exit beam, Wily gate scene after all Doc Robots beaten).
 - **Tile collision system**: All 7 collision types mapped ($00 air, $10 solid, $20 ladder, $30 damage, $40 ladder top, $50 spikes, $70 disappearing block). `check_tile_collision` routine labeled with full documentation of the `$BF00` attribute table lookup, ground detection, ladder entry, and hazard priority system.
 - **Level data format**: Complete per-stage bank layout documented — screen pointer tables ($AA60), screen layout data ($AA82, 20 bytes/screen with 16 metatile column IDs + 4 connection bytes), metatile column definitions ($AF00, 64 bytes/column), CHR tile definitions ($B700, 4 bytes/metatile = 2x2 pattern), and collision attribute table ($BF00). `load_stage` routine and `stage_to_bank` mapping table labeled.
 - **Enemy spawn system**: Per-stage placement tables ($AB00 screen, $AC00 X, $AD00 Y, $AE00 global enemy ID) feeding into bank $00's global enemy data tables (flags, AI routine, shape, HP). `spawn_enemy` routine in bank1A_1B fully annotated.
@@ -18,6 +18,9 @@ Fork of [refreshing-lemonade/megaman3-disassembly](https://github.com/refreshing
 - **Math utilities**: 8-bit and 16-bit restoring division routines (`divide_8bit`, `divide_16bit`) annotated with algorithm explanation (shift-and-subtract, fixed-point results).
 - **Entity helper functions**: `init_child_entity` (85+ callers, spawns sub-entity inheriting parent's flip), `set_sprite_hflip` (35+ callers, converts facing direction to NES horizontal flip bit), `face_player` (aims entity toward player).
 - **Movement with collision**: `move_right_collide`, `move_left_collide`, `move_down_collide`, `move_up_collide` (20+ callers each), `move_vertical_gravity` (20+ callers) — full movement+tile collision pipeline with platform interaction for player slot.
+- **NES system-level annotations**: RESET vector (full NES init sequence), cooperative task scheduler (4-slot coroutine system with sleep/wake/yield), NMI interaction, controller read with DPCM-glitch mitigation, nametable fill, PPU update buffer helpers (`queue_metatile_clear`/`queue_metatile_update`).
+- **Proto Man encounter system**: Three distinct Proto Man routines documented — $52 (normal fight, Magnet Man stage), $53 (scripted Wily gate fight, triggers player state $13), $71 (Gemini Man stare cutscene). Bank18 scripted spawn and game progression flags ($60/$61/$0168) fully traced.
+- **Entity flag system**: `$04E0,x` upper bits documented as hit-acknowledgment flags (prevent double-damage per frame), `$0580,x` bit meanings mapped (bit 7=active, bit 6=H-flip, bit 5=on-ladder, bit 4=child-spawned, bit 2=disabled).
 - **Named routines**: Robot master AI labels, Doc Robot routines, weapon systems, core sprite processing, collision detection, metatile lookup, and stage loading.
 - **Combined bank files**: Adjacent bank pairs (1A+1B, 1C+1D) merged into single files for easier navigation.
 
