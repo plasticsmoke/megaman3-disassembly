@@ -4609,7 +4609,7 @@ code_1DA1E1:
 ; Entity routine $53 = Proto Man triggers state $13 (teleport_beam) on exit.
 ; ---------------------------------------------------------------------------
 main_proto_man_gemini_cutscene:
-  JSR code_1DA249                           ; $1DA1E2 | cutscene init/whistle
+  JSR cutscene_init                           ; $1DA1E2 | cutscene init/whistle
   LDA $0560,x                               ; $1DA1E5 | phase flag
   BEQ code_1DA1E1                           ; $1DA1E8 | not started yet → return
   LDA #$0F                                  ; $1DA1EA | state → $0F (stunned)
@@ -4659,7 +4659,7 @@ code_1DA248:
   RTS                                       ; $1DA248 |
 
 ; cutscene init — freeze player and play Proto Man's whistle
-.cutscene_init:
+cutscene_init:
   LDA $0560,x                               ; $1DA249 | if phase already started,
   BNE code_1DA292                           ; $1DA24C | skip init
   LDA $30                                   ; $1DA24E | if player already stunned,
@@ -7224,7 +7224,7 @@ code_1DB751:
   RTS                                       ; $1DB751 |
 
 code_1DB752:
-  JSR code_1DB7DF                           ; $1DB752 |
+  JSR init_boss_wait                           ; $1DB752 |
   INC $0300,x                               ; $1DB755 |
   JSR find_enemy_freeslot_y                 ; $1DB758 |
   LDA #$61                                  ; $1DB75B |
@@ -7328,7 +7328,7 @@ main_robot_master_intro:
   AND #$0F                                  ; $1DB856 |
   BNE code_1DB860                           ; $1DB858 |
   INC $0300,x                               ; $1DB85A |
-  JSR code_1DB7DF                           ; $1DB85D |
+  JSR init_boss_wait                           ; $1DB85D |
 code_1DB860:
   LDA $03C0,x                               ; $1DB860 |
   CMP #$80                                  ; $1DB863 |

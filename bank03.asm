@@ -253,17 +253,17 @@ transition_sprite_param:                    ;         | $03A16F
 ; Table 5: → $0470 (scroll direction flag; bit 7 set = special)
 transition_scroll_dir:                      ;         | $03A181
   db $FF, $02, $FF, $04, $00, $04, $05, $06, $05  ; RM
-  db $FF, $02, $FF, $04, $00, $04, $05, $30, $30  ; Doc Robot
+  db $FF, $02, $FF, $04, $00, $04, $05, $06, $05  ; Doc Robot
 
 ; Table 6: → $03D0 (scroll limit / Y position)
 transition_scroll_limit:                    ;         | $03A193
-  db $30, $70, $70, $70, $B0, $B0, $B0, $B0, $B0  ; RM
-  db $30, $30, $30, $70, $70, $B0, $B0, $30, $80  ; Doc Robot
+  db $30, $30, $30, $70, $70, $70, $B0, $B0, $B0  ; RM
+  db $30, $30, $30, $70, $70, $70, $B0, $B0, $B0  ; Doc Robot (same)
 
 ; Table 7: → $0370 (BG scroll initial Y, 3-phase: $30/$80/$D0)
 transition_bg_scroll_y:                     ;         | $03A1A5
-  db $D0, $30, $80, $D0, $80, $D0, $30, $80, $D0  ; RM
-  db $30, $80, $D0, $30, $80, $D0, $30, $80, $D0  ; Doc Robot
+  db $30, $80, $D0, $30, $80, $D0, $30, $80, $D0  ; RM
+  db $30, $80, $D0, $30, $80, $D0, $30, $80, $D0  ; Doc Robot (same)
 
 ; Table 8: CHR bank number for each stage (via $938B)
 transition_chr_bank:                        ;         | $03A1B7
@@ -468,7 +468,7 @@ code_03A603:
   LDA $10                                   ; $03A603 |
   CMP #$26                                  ; $03A605 |
   BNE code_03A60C                           ; $03A607 |
-  JMP code_03A765                           ; $03A609 |
+  JMP stage_select_progression                           ; $03A609 |
 
 code_03A60C:
   LDA $10                                   ; $03A60C |
@@ -691,7 +691,7 @@ code_03A7D3:
   CPY #$04                                  ; $03A7D4 |
   BCC code_03A7A8                           ; $03A7D6 |
   CPY #$06                                  ; $03A7D8 |
-  BEQ code_03A816                           ; $03A7DA |
+  BEQ check_doc_robot_complete               ; $03A7DA |
   LDA $60                                   ; $03A7DC |\ if already in Doc Robot tier,
   BNE code_03A7A8                           ; $03A7DE |/ skip Robot Master check
   LDA $61                                   ; $03A7E0 |\ all 8 Robot Masters beaten?
@@ -720,7 +720,7 @@ code_03A804:
   STA $61                                   ; $03A811 |/
   JMP code_03A7D3                           ; $03A813 |
 
-.check_doc_robot_complete:
+check_doc_robot_complete:
   LDA $61                                   ; $03A816 |\ all 4 Doc Robot stages beaten?
   CMP #$FF                                  ; $03A818 | | ($FF = all bits set)
   BNE code_03A82B                           ; $03A81A |/
@@ -791,7 +791,7 @@ code_03A885:
   STA $0150,y                               ; $03A885 |
   DEY                                       ; $03A888 |
   BPL code_03A885                           ; $03A889 |
-  JMP code_1ECBCE                           ; $03A88B |
+  JMP stage_clear_handler                           ; $03A88B |
 
 code_03A88E:
   STY $00                                   ; $03A88E |

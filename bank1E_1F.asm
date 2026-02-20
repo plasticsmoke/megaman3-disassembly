@@ -312,7 +312,7 @@ code_1EC02F:
   STA $4014                                 ; $1EC036 |
   LDA $19                                   ; $1EC039 |
   BEQ code_1EC040                           ; $1EC03B |
-  JSR code_1EC4F8                           ; $1EC03D |
+  JSR drain_ppu_buffer                           ; $1EC03D |
 code_1EC040:
   LDA $1A                                   ; $1EC040 |
   BEQ code_1EC05B                           ; $1EC042 |
@@ -322,7 +322,7 @@ code_1EC040:
   STA $2000                                 ; $1EC04A |
   LDX #$00                                  ; $1EC04D |
   STX $1A                                   ; $1EC04F |
-  JSR code_1EC4FC                           ; $1EC051 |
+  JSR drain_ppu_buffer_continue                           ; $1EC051 |
   LDA $FF                                   ; $1EC054 |
   AND #$7F                                  ; $1EC056 |
   STA $2000                                 ; $1EC058 |
@@ -1118,7 +1118,7 @@ wave_y_scroll_advance:
 drain_ppu_buffer:
   LDX #$00                                  ; $1EC4F8 |
   STX $19                                   ; $1EC4FA | clear scroll-dirty flag
-.next_entry:
+drain_ppu_buffer_continue:
   LDA $0780,x                               ; $1EC4FC | read PPU addr high byte
   BMI .done                                 ; $1EC4FF | $FF terminator → exit
   STA $2006                                 ; $1EC501 | PPUADDR high
@@ -1134,7 +1134,7 @@ drain_ppu_buffer:
   INX                                       ; $1EC517 | skip past addr_hi
   INX                                       ; $1EC518 | addr_lo
   INX                                       ; $1EC519 | count fields
-  BNE .next_entry                           ; $1EC51A | next buffer entry
+  BNE drain_ppu_buffer_continue              ; $1EC51A | next buffer entry
 .done:
   RTS                                       ; $1EC51C |
 
@@ -1545,11 +1545,11 @@ scroll_sprite_data:
 fade_palette_out:
   LDA #$30                                  ; $1EC74C | start dark (subtract $30)
   LDX #$F0                                  ; $1EC74E | step = -$10 (brighten each pass)
-  BNE .fade_start                           ; $1EC750 |
+  BNE fade_start                           ; $1EC750 |
 fade_palette_in:
   LDA #$10                                  ; $1EC752 | start bright (subtract $10)
   TAX                                       ; $1EC754 | step = +$10 (darken each pass)
-.fade_start:
+fade_start:
   STA $0F                                   ; $1EC755 | $0F = current subtract amount
   STX $0D                                   ; $1EC757 | $0D = step delta per pass
   LDY #$04                                  ; $1EC759 |
@@ -1903,7 +1903,7 @@ stage_init:
 code_1EC969:
   LDA #$01                                  ; $1EC969 |
   STA $10                                   ; $1EC96B |
-  JSR code_1FE4F1                           ; $1EC96D |
+  JSR do_render_column                           ; $1EC96D |
   JSR task_yield                           ; $1EC970 |
   LDA $29                                   ; $1EC973 |
   BEQ code_1EC969                           ; $1EC975 |
@@ -2098,7 +2098,7 @@ code_1ECAD3:
   LDA #$00                                  ; $1ECAD3 |
   STA $3D                                   ; $1ECAD5 |
 code_1ECAD7:
-  JSR code_1FE16A                           ; $1ECAD7 | scroll/camera update
+  JSR update_camera                           ; $1ECAD7 | scroll/camera update
   LDA $FC                                   ; $1ECADA |\ $25 = camera X (coarse)
   STA $25                                   ; $1ECADC |/
   STA $00                                   ; $1ECADE |
@@ -2282,7 +2282,7 @@ handle_checkpoint:
 .go_back_one:
   DEY                                       ; $1ECC2B |\  we're one checkpoint too far so
   BPL .take_checkpoint                      ; $1ECC2C | | go back one, if it's negative
-  JMP code_1EC909                           ; $1ECC2E |/  we're just at the beginning
+  JMP stage_init                           ; $1ECC2E |/  we're just at the beginning
 
 .take_checkpoint:
   TYA                                       ; $1ECC31 |
@@ -2359,7 +2359,7 @@ code_1ECCBF:
   PHA                                       ; $1ECCBF |
   LDA #$01                                  ; $1ECCC0 |
   STA $10                                   ; $1ECCC2 |
-  JSR code_1FE4F1                           ; $1ECCC4 |
+  JSR do_render_column                           ; $1ECCC4 |
   JSR task_yield                           ; $1ECCC7 |
   PLA                                       ; $1ECCCA |
   SEC                                       ; $1ECCCB |
@@ -3483,7 +3483,7 @@ code_1ED47E:
   AND #$08                                  ; $1ED485 | | (Up = bit 3)
   BEQ code_1ED4C8                           ; $1ED487 |/
   PHP                                       ; $1ED489 |
-.check_ladder_entry:
+check_ladder_entry:
   LDY #$04                                  ; $1ED48A |
   JSR check_tile_collision                           ; $1ED48C |
   LDA $44                                   ; $1ED48F |\ check both foot tiles
@@ -3528,7 +3528,7 @@ code_1ED4C8:
   PHP                                       ; $1ED4CE |
   LDA $43                                   ; $1ED4CF |
   CMP #$40                                  ; $1ED4D1 |
-  BNE code_1ED48A                           ; $1ED4D3 |
+  BNE check_ladder_entry                           ; $1ED4D3 |
   PLP                                       ; $1ED4D5 |
   LDA $0360                                 ; $1ED4D6 |
   AND #$F0                                  ; $1ED4D9 |
@@ -4521,7 +4521,7 @@ code_1EDC2C:
   BEQ code_1EDC73                           ; $1EDC4F |/ skip defeat tracking
   LDY $22                                   ; $1EDC51 |\ stage index
   CPY #$0C                                  ; $1EDC53 | | if stage >= $0C (Wily fortress),
-  BCS .wily_stage_clear                     ; $1EDC55 |/ handle separately
+  BCS wily_stage_clear                     ; $1EDC55 |/ handle separately
   LDA $61                                   ; $1EDC57 |\ $61 |= (1 << stage_index)
   ORA $DEC2,y                               ; $1EDC59 | | mark this stage's boss as defeated
   STA $61                                   ; $1EDC5C |/ ($FF = all 8 Robot Masters beaten)
@@ -4541,7 +4541,7 @@ code_1EDC2C:
 code_1EDC73:
   RTS                                       ; $1EDC73 |
 
-.wily_stage_clear:
+wily_stage_clear:
   LDA #$FF                                  ; $1EDC74 |\ mark fortress stage cleared
   STA $74                                   ; $1EDC76 |/
   INC $75                                   ; $1EDC78 |  advance fortress progression
@@ -4713,7 +4713,7 @@ code_1EDE1E:
   PHA                                       ; $1EDE1E |
   LDA #$01                                  ; $1EDE1F |
   STA $10                                   ; $1EDE21 |
-  JSR code_1FE4F1                           ; $1EDE23 |
+  JSR do_render_column                           ; $1EDE23 |
   JSR task_yield                           ; $1EDE26 |
   PLA                                       ; $1EDE29 |
   SEC                                       ; $1EDE2A |
@@ -5132,761 +5132,889 @@ code_1FE11A:
 
   db $E0, $30, $B0, $68                     ; $1FE166 |
 
-code_1FE16A:
-  LDA $2A                                   ; $1FE16A |
-  AND #$20                                  ; $1FE16C |
-  BNE code_1FE173                           ; $1FE16E |
-  JMP code_1FE228                           ; $1FE170 |
+; ===========================================================================
+; update_camera — horizontal scroll engine + room transition detection
+; ===========================================================================
+; Called every frame from gameplay_frame_loop (step 3). Tracks the player's
+; X position and smoothly scrolls the camera to keep the player centered.
+;
+; Scroll variables (all Mesen-verified on Snake Man stage):
+;   $2A = scroll flags (from upper 3 bits of $AA40,y per room)
+;         bit 5 = horizontal scrolling enabled
+;         bits 6-7 = vertical connection direction ($40=down, $80=up)
+;   $2B = room/section index (changes at transitions: ladders, doors)
+;   $2C = screen count for current room (lower 5 bits of $AA40,y)
+;   $2D = scroll progress within room (counts 0→$2C as camera advances)
+;   $2E = scroll direction this frame (1=right, 2=left)
+;   $F9 = camera screen position (absolute, increments each 256-pixel boundary)
+;   $FC = camera fine X (sub-screen pixel offset, 0-255)
+;   $25 = previous $FC (for column rendering delta)
+;   $27 = previous player X (for direction detection)
+;   $0360 = player X pixel position (slot 0)
+;
+; Camera tracking:
+;   $00 = player screen X (= $0360 - $FC)
+;   $01 = scroll speed (= |player screen X - $80|, clamped to max 8)
+;   $02 = player movement delta (= |$0360 - $27|)
+;   When player is right of center ($00 > $80): scroll right
+;   When player is left of center ($00 < $80): scroll left
+;   Scroll speed adapts — faster when player is far from center,
+;   uses movement delta as alternative speed when it's smaller
+; ---------------------------------------------------------------------------
+update_camera:
+  LDA $2A                                   ; $1FE16A |\ check scroll flags
+  AND #$20                                  ; $1FE16C | | bit 5 = horizontal scroll enabled
+  BNE .horiz_scroll                         ; $1FE16E |/ enabled → compute scroll
+  JMP .no_scroll                            ; $1FE170 |  disabled → boundary clamp only
 
-code_1FE173:
-  LDA #$01                                  ; $1FE173 |
-  STA $10                                   ; $1FE175 |
-  STA $2E                                   ; $1FE177 |
-  LDA $0360                                 ; $1FE179 |
-  SEC                                       ; $1FE17C |
-  SBC $FC                                   ; $1FE17D |
-  STA $00                                   ; $1FE17F |
-  SEC                                       ; $1FE181 |
-  SBC #$80                                  ; $1FE182 |
-  BCS code_1FE18A                           ; $1FE184 |
-  EOR #$FF                                  ; $1FE186 |
-  ADC #$01                                  ; $1FE188 |
-code_1FE18A:
-  STA $01                                   ; $1FE18A |
-  LDA $0360                                 ; $1FE18C |
-  SEC                                       ; $1FE18F |
-  SBC $27                                   ; $1FE190 |
-  STA $02                                   ; $1FE192 |
-  BPL code_1FE1E1                           ; $1FE194 |
-  EOR #$FF                                  ; $1FE196 |
-  CLC                                       ; $1FE198 |
-  ADC #$01                                  ; $1FE199 |
-  STA $02                                   ; $1FE19B |
-  LDA $01                                   ; $1FE19D |
-  CMP #$09                                  ; $1FE19F |
-  BCC code_1FE1A7                           ; $1FE1A1 |
-  LDA $02                                   ; $1FE1A3 |
-  STA $01                                   ; $1FE1A5 |
-code_1FE1A7:
-  LDA #$08                                  ; $1FE1A7 |
-  CMP $01                                   ; $1FE1A9 |
-  BCS code_1FE1AF                           ; $1FE1AB |
-  STA $01                                   ; $1FE1AD |
-code_1FE1AF:
-  LDA #$02                                  ; $1FE1AF |
-  STA $10                                   ; $1FE1B1 |
-  STA $2E                                   ; $1FE1B3 |
-  LDA $00                                   ; $1FE1B5 |
-  CMP #$80                                  ; $1FE1B7 |
-  BCS code_1FE228                           ; $1FE1B9 |
-  LDA $FC                                   ; $1FE1BB |
-  SEC                                       ; $1FE1BD |
-  SBC $01                                   ; $1FE1BE |
-  STA $FC                                   ; $1FE1C0 |
-  BCS code_1FE224                           ; $1FE1C2 |
-  LDA $2D                                   ; $1FE1C4 |
-  DEC $2D                                   ; $1FE1C6 |
-  BPL code_1FE1DC                           ; $1FE1C8 |
-  STA $2D                                   ; $1FE1CA |
-  LDA #$00                                  ; $1FE1CC |
-  STA $FC                                   ; $1FE1CE |
-  LDA #$10                                  ; $1FE1D0 |
-  CMP $0360                                 ; $1FE1D2 |
-  BCC code_1FE228                           ; $1FE1D5 |
-  STA $0360                                 ; $1FE1D7 |
-  BCS code_1FE228                           ; $1FE1DA |
-code_1FE1DC:
-  DEC $F9                                   ; $1FE1DC |
-  JMP code_1FE224                           ; $1FE1DE |
+; --- horizontal scroll: compute player screen position and scroll speed ---
+.horiz_scroll:
+  LDA #$01                                  ; $1FE173 |\ default: scroll direction = right
+  STA $10                                   ; $1FE175 | | $10 = nametable select (1=right)
+  STA $2E                                   ; $1FE177 |/ $2E = scroll direction flag
+  LDA $0360                                 ; $1FE179 |\ $00 = player screen X
+  SEC                                       ; $1FE17C | | = player pixel X - camera fine X
+  SBC $FC                                   ; $1FE17D | |
+  STA $00                                   ; $1FE17F |/
+  SEC                                       ; $1FE181 |\ $01 = |player screen X - $80|
+  SBC #$80                                  ; $1FE182 | | = distance from screen center
+  BCS .dist_positive                        ; $1FE184 | | (used as scroll speed)
+  EOR #$FF                                  ; $1FE186 | | negate if negative
+  ADC #$01                                  ; $1FE188 |/
+.dist_positive:
+  STA $01                                   ; $1FE18A | $01 = abs distance from center
+  LDA $0360                                 ; $1FE18C |\ $02 = player X - previous X ($27)
+  SEC                                       ; $1FE18F | | = movement delta this frame
+  SBC $27                                   ; $1FE190 | |
+  STA $02                                   ; $1FE192 |/
+  BPL .scroll_right                         ; $1FE194 | positive → player moved right
 
-code_1FE1E1:
-  LDA $00                                   ; $1FE1E1 |
-  CMP #$81                                  ; $1FE1E3 |
-  BCC code_1FE228                           ; $1FE1E5 |
-  LDA $2D                                   ; $1FE1E7 |
-  CMP $2C                                   ; $1FE1E9 |
-  BEQ code_1FE228                           ; $1FE1EB |
-  LDA $01                                   ; $1FE1ED |
-  CMP #$09                                  ; $1FE1EF |
-  BCC code_1FE1F7                           ; $1FE1F1 |
-  LDA $02                                   ; $1FE1F3 |
-  STA $01                                   ; $1FE1F5 |
-code_1FE1F7:
-  LDA #$08                                  ; $1FE1F7 |
-  CMP $01                                   ; $1FE1F9 |
-  BCS code_1FE1FF                           ; $1FE1FB |
-  STA $01                                   ; $1FE1FD |
-code_1FE1FF:
-  LDA $01                                   ; $1FE1FF |
-  BEQ code_1FE228                           ; $1FE201 |
-  LDA $FC                                   ; $1FE203 |
-  CLC                                       ; $1FE205 |
-  ADC $01                                   ; $1FE206 |
-  STA $FC                                   ; $1FE208 |
-  BCC code_1FE224                           ; $1FE20A |
-  INC $2D                                   ; $1FE20C |
-  LDA $2D                                   ; $1FE20E |
-  CMP $2C                                   ; $1FE210 |
-  BNE code_1FE222                           ; $1FE212 |
-  LDA #$00                                  ; $1FE214 |
-  STA $FC                                   ; $1FE216 |
-  LDA #$F0                                  ; $1FE218 |
-  CMP $0360                                 ; $1FE21A |
-  BCS code_1FE222                           ; $1FE21D |
-  STA $0360                                 ; $1FE21F |
-code_1FE222:
-  INC $F9                                   ; $1FE222 |
-code_1FE224:
-  JMP code_1FE467                           ; $1FE224 |
+; --- player moving left: negate delta, compute leftward scroll speed ---
+  EOR #$FF                                  ; $1FE196 |\ negate to get abs delta
+  CLC                                       ; $1FE198 | |
+  ADC #$01                                  ; $1FE199 | |
+  STA $02                                   ; $1FE19B |/
+  LDA $01                                   ; $1FE19D |\ if center distance >= 9,
+  CMP #$09                                  ; $1FE19F | | use movement delta instead
+  BCC .clamp_left_speed                     ; $1FE1A1 | | (prevents jerky scroll when
+  LDA $02                                   ; $1FE1A3 | | player is far off-center but
+  STA $01                                   ; $1FE1A5 |/ moving slowly)
+.clamp_left_speed:
+  LDA #$08                                  ; $1FE1A7 |\ clamp scroll speed to max 8
+  CMP $01                                   ; $1FE1A9 | |
+  BCS .do_scroll_left                       ; $1FE1AB | |
+  STA $01                                   ; $1FE1AD |/ $01 = min(8, $01)
 
-code_1FE227:
+; --- scroll camera left ---
+.do_scroll_left:
+  LDA #$02                                  ; $1FE1AF |\ direction = left
+  STA $10                                   ; $1FE1B1 | | $10 = 2 (nametable select)
+  STA $2E                                   ; $1FE1B3 |/ $2E = 2 (scroll direction)
+  LDA $00                                   ; $1FE1B5 |\ if player screen X >= $80 (right of center)
+  CMP #$80                                  ; $1FE1B7 | | don't scroll left — go to boundary check
+  BCS .no_scroll                            ; $1FE1B9 |/
+  LDA $FC                                   ; $1FE1BB |\ $FC -= scroll speed
+  SEC                                       ; $1FE1BD | | (move camera left)
+  SBC $01                                   ; $1FE1BE | |
+  STA $FC                                   ; $1FE1C0 |/
+  BCS .render_column                        ; $1FE1C2 | no underflow → just render
+  LDA $2D                                   ; $1FE1C4 |\ $FC underflowed: crossed screen boundary
+  DEC $2D                                   ; $1FE1C6 | | decrement room scroll progress
+  BPL .left_screen_crossed                  ; $1FE1C8 |/ still in room? advance screen
+  STA $2D                                   ; $1FE1CA |\ $2D went negative: at left boundary
+  LDA #$00                                  ; $1FE1CC | | clamp $FC = 0 (can't scroll further)
+  STA $FC                                   ; $1FE1CE | |
+  LDA #$10                                  ; $1FE1D0 | | clamp player X to minimum $10
+  CMP $0360                                 ; $1FE1D2 | | (16 pixels from left edge)
+  BCC .no_scroll                            ; $1FE1D5 | |
+  STA $0360                                 ; $1FE1D7 | |
+  BCS .no_scroll                            ; $1FE1DA |/
+.left_screen_crossed:
+  DEC $F9                                   ; $1FE1DC | camera screen position--
+  JMP .render_column                        ; $1FE1DE |
+
+; --- scroll camera right ---
+.scroll_right:
+  LDA $00                                   ; $1FE1E1 |\ if player screen X < $81 (at/left of center)
+  CMP #$81                                  ; $1FE1E3 | | don't scroll right
+  BCC .no_scroll                            ; $1FE1E5 |/
+  LDA $2D                                   ; $1FE1E7 |\ if scroll progress == screen count
+  CMP $2C                                   ; $1FE1E9 | | already at right boundary
+  BEQ .no_scroll                            ; $1FE1EB |/ → don't scroll
+  LDA $01                                   ; $1FE1ED |\ if center distance >= 9,
+  CMP #$09                                  ; $1FE1EF | | use movement delta as speed
+  BCC .clamp_right_speed                    ; $1FE1F1 | |
+  LDA $02                                   ; $1FE1F3 | |
+  STA $01                                   ; $1FE1F5 |/
+.clamp_right_speed:
+  LDA #$08                                  ; $1FE1F7 |\ clamp scroll speed to max 8
+  CMP $01                                   ; $1FE1F9 | |
+  BCS .do_scroll_right                      ; $1FE1FB | |
+  STA $01                                   ; $1FE1FD |/ $01 = min(8, $01)
+.do_scroll_right:
+  LDA $01                                   ; $1FE1FF |\ speed = 0? nothing to do
+  BEQ .no_scroll                            ; $1FE201 |/
+  LDA $FC                                   ; $1FE203 |\ $FC += scroll speed
+  CLC                                       ; $1FE205 | | (move camera right)
+  ADC $01                                   ; $1FE206 | |
+  STA $FC                                   ; $1FE208 |/
+  BCC .render_column                        ; $1FE20A | no overflow → just render
+  INC $2D                                   ; $1FE20C |\ $FC overflowed: crossed screen boundary
+  LDA $2D                                   ; $1FE20E | | increment room scroll progress
+  CMP $2C                                   ; $1FE210 | |
+  BNE .right_advance_screen                 ; $1FE212 |/ not at boundary? advance screen
+  LDA #$00                                  ; $1FE214 |\ at right boundary: clamp $FC = 0
+  STA $FC                                   ; $1FE216 | |
+  LDA #$F0                                  ; $1FE218 | | clamp player X to maximum $F0
+  CMP $0360                                 ; $1FE21A | | (240 pixels from left edge)
+  BCS .right_advance_screen                 ; $1FE21D | |
+  STA $0360                                 ; $1FE21F |/
+.right_advance_screen:
+  INC $F9                                   ; $1FE222 | camera screen position++
+.render_column:
+  JMP render_scroll_column                  ; $1FE224 | → column rendering
+
+.no_scroll_ret:
   RTS                                       ; $1FE227 |
 
-code_1FE228:
-  LDA $FC                                   ; $1FE228 |
-  BNE code_1FE227                           ; $1FE22A |
-  LDA $0360                                 ; $1FE22C |
-  CMP #$10                                  ; $1FE22F |
-  BCS code_1FE23D                           ; $1FE231 |
-  LDA #$10                                  ; $1FE233 |
-  STA $0360                                 ; $1FE235 |
-  BEQ code_1FE23D                           ; $1FE238 |
-code_1FE23A:
-  JMP code_1FE33C                           ; $1FE23A |
+; ===========================================================================
+; No-scroll: boundary clamping + room transition detection
+; ===========================================================================
+; When horizontal scrolling is disabled or camera is between screens,
+; clamp player X to screen bounds and check if player has walked to
+; the edge of the screen (triggering a room transition via ladder/door).
+; ---------------------------------------------------------------------------
+.no_scroll:
+  LDA $FC                                   ; $1FE228 |\ if camera is mid-scroll ($FC != 0)
+  BNE .no_scroll_ret                        ; $1FE22A |/ nothing more to do
+  LDA $0360                                 ; $1FE22C |\ clamp player X >= $10 (left edge)
+  CMP #$10                                  ; $1FE22F | |
+  BCS .check_right_edge                     ; $1FE231 | |
+  LDA #$10                                  ; $1FE233 | |
+  STA $0360                                 ; $1FE235 | |
+  BEQ .check_right_edge                     ; $1FE238 |/
+.to_vertical_check:
+  JMP check_vertical_transition             ; $1FE23A |
 
-code_1FE23D:
-  CMP #$E5                                  ; $1FE23D |
-  BCC code_1FE23A                           ; $1FE23F |
-  CMP #$F0                                  ; $1FE241 |
-  BCC code_1FE24A                           ; $1FE243 |
-  LDA #$F0                                  ; $1FE245 |
-  STA $0360                                 ; $1FE247 |
-code_1FE24A:
-  LDY $2B                                   ; $1FE24A |
-  LDA $AA40,y                               ; $1FE24C |
-  AND #$20                                  ; $1FE24F |
-  BEQ code_1FE23A                           ; $1FE251 |
-  LDA $AA41,y                               ; $1FE253 |
-  AND #$C0                                  ; $1FE256 |
-  BNE code_1FE23A                           ; $1FE258 |
-  LDA $AA41,y                               ; $1FE25A |
-  AND #$20                                  ; $1FE25D |
-  BEQ code_1FE23A                           ; $1FE25F |
-  STA $00                                   ; $1FE261 |
-  LDA $22                                   ; $1FE263 |
-  CMP #$08                                  ; $1FE265 |
-  BNE code_1FE27A                           ; $1FE267 |
-  LDA $F9                                   ; $1FE269 |
-  CMP #$15                                  ; $1FE26B |
-  BEQ code_1FE273                           ; $1FE26D |
-  CMP #$1A                                  ; $1FE26F |
-  BNE code_1FE27A                           ; $1FE271 |
-code_1FE273:
-  LDA $033F                                 ; $1FE273 |
-  CMP #$FC                                  ; $1FE276 |
-  BEQ code_1FE23A                           ; $1FE278 |
-code_1FE27A:
-  LDA $F9                                   ; $1FE27A |
-  SEC                                       ; $1FE27C |
-  SBC $AA30                                 ; $1FE27D |
-  CMP #$02                                  ; $1FE280 |
-  BNE code_1FE28F                           ; $1FE282 |
-  LDA $031F                                 ; $1FE284 |
-  BMI code_1FE23A                           ; $1FE287 |
-  LDA $30                                   ; $1FE289 |
-  CMP #$0C                                  ; $1FE28B |
-  BCS code_1FE23A                           ; $1FE28D |
-code_1FE28F:
-  LDA $22                                   ; $1FE28F |
-  CMP #$0F                                  ; $1FE291 |
-  BNE code_1FE2A5                           ; $1FE293 |
-  LDA $F9                                   ; $1FE295 |
-  CMP #$08                                  ; $1FE297 |
-  BNE code_1FE2A5                           ; $1FE299 |
-  LDX #$0F                                  ; $1FE29B |
-code_1FE29D:
-  LDA $0310,x                               ; $1FE29D |
-  BMI code_1FE23A                           ; $1FE2A0 |
-  DEX                                       ; $1FE2A2 |
-  BPL code_1FE29D                           ; $1FE2A3 |
-code_1FE2A5:
-  LDA $00                                   ; $1FE2A5 |
-  STA $2A                                   ; $1FE2A7 |
-  LDA $AA41,y                               ; $1FE2A9 |
-  AND #$1F                                  ; $1FE2AC |
-  STA $2C                                   ; $1FE2AE |
-  LDA #$00                                  ; $1FE2B0 |
-  STA $2D                                   ; $1FE2B2 |
-  INC $2B                                   ; $1FE2B4 |
-  LDY $F8                                   ; $1FE2B6 |
-  LDA #$00                                  ; $1FE2B8 |
-  STA $F8                                   ; $1FE2BA |
-  STA $76                                   ; $1FE2BC |
-  STA $B3                                   ; $1FE2BE |
-  STA $5A                                   ; $1FE2C0 |
-  LDA #$E8                                  ; $1FE2C2 |
-  STA $5E                                   ; $1FE2C4 |
-  CPY #$02                                  ; $1FE2C6 |
-  BNE code_1FE2D5                           ; $1FE2C8 |
-  LDA #$42                                  ; $1FE2CA |
-  STA $E9                                   ; $1FE2CC |
-  LDA #$09                                  ; $1FE2CE |
-  STA $29                                   ; $1FE2D0 |
-  JSR code_1EC83D                           ; $1FE2D2 |
-code_1FE2D5:
-  LDA $F9                                   ; $1FE2D5 |
-  SEC                                       ; $1FE2D7 |
-  SBC $AA30                                 ; $1FE2D8 |
-  BCC code_1FE2F7                           ; $1FE2DB |
-  CMP #$03                                  ; $1FE2DD |
-  BCS code_1FE2E8                           ; $1FE2DF |
-  TAX                                       ; $1FE2E1 |
-  LDY $AA31,x                               ; $1FE2E2 |
-  JMP code_1FE2F4                           ; $1FE2E5 |
+.check_right_edge:
+  CMP #$E5                                  ; $1FE23D |\ player X < $E5? not at right edge
+  BCC .to_vertical_check                    ; $1FE23F |/ → check vertical instead
+  CMP #$F0                                  ; $1FE241 |\ clamp player X <= $F0
+  BCC .check_room_transition                ; $1FE243 | |
+  LDA #$F0                                  ; $1FE245 | |
+  STA $0360                                 ; $1FE247 |/
+; --- room transition: player walked to right edge ($E5+) of non-scrolling screen ---
+.check_room_transition:
+  LDY $2B                                   ; $1FE24A |\ current room entry
+  LDA $AA40,y                               ; $1FE24C | | check if current room allows
+  AND #$20                                  ; $1FE24F | | horizontal scroll (bit 5)
+  BEQ .to_vertical_check                    ; $1FE251 |/ no scroll attr → vertical check
+  LDA $AA41,y                               ; $1FE253 |\ next room entry: check vertical
+  AND #$C0                                  ; $1FE256 | | connection bits (6-7)
+  BNE .to_vertical_check                    ; $1FE258 |/ has vertical link → not a horiz transition
+  LDA $AA41,y                               ; $1FE25A |\ next room: must also have horiz scroll
+  AND #$20                                  ; $1FE25D | | (bit 5 set) to allow transition
+  BEQ .to_vertical_check                    ; $1FE25F |/
+  STA $00                                   ; $1FE261 | $00 = $20 (next room scroll flags)
+  LDA $22                                   ; $1FE263 |\ stage-specific transition blocks:
+  CMP #$08                                  ; $1FE265 | | stage $08 (Doc Robot Needle)
+  BNE .check_boss_door                      ; $1FE267 |/ skip if not stage $08
+  LDA $F9                                   ; $1FE269 |\ Rush Marine water boundary screens
+  CMP #$15                                  ; $1FE26B | | $15 and $1A have special gate
+  BEQ .check_gate_entity                    ; $1FE26D | |
+  CMP #$1A                                  ; $1FE26F | |
+  BNE .check_boss_door                      ; $1FE271 |/
+.check_gate_entity:
+  LDA $033F                                 ; $1FE273 |\ entity slot $1F type == $FC?
+  CMP #$FC                                  ; $1FE276 | | (gate/shutter entity present
+  BEQ .to_vertical_check                    ; $1FE278 |/ → block transition until opened)
+.check_boss_door:
+  LDA $F9                                   ; $1FE27A |\ screens from room start:
+  SEC                                       ; $1FE27C | | $F9 - $AA30 (room base screen)
+  SBC $AA30                                 ; $1FE27D | |
+  CMP #$02                                  ; $1FE280 | | if exactly 2 screens in:
+  BNE .check_wily_gate                      ; $1FE282 |/ (boss shutter position)
+  LDA $031F                                 ; $1FE284 |\ entity slot $1F active (bit 7 clear)?
+  BMI .to_vertical_check                    ; $1FE287 |/ active → boss shutter blocks transition
+  LDA $30                                   ; $1FE289 |\ player state >= $0C (victory)?
+  CMP #$0C                                  ; $1FE28B | | block if in cutscene state
+  BCS .to_vertical_check                    ; $1FE28D |/
+.check_wily_gate:
+  LDA $22                                   ; $1FE28F |\ stage $0F (Wily Fortress 4)
+  CMP #$0F                                  ; $1FE291 | | special check
+  BNE .begin_room_advance                   ; $1FE293 |/
+  LDA $F9                                   ; $1FE295 |\ only on screen $08
+  CMP #$08                                  ; $1FE297 | |
+  BNE .begin_room_advance                   ; $1FE299 |/
+  LDX #$0F                                  ; $1FE29B |\ scan entity slots $10-$01
+.wily_entity_check:                                    ; | (check for active enemies)
+  LDA $0310,x                               ; $1FE29D | | if any slot $0310+x is active
+  BMI .to_vertical_check                    ; $1FE2A0 | | (bit 7 = ???), block transition
+  DEX                                       ; $1FE2A2 | |
+  BPL .wily_entity_check                    ; $1FE2A3 |/
+; --- advance to next room: set up new room variables ---
+.begin_room_advance:
+  LDA $00                                   ; $1FE2A5 |\ $2A = next room's scroll flags
+  STA $2A                                   ; $1FE2A7 |/
+  LDA $AA41,y                               ; $1FE2A9 |\ $2C = next room's screen count
+  AND #$1F                                  ; $1FE2AC | | (lower 5 bits)
+  STA $2C                                   ; $1FE2AE |/
+  LDA #$00                                  ; $1FE2B0 |\ $2D = 0 (start of new room)
+  STA $2D                                   ; $1FE2B2 |/
+  INC $2B                                   ; $1FE2B4 | room index++
+  LDY $F8                                   ; $1FE2B6 |\ save $F8 (scroll render mode)
+  LDA #$00                                  ; $1FE2B8 | | then clear transition state:
+  STA $F8                                   ; $1FE2BA | | $F8 = 0 (normal rendering)
+  STA $76                                   ; $1FE2BC | | $76 = 0 (enemy spawn flag)
+  STA $B3                                   ; $1FE2BE | | $B3 = 0 (?)
+  STA $5A                                   ; $1FE2C0 |/ $5A = 0 (?)
+  LDA #$E8                                  ; $1FE2C2 |\ $5E = $E8 (despawn boundary Y)
+  STA $5E                                   ; $1FE2C4 |/
+  CPY #$02                                  ; $1FE2C6 |\ was $F8 == 2? (camera scroll mode)
+  BNE .skip_scroll_init                     ; $1FE2C8 |/ no → skip
+  LDA #$42                                  ; $1FE2CA |\ special scroll init:
+  STA $E9                                   ; $1FE2CC | | $E9 = $42 (CHR bank?)
+  LDA #$09                                  ; $1FE2CE | | $29 = $09 (metatile column)
+  STA $29                                   ; $1FE2D0 | |
+  JSR code_1EC83D                           ; $1FE2D2 |/ call level init helper
+.skip_scroll_init:
+  LDA $F9                                   ; $1FE2D5 |\ screen offset from room base
+  SEC                                       ; $1FE2D7 | | = $F9 - $AA30
+  SBC $AA30                                 ; $1FE2D8 | |
+  BCC .skip_bank10_event                    ; $1FE2DB |/ negative → no event
+  CMP #$03                                  ; $1FE2DD |\ < 3 screens: use table 1 ($AA31)
+  BCS .try_table2_event                     ; $1FE2DF |/
+  TAX                                       ; $1FE2E1 |\ Y = event ID from $AA31+offset
+  LDY $AA31,x                               ; $1FE2E2 | |
+  JMP .call_event_handler                   ; $1FE2E5 |/
 
-code_1FE2E8:
-  LDA $F9                                   ; $1FE2E8 |
-  SEC                                       ; $1FE2EA |
-  SBC $AA38                                 ; $1FE2EB |
-  BCC code_1FE2F7                           ; $1FE2EE |
-  TAX                                       ; $1FE2F0 |
-  LDY $AA39,x                               ; $1FE2F1 |
-code_1FE2F4:
-  JSR call_bank10_8000                      ; $1FE2F4 |
-code_1FE2F7:
-  LDA $22                                   ; $1FE2F7 |
-  BNE code_1FE308                           ; $1FE2F9 |
-  LDX #$03                                  ; $1FE2FB |
-code_1FE2FD:
-  LDA $AAA2,x                               ; $1FE2FD |
-  STA $060C,x                               ; $1FE300 |
-  DEX                                       ; $1FE303 |
-  BPL code_1FE2FD                           ; $1FE304 |
-  STX $18                                   ; $1FE306 |
-code_1FE308:
-  LDA #$E4                                  ; $1FE308 |
-  STA $0360                                 ; $1FE30A |
-  JSR code_1FE5D1                           ; $1FE30D |
-  LDA $22                                   ; $1FE310 |
-  STA $F5                                   ; $1FE312 |
-  JSR select_PRG_banks                      ; $1FE314 |
-  LDA $F9                                   ; $1FE317 |
-  SEC                                       ; $1FE319 |
-  SBC $AA30                                 ; $1FE31A |
-  BCC code_1FE33B                           ; $1FE31D |
-  CMP #$05                                  ; $1FE31F |
-  BCS code_1FE32A                           ; $1FE321 |
-  TAX                                       ; $1FE323 |
-  LDY $AA30,x                               ; $1FE324 |
-  JMP code_1FE338                           ; $1FE327 |
+.try_table2_event:
+  LDA $F9                                   ; $1FE2E8 |\ >= 3 screens: use table 2 ($AA39)
+  SEC                                       ; $1FE2EA | | offset from $AA38
+  SBC $AA38                                 ; $1FE2EB | |
+  BCC .skip_bank10_event                    ; $1FE2EE | |
+  TAX                                       ; $1FE2F0 | |
+  LDY $AA39,x                               ; $1FE2F1 |/
+.call_event_handler:
+  JSR call_bank10_8000                      ; $1FE2F4 | call bank $10 event handler
+.skip_bank10_event:
+  LDA $22                                   ; $1FE2F7 |\ stage-specific: Needle Man ($00)
+  BNE .set_player_x                         ; $1FE2F9 |/ skip if not Needle Man
+  LDX #$03                                  ; $1FE2FB |\ copy 4 bytes from $AAA2 → $060C
+.copy_needle_data:                                     ; | (Needle Man special room palette?)
+  LDA $AAA2,x                               ; $1FE2FD | |
+  STA $060C,x                               ; $1FE300 | |
+  DEX                                       ; $1FE303 | |
+  BPL .copy_needle_data                     ; $1FE304 |/
+  STX $18                                   ; $1FE306 | $18 = $FF
+.set_player_x:
+  LDA #$E4                                  ; $1FE308 |\ player X = $E4 (entering from left)
+  STA $0360                                 ; $1FE30A |/ — wait, $E4 is right side
+  JSR fast_scroll_right                           ; $1FE30D | clear entities + fast-scroll camera
+  LDA $22                                   ; $1FE310 |\ re-select stage data bank
+  STA $F5                                   ; $1FE312 | |
+  JSR select_PRG_banks                      ; $1FE314 |/
+  LDA $F9                                   ; $1FE317 |\ second event dispatch (post-scroll)
+  SEC                                       ; $1FE319 | | same table lookup pattern
+  SBC $AA30                                 ; $1FE31A | |
+  BCC scroll_engine_rts                    ; $1FE31D | |
+  CMP #$05                                  ; $1FE31F | | < 5: use $AA30 table
+  BCS .try_table2_post                      ; $1FE321 | |
+  TAX                                       ; $1FE323 | |
+  LDY $AA30,x                               ; $1FE324 | |
+  JMP .call_post_handler                    ; $1FE327 |/
 
-code_1FE32A:
-  LDA $F9                                   ; $1FE32A |
-  SEC                                       ; $1FE32C |
-  SBC $AA38                                 ; $1FE32D |
-  BCC code_1FE33B                           ; $1FE330 |
-  BEQ code_1FE33B                           ; $1FE332 |
-  TAX                                       ; $1FE334 |
-  LDY $AA38,x                               ; $1FE335 |
-code_1FE338:
-  JSR call_bank10_8003                      ; $1FE338 |
-code_1FE33B:
+.try_table2_post:
+  LDA $F9                                   ; $1FE32A |\ >= 5: use $AA38 table
+  SEC                                       ; $1FE32C | |
+  SBC $AA38                                 ; $1FE32D | |
+  BCC scroll_engine_rts                    ; $1FE330 | |
+  BEQ scroll_engine_rts                    ; $1FE332 | |
+  TAX                                       ; $1FE334 | |
+  LDY $AA38,x                               ; $1FE335 |/
+.call_post_handler:
+  JSR call_bank10_8003                      ; $1FE338 | call bank $10 post-scroll handler
+scroll_engine_rts:
   RTS                                       ; $1FE33B |
 
-code_1FE33C:
-  LDA $03C0                                 ; $1FE33C |
-  CMP #$E8                                  ; $1FE33F |
-  BCS code_1FE35E                           ; $1FE341 |
-  CMP #$09                                  ; $1FE343 |
-  BCS code_1FE33B                           ; $1FE345 |
-  LDA $30                                   ; $1FE347 |
-  CMP #$03                                  ; $1FE349 |
-  BNE code_1FE33B                           ; $1FE34B |
-  LDA #$80                                  ; $1FE34D |
-  STA $10                                   ; $1FE34F |
-  JSR code_1FE3C7                           ; $1FE351 |
-  BCC code_1FE33B                           ; $1FE354 |
-  LDA #$80                                  ; $1FE356 |
-  STA $10                                   ; $1FE358 |
-  LDA #$08                                  ; $1FE35A |
-  BNE code_1FE372                           ; $1FE35C |
-code_1FE35E:
-  LDA $03E0                                 ; $1FE35E |
-  BMI code_1FE3C6                           ; $1FE361 |
-  LDA #$40                                  ; $1FE363 |
-  STA $10                                   ; $1FE365 |
-  JSR code_1FE3C7                           ; $1FE367 |
-  BCC code_1FE3C6                           ; $1FE36A |
-  LDA #$40                                  ; $1FE36C |
-  STA $10                                   ; $1FE36E |
-  LDA #$04                                  ; $1FE370 |
-code_1FE372:
-  STA $23                                   ; $1FE372 |
-  LDA #$00                                  ; $1FE374 |
-  STA $03E0                                 ; $1FE376 |
-  LDX #$01                                  ; $1FE379 |
-  LDY $2B                                   ; $1FE37B |
-  LDA $AA40,y                               ; $1FE37D |
-  AND #$C0                                  ; $1FE380 |
-  CMP $10                                   ; $1FE382 |
-  BEQ code_1FE388                           ; $1FE384 |
-  LDX #$FF                                  ; $1FE386 |
-code_1FE388:
+; ===========================================================================
+; check_vertical_transition — detect player at top/bottom of screen
+; ===========================================================================
+; When horizontal scrolling is not active ($FC==0, not scrolling), checks
+; if the player has reached the top or bottom of the visible screen.
+;   $03C0 = player Y pixel, $03E0 = player Y screen
+;   $10 = direction flag: $80=up, $40=down
+;   $23 = vertical scroll direction: $08=up, $04=down
+; ---------------------------------------------------------------------------
+check_vertical_transition:
+  LDA $03C0                                 ; $1FE33C |\ player Y pixel
+  CMP #$E8                                  ; $1FE33F | | >= $E8? → fell off bottom
+  BCS .check_fall_down                      ; $1FE341 |/
+  CMP #$09                                  ; $1FE343 |\ < $09? → at top of screen
+  BCS scroll_engine_rts                             ; $1FE345 |/ $09-$E7 = normal range, RTS
+  LDA $30                                   ; $1FE347 |\ must be climbing (state $03)
+  CMP #$03                                  ; $1FE349 | | to transition upward
+  BNE scroll_engine_rts                             ; $1FE34B |/
+  LDA #$80                                  ; $1FE34D |\ $10 = $80 (upward direction)
+  STA $10                                   ; $1FE34F |/
+  JSR check_room_link                       ; $1FE351 | validate room connection
+  BCC scroll_engine_rts                             ; $1FE354 | C=0 → no valid link
+  LDA #$80                                  ; $1FE356 |\ confirmed: transition up
+  STA $10                                   ; $1FE358 | |
+  LDA #$08                                  ; $1FE35A | | $23 = $08 (vertical scroll up)
+  BNE .begin_vertical_scroll                ; $1FE35C |/
+.check_fall_down:
+  LDA $03E0                                 ; $1FE35E |\ player Y screen: bit 7 set?
+  BMI .vert_done                            ; $1FE361 |/ negative = death pit → RTS
+  LDA #$40                                  ; $1FE363 |\ $10 = $40 (downward direction)
+  STA $10                                   ; $1FE365 |/
+  JSR check_room_link                       ; $1FE367 | validate room connection
+  BCC .vert_done                            ; $1FE36A | C=0 → no valid link (death)
+  LDA #$40                                  ; $1FE36C |\ confirmed: transition down
+  STA $10                                   ; $1FE36E | |
+  LDA #$04                                  ; $1FE370 |/ $23 = $04 (vertical scroll down)
+
+; --- begin vertical room transition ---
+.begin_vertical_scroll:
+  STA $23                                   ; $1FE372 | $23 = scroll direction ($04/$08)
+  LDA #$00                                  ; $1FE374 |\ reset Y screen to 0
+  STA $03E0                                 ; $1FE376 |/
+  LDX #$01                                  ; $1FE379 |\ $12 = direction-dependent flag
+  LDY $2B                                   ; $1FE37B | | check if current room's vertical
+  LDA $AA40,y                               ; $1FE37D | | connection matches $10
+  AND #$C0                                  ; $1FE380 | |
+  CMP $10                                   ; $1FE382 | |
+  BEQ .dir_match                            ; $1FE384 | |
+  LDX #$FF                                  ; $1FE386 |/ mismatch → $12 = $FF (reverse)
+.dir_match:
   STX $12                                   ; $1FE388 |
-  LDA #$00                                  ; $1FE38A |
-  STA $03A0                                 ; $1FE38C |
-  STA $F8                                   ; $1FE38F |
-  LDA #$E8                                  ; $1FE391 |
-  STA $5E                                   ; $1FE393 |
-  JSR clear_destroyed_blocks                           ; $1FE395 |
-  JSR code_1FE614                           ; $1FE398 |
-  LDA $22                                   ; $1FE39B |
-  STA $F5                                   ; $1FE39D |
-  JSR select_PRG_banks                      ; $1FE39F |
-  LDY $2B                                   ; $1FE3A2 |
-  LDA $AA40,y                               ; $1FE3A4 |
-  AND #$20                                  ; $1FE3A7 |
-  BEQ code_1FE3AD                           ; $1FE3A9 |
-  STA $2A                                   ; $1FE3AB |
-code_1FE3AD:
-  LDA #$01                                  ; $1FE3AD |
-  STA $A000                                 ; $1FE3AF |
-  LDA #$2A                                  ; $1FE3B2 |
-  STA $52                                   ; $1FE3B4 |
-  JSR code_1EC83D                           ; $1FE3B6 |
-  LDX #$00                                  ; $1FE3B9 |
-  LDY #$04                                  ; $1FE3BB |
-  JSR check_tile_collision                           ; $1FE3BD |
-  LDA $10                                   ; $1FE3C0 |
-  BNE code_1FE3C6                           ; $1FE3C2 |
-  STA $30                                   ; $1FE3C4 |
-code_1FE3C6:
+  LDA #$00                                  ; $1FE38A |\ clear Y sub-pixel
+  STA $03A0                                 ; $1FE38C | |
+  STA $F8                                   ; $1FE38F | | $F8 = 0 (normal render mode)
+  LDA #$E8                                  ; $1FE391 | |
+  STA $5E                                   ; $1FE393 |/ $5E = $E8 (despawn boundary)
+  JSR clear_destroyed_blocks                ; $1FE395 | reset breakable blocks
+  JSR vertical_scroll_animate               ; $1FE398 | animate vertical scroll
+  LDA $22                                   ; $1FE39B |\ re-select stage data bank
+  STA $F5                                   ; $1FE39D | |
+  JSR select_PRG_banks                      ; $1FE39F |/
+  LDY $2B                                   ; $1FE3A2 |\ update $2A from new room's scroll flags
+  LDA $AA40,y                               ; $1FE3A4 | |
+  AND #$20                                  ; $1FE3A7 | | (bit 5 = horizontal scroll)
+  BEQ .skip_scroll_update                   ; $1FE3A9 | |
+  STA $2A                                   ; $1FE3AB |/
+.skip_scroll_update:
+  LDA #$01                                  ; $1FE3AD |\ enable MMC3 RAM protect
+  STA $A000                                 ; $1FE3AF |/
+  LDA #$2A                                  ; $1FE3B2 |\ $52 = $2A (timer/delay value?)
+  STA $52                                   ; $1FE3B4 |/
+  JSR code_1EC83D                           ; $1FE3B6 | level init helper
+  LDX #$00                                  ; $1FE3B9 |\ check player tile collision at (0,4)
+  LDY #$04                                  ; $1FE3BB | | to snap player into new room
+  JSR check_tile_collision                  ; $1FE3BD |/
+  LDA $10                                   ; $1FE3C0 |\ if tile collision result = 0 (air)
+  BNE .vert_done                            ; $1FE3C2 | | set player state to $00 (on_ground)
+  STA $30                                   ; $1FE3C4 |/ (landing after vertical transition)
+.vert_done:
   RTS                                       ; $1FE3C6 |
 
-code_1FE3C7:
-  LDA $2D                                   ; $1FE3C7 |
-  BEQ code_1FE3D1                           ; $1FE3C9 |
-  CMP $2C                                   ; $1FE3CB |
-  BEQ code_1FE3D1                           ; $1FE3CD |
-  CLC                                       ; $1FE3CF |
-  RTS                                       ; $1FE3D0 |
 
-code_1FE3D1:
-  LDA $F9                                   ; $1FE3D1 |
-  STA $00                                   ; $1FE3D3 |
-  LDY $2B                                   ; $1FE3D5 |
-  LDA $2A                                   ; $1FE3D7 |
-  AND #$C0                                  ; $1FE3D9 |
-  BEQ code_1FE3E5                           ; $1FE3DB |
-  LDA $2A                                   ; $1FE3DD |
-  CMP $10                                   ; $1FE3DF |
-  BEQ code_1FE403                           ; $1FE3E1 |
-  BNE code_1FE411                           ; $1FE3E3 |
-code_1FE3E5:
-  LDA $2C                                   ; $1FE3E5 |
-  BNE code_1FE3FF                           ; $1FE3E7 |
-  LDA $AA41,y                               ; $1FE3E9 |
-  AND #$C0                                  ; $1FE3EC |
-  CMP $10                                   ; $1FE3EE |
-  BEQ code_1FE403                           ; $1FE3F0 |
-  LDA $AA3F,y                               ; $1FE3F2 |
-  AND #$C0                                  ; $1FE3F5 |
-  EOR #$C0                                  ; $1FE3F7 |
-  CMP $10                                   ; $1FE3F9 |
-  BEQ code_1FE411                           ; $1FE3FB |
-  BNE code_1FE465                           ; $1FE3FD |
-code_1FE3FF:
-  LDA $2D                                   ; $1FE3FF |
-  BEQ code_1FE411                           ; $1FE401 |
-code_1FE403:
-  INY                                       ; $1FE403 |
-  LDA $AA40,y                               ; $1FE404 |
-  AND #$C0                                  ; $1FE407 |
-  CMP $10                                   ; $1FE409 |
-  BNE code_1FE465                           ; $1FE40B |
-  INC $00                                   ; $1FE40D |
-  BNE code_1FE430                           ; $1FE40F |
-code_1FE411:
-  LDA $AA40,y                               ; $1FE411 |
-  AND #$C0                                  ; $1FE414 |
-  BEQ code_1FE465                           ; $1FE416 |
-  DEY                                       ; $1FE418 |
-  BMI code_1FE465                           ; $1FE419 |
-  LDA $AA40,y                               ; $1FE41B |
-  AND #$C0                                  ; $1FE41E |
-  BNE code_1FE425                           ; $1FE420 |
-  LDA $AA41,y                               ; $1FE422 |
-code_1FE425:
-  EOR #$C0                                  ; $1FE425 |
-  CMP $10                                   ; $1FE427 |
-  BEQ code_1FE425                           ; $1FE429 |
-  DEC $00                                   ; $1FE42B |
+; ===========================================================================
+; check_room_link — validate that a vertical room connection exists
+; ===========================================================================
+; Checks if the player can transition to an adjacent room vertically.
+; Only allows transitions when at the start ($2D==0) or end ($2D==$2C)
+; of the current room's scroll range.
+;
+; Input:  $10 = direction ($80=up, $40=down)
+; Output: C=1 if valid link found, C=0 if no connection
+;         Sets up $2B, $2A, $2C, $2D, $29, $F9, $0380 on success
+; ---------------------------------------------------------------------------
+check_room_link:
+  LDA $2D                                   ; $1FE3C7 |\ scroll progress at room boundary?
+  BEQ .at_boundary                          ; $1FE3C9 | | $2D == 0 (start) → check link
+  CMP $2C                                   ; $1FE3CB | | $2D == $2C (end) → check link
+  BEQ .at_boundary                          ; $1FE3CD | |
+  CLC                                       ; $1FE3CF | | midway through room → no transition
+  RTS                                       ; $1FE3D0 |/
+
+; --- navigate $AA40 room table to find adjacent room in direction $10 ---
+.at_boundary:
+  LDA $F9                                   ; $1FE3D1 |\ $00 = target screen position
+  STA $00                                   ; $1FE3D3 |/ (may be adjusted ±1)
+  LDY $2B                                   ; $1FE3D5 | Y = current room index
+  LDA $2A                                   ; $1FE3D7 |\ check current room's vertical bits
+  AND #$C0                                  ; $1FE3D9 | | bits 6-7 of $2A
+  BEQ .no_vert_connection                   ; $1FE3DB |/ no vertical → check neighbors
+  LDA $2A                                   ; $1FE3DD |\ current room has vertical link:
+  CMP $10                                   ; $1FE3DF | | does direction match?
+  BEQ .try_next_room                        ; $1FE3E1 | | same direction → look forward
+  BNE .try_prev_room                        ; $1FE3E3 |/ different → look backward
+.no_vert_connection:
+  LDA $2C                                   ; $1FE3E5 |\ multi-screen room ($2C > 0)?
+  BNE .check_scroll_pos                     ; $1FE3E7 |/ → check scroll position
+  LDA $AA41,y                               ; $1FE3E9 |\ next entry's vertical bits
+  AND #$C0                                  ; $1FE3EC | | match direction?
+  CMP $10                                   ; $1FE3EE | |
+  BEQ .try_next_room                        ; $1FE3F0 |/ yes → look forward
+  LDA $AA3F,y                               ; $1FE3F2 |\ previous entry's vertical bits
+  AND #$C0                                  ; $1FE3F5 | | (inverted: $C0 XOR = flip up/down)
+  EOR #$C0                                  ; $1FE3F7 | |
+  CMP $10                                   ; $1FE3F9 | |
+  BEQ .try_prev_room                        ; $1FE3FB | |
+  BNE .link_not_found                       ; $1FE3FD |/ no match → fail
+.check_scroll_pos:
+  LDA $2D                                   ; $1FE3FF |\ $2D == 0 (at start) → look backward
+  BEQ .try_prev_room                        ; $1FE401 |/ else (at end) → look forward
+.try_next_room:
+  INY                                       ; $1FE403 |\ check next room entry
+  LDA $AA40,y                               ; $1FE404 | | vertical bits must match $10
+  AND #$C0                                  ; $1FE407 | |
+  CMP $10                                   ; $1FE409 | |
+  BNE .link_not_found                       ; $1FE40B |/ no match → fail
+  INC $00                                   ; $1FE40D | target screen = $F9 + 1
+  BNE .link_found                           ; $1FE40F |
+.try_prev_room:
+  LDA $AA40,y                               ; $1FE411 |\ current entry must have vert bits
+  AND #$C0                                  ; $1FE414 | |
+  BEQ .link_not_found                       ; $1FE416 |/ no vertical → fail
+  DEY                                       ; $1FE418 |\ move to previous room entry
+  BMI .link_not_found                       ; $1FE419 |/ Y < 0 → no previous room
+  LDA $AA40,y                               ; $1FE41B |\ check prev room's vertical bits
+  AND #$C0                                  ; $1FE41E | |
+  BNE .prev_check_vert                      ; $1FE420 |/ has vert → use it directly
+  LDA $AA41,y                               ; $1FE422 | no vert bits → check next entry
+.prev_check_vert:
+  EOR #$C0                                  ; $1FE425 |\ invert and compare with direction
+  CMP $10                                   ; $1FE427 | | (loop safety: BEQ loops if match,
+  BEQ .prev_check_vert                      ; $1FE429 |/ but this shouldn't infinite-loop)
+  DEC $00                                   ; $1FE42B | target screen = $F9 - 1
   LDA $AA40,y                               ; $1FE42D |
-code_1FE430:
-  STA $2A                                   ; $1FE430 |
-  LDA #$01                                  ; $1FE432 |
-  STA $2E                                   ; $1FE434 |
-  CPY $2B                                   ; $1FE436 |
-  STY $2B                                   ; $1FE438 |
-  BCS code_1FE440                           ; $1FE43A |
-  LDA #$02                                  ; $1FE43C |
-  STA $2E                                   ; $1FE43E |
-code_1FE440:
-  LDA $AA40,y                               ; $1FE440 |
-  AND #$1F                                  ; $1FE443 |
-  STA $2C                                   ; $1FE445 |
-  LDX $00                                   ; $1FE447 |
-  CPX $F9                                   ; $1FE449 |
-  BCC code_1FE44F                           ; $1FE44B |
-  LDA #$00                                  ; $1FE44D |
-code_1FE44F:
+
+; --- link found: set up new room variables ---
+.link_found:
+  STA $2A                                   ; $1FE430 | $2A = new room's scroll flags
+  LDA #$01                                  ; $1FE432 |\ $2E = 1 (forward direction)
+  STA $2E                                   ; $1FE434 |/
+  CPY $2B                                   ; $1FE436 |\ if new room index < current
+  STY $2B                                   ; $1FE438 | | (going backward in table)
+  BCS .set_room_params                      ; $1FE43A | |
+  LDA #$02                                  ; $1FE43C | | $2E = 2 (backward direction)
+  STA $2E                                   ; $1FE43E |/
+.set_room_params:
+  LDA $AA40,y                               ; $1FE440 |\ $2C = new room's screen count
+  AND #$1F                                  ; $1FE443 | |
+  STA $2C                                   ; $1FE445 |/
+  LDX $00                                   ; $1FE447 |\ if target screen >= current $F9:
+  CPX $F9                                   ; $1FE449 | | $2D = 0 (at start of new room)
+  BCC .set_scroll_progress                  ; $1FE44B | | else: $2D = $2C (at end)
+  LDA #$00                                  ; $1FE44D |/
+.set_scroll_progress:
   STA $2D                                   ; $1FE44F |
-  LDA $00                                   ; $1FE451 |
-  STA $29                                   ; $1FE453 |
-  STA $F9                                   ; $1FE455 |
-  STA $0380                                 ; $1FE457 |
-  LDA #$00                                  ; $1FE45A |
-  STA $A000                                 ; $1FE45C |
-  LDA #$26                                  ; $1FE45F |
-  STA $52                                   ; $1FE461 |
-  SEC                                       ; $1FE463 |
+  LDA $00                                   ; $1FE451 |\ update camera and player X screen
+  STA $29                                   ; $1FE453 | | $29 = metatile column base
+  STA $F9                                   ; $1FE455 | | $F9 = camera screen
+  STA $0380                                 ; $1FE457 |/ $0380 = player X screen
+  LDA #$00                                  ; $1FE45A |\ $A000 = 0 (MMC3 bank config)
+  STA $A000                                 ; $1FE45C |/
+  LDA #$26                                  ; $1FE45F |\ $52 = $26 (timer/delay?)
+  STA $52                                   ; $1FE461 |/
+  SEC                                       ; $1FE463 | C=1 → link found
   RTS                                       ; $1FE464 |
 
-code_1FE465:
-  CLC                                       ; $1FE465 |
+.link_not_found:
+  CLC                                       ; $1FE465 | C=0 → no valid link
   RTS                                       ; $1FE466 |
 
-code_1FE467:
-  LDA $F8                                   ; $1FE467 |
-  CMP #$02                                  ; $1FE469 |
-  BNE code_1FE4AF                           ; $1FE46B |
-  JSR code_1FE4AF                           ; $1FE46D |
-  BCS code_1FE4EF                           ; $1FE470 |
-  LDA $0780                                 ; $1FE472 |
-  ORA #$22                                  ; $1FE475 |
-  STA $0780                                 ; $1FE477 |
-  LDA $0781                                 ; $1FE47A |
-  ORA #$80                                  ; $1FE47D |
-  STA $0781                                 ; $1FE47F |
-  LDA #$09                                  ; $1FE482 |
-  STA $0782                                 ; $1FE484 |
-  LDY #$00                                  ; $1FE487 |
-code_1FE489:
-  LDA $0797,y                               ; $1FE489 |
-  STA $0783,y                               ; $1FE48C |
-  INY                                       ; $1FE48F |
-  CPY #$0A                                  ; $1FE490 |
-  BNE code_1FE489                           ; $1FE492 |
-  LDA $07A1                                 ; $1FE494 |
-  BPL code_1FE49F                           ; $1FE497 |
-  STA $078D                                 ; $1FE499 |
-  STA $1A                                   ; $1FE49C |
-  RTS                                       ; $1FE49E |
+; ===========================================================================
+; render_scroll_column — queue nametable column updates during scrolling
+; ===========================================================================
+; Called after horizontal scroll speed is applied to $FC. Determines how
+; many columns have scrolled into view and queues PPU nametable updates
+; via the $0780 NMI buffer.
+;
+; When $F8 == 2 (dual-nametable mode): renders columns for BOTH nametables
+; (first call renders primary, then mirrors to secondary nametable offset).
+; Otherwise: renders single column only.
+;
+; $25 = previous $FC value, $FC = current fine scroll position
+; $1A = flag to trigger NMI buffer drain
+; ---------------------------------------------------------------------------
+render_scroll_column:
+  LDA $F8                                   ; $1FE467 |\ if $F8 == 2: dual nametable mode
+  CMP #$02                                  ; $1FE469 | |
+  BNE .single_column                        ; $1FE46B |/ not dual → single column
+  JSR .single_column                        ; $1FE46D |\ render first nametable column
+  BCS .no_column_needed                     ; $1FE470 |/ C=1 → no column to render
+  LDA $0780                                 ; $1FE472 |\ mirror to second nametable:
+  ORA #$22                                  ; $1FE475 | | set bit 1 of high byte ($20→$22)
+  STA $0780                                 ; $1FE477 |/ and bit 7 of low byte
+  LDA $0781                                 ; $1FE47A | |
+  ORA #$80                                  ; $1FE47D | |
+  STA $0781                                 ; $1FE47F |/
+  LDA #$09                                  ; $1FE482 |\ count = 9 (copy 10 tile rows)
+  STA $0782                                 ; $1FE484 |/
+  LDY #$00                                  ; $1FE487 |\ copy attribute data to second
+.copy_attr_loop:                                       ; | nametable buffer region
+  LDA $0797,y                               ; $1FE489 | |
+  STA $0783,y                               ; $1FE48C | |
+  INY                                       ; $1FE48F | |
+  CPY #$0A                                  ; $1FE490 | |
+  BNE .copy_attr_loop                       ; $1FE492 |/
+  LDA $07A1                                 ; $1FE494 |\ check if attribute entry exists
+  BPL .copy_second_attr                     ; $1FE497 |/ bit 7 set = end marker
+  STA $078D                                 ; $1FE499 |\ no second attr: terminate here
+  STA $1A                                   ; $1FE49C | | flag NMI to drain buffer
+  RTS                                       ; $1FE49E |/
 
-code_1FE49F:
-  LDY #$00                                  ; $1FE49F |
-code_1FE4A1:
-  LDA $07B5,y                               ; $1FE4A1 |
-  STA $078D,y                               ; $1FE4A4 |
-  INY                                       ; $1FE4A7 |
-  CPY #$0D                                  ; $1FE4A8 |
-  BNE code_1FE4A1                           ; $1FE4AA |
-  STA $1A                                   ; $1FE4AC |
+.copy_second_attr:
+  LDY #$00                                  ; $1FE49F |\ copy second attribute section
+.copy_attr2_loop:                                      ; | (13 bytes from $07B5)
+  LDA $07B5,y                               ; $1FE4A1 | |
+  STA $078D,y                               ; $1FE4A4 | |
+  INY                                       ; $1FE4A7 | |
+  CPY #$0D                                  ; $1FE4A8 | |
+  BNE .copy_attr2_loop                      ; $1FE4AA |/
+  STA $1A                                   ; $1FE4AC | flag NMI to drain buffer
   RTS                                       ; $1FE4AE |
 
-code_1FE4AF:
-  LDA $FC                                   ; $1FE4AF |
-  SEC                                       ; $1FE4B1 |
-  SBC $25                                   ; $1FE4B2 |
-  BPL code_1FE4BB                           ; $1FE4B4 |
-  EOR #$FF                                  ; $1FE4B6 |
-  CLC                                       ; $1FE4B8 |
-  ADC #$01                                  ; $1FE4B9 |
-code_1FE4BB:
-  STA $03                                   ; $1FE4BB |
-  BEQ code_1FE4EF                           ; $1FE4BD |
-  LDA $23                                   ; $1FE4BF |
-  AND #$0C                                  ; $1FE4C1 |
-  BEQ code_1FE4D6                           ; $1FE4C3 |
-  LDA $10                                   ; $1FE4C5 |
-  STA $23                                   ; $1FE4C7 |
-  AND #$01                                  ; $1FE4C9 |
-  TAX                                       ; $1FE4CB |
-  LDA $E5CD,x                               ; $1FE4CC |
-  STA $25                                   ; $1FE4CF |
-  LDA $E5CF,x                               ; $1FE4D1 |
-  STA $24                                   ; $1FE4D4 |
-code_1FE4D6:
-  LDA $10                                   ; $1FE4D6 |
-  AND #$01                                  ; $1FE4D8 |
-  BEQ code_1FE4E1                           ; $1FE4DA |
-  LDA $25                                   ; $1FE4DC |
-  JMP code_1FE4E5                           ; $1FE4DE |
+; --- single_column: compute if a column crossed an 8-pixel boundary ---
+; $03 = |$FC - $25| = absolute scroll delta since last frame
+; If delta + fine position crosses an 8-pixel tile boundary, we need
+; to render a new column. $24 = nametable column pointer, $29 = metatile
+; column. Direction tables at $E5C3/$E5CD/$E5CF configure left vs right.
+.single_column:
+  LDA $FC                                   ; $1FE4AF |\ $03 = |$FC - $25|
+  SEC                                       ; $1FE4B1 | | absolute scroll delta
+  SBC $25                                   ; $1FE4B2 | |
+  BPL .delta_positive                       ; $1FE4B4 | |
+  EOR #$FF                                  ; $1FE4B6 | | negate if negative
+  CLC                                       ; $1FE4B8 | |
+  ADC #$01                                  ; $1FE4B9 |/
+.delta_positive:
+  STA $03                                   ; $1FE4BB | $03 = scroll delta (pixels)
+  BEQ .no_column_needed                     ; $1FE4BD | zero → nothing to render
+  LDA $23                                   ; $1FE4BF |\ if $23 has vertical scroll bits
+  AND #$0C                                  ; $1FE4C1 | | ($04 or $08), this is first frame
+  BEQ .skip_init                            ; $1FE4C3 |/ after vertical transition → init
+  LDA $10                                   ; $1FE4C5 |\ overwrite $23 with current direction
+  STA $23                                   ; $1FE4C7 | |
+  AND #$01                                  ; $1FE4C9 | | X = direction index (0=left, 1=right)
+  TAX                                       ; $1FE4CB | |
+  LDA $E5CD,x                               ; $1FE4CC | | init $25 from direction table
+  STA $25                                   ; $1FE4CF | |
+  LDA $E5CF,x                               ; $1FE4D1 | | init $24 from direction table
+  STA $24                                   ; $1FE4D4 |/
+.skip_init:
+  LDA $10                                   ; $1FE4D6 |\ get fine position for boundary check:
+  AND #$01                                  ; $1FE4D8 | | direction 1 (right): use $25 as-is
+  BEQ .dir_left                             ; $1FE4DA | | direction 2 (left): invert $25
+  LDA $25                                   ; $1FE4DC | |
+  JMP .check_boundary                       ; $1FE4DE |/
 
-code_1FE4E1:
-  LDA $25                                   ; $1FE4E1 |
-  EOR #$FF                                  ; $1FE4E3 |
-code_1FE4E5:
-  AND #$07                                  ; $1FE4E5 |
-  CLC                                       ; $1FE4E7 |
-  ADC $03                                   ; $1FE4E8 |
-  LSR                                       ; $1FE4EA |
-  LSR                                       ; $1FE4EB |
-  LSR                                       ; $1FE4EC |
-  BNE code_1FE4F1                           ; $1FE4ED |
-code_1FE4EF:
-  SEC                                       ; $1FE4EF |
+.dir_left:
+  LDA $25                                   ; $1FE4E1 |\ invert for leftward scroll
+  EOR #$FF                                  ; $1FE4E3 |/
+.check_boundary:
+  AND #$07                                  ; $1FE4E5 |\ (fine pos & 7) + delta
+  CLC                                       ; $1FE4E7 | | if result / 8 > 0: crossed boundary
+  ADC $03                                   ; $1FE4E8 | | → need to render new column
+  LSR                                       ; $1FE4EA | |
+  LSR                                       ; $1FE4EB | |
+  LSR                                       ; $1FE4EC | |
+  BNE do_render_column                      ; $1FE4ED |/
+.no_column_needed:
+  SEC                                       ; $1FE4EF | C=1 → no column to render
   RTS                                       ; $1FE4F0 |
 
-code_1FE4F1:
-  LDA $10                                   ; $1FE4F1 |
-  PHA                                       ; $1FE4F3 |
-  AND #$01                                  ; $1FE4F4 |
-  TAX                                       ; $1FE4F6 |
-  PLA                                       ; $1FE4F7 |
-  CMP $23                                   ; $1FE4F8 |
-  STA $23                                   ; $1FE4FA |
-  BEQ code_1FE501                           ; $1FE4FC |
-  JMP code_1FE50F                           ; $1FE4FE |
+; --- render column: advance nametable pointer and build PPU update ---
+do_render_column:
+  LDA $10                                   ; $1FE4F1 |\ X = direction (0 or 1)
+  PHA                                       ; $1FE4F3 | |
+  AND #$01                                  ; $1FE4F4 | |
+  TAX                                       ; $1FE4F6 |/
+  PLA                                       ; $1FE4F7 |\ if direction changed since last frame
+  CMP $23                                   ; $1FE4F8 | | ($10 != $23): skip column advance,
+  STA $23                                   ; $1FE4FA | | just update metatile base
+  BEQ .same_direction                       ; $1FE4FC | |
+  JMP .update_metatile_base                 ; $1FE4FE |/
 
-code_1FE501:
-  LDA $24                                   ; $1FE501 |
-  CLC                                       ; $1FE503 |
-  ADC $E5C3,x                               ; $1FE504 |
-  CMP #$20                                  ; $1FE507 |
-  AND #$1F                                  ; $1FE509 |
-  STA $24                                   ; $1FE50B |
-  BCC code_1FE517                           ; $1FE50D |
-code_1FE50F:
-  LDA $29                                   ; $1FE50F |
-  CLC                                       ; $1FE511 |
-  ADC $E5C3,x                               ; $1FE512 |
-  STA $29                                   ; $1FE515 |
-code_1FE517:
-  LDA $22                                   ; $1FE517 |
-  STA $F5                                   ; $1FE519 |
-  JSR select_PRG_banks                      ; $1FE51B |
-  LDA $24                                   ; $1FE51E |
-  LSR                                       ; $1FE520 |
-  LSR                                       ; $1FE521 |
-  STA $28                                   ; $1FE522 |
-  LDY $29                                   ; $1FE524 |
-  JSR metatile_column_ptr                           ; $1FE526 |
-  LDA #$00                                  ; $1FE529 |
-  STA $03                                   ; $1FE52B |
-code_1FE52D:
-  JSR metatile_to_chr_tiles                           ; $1FE52D |
-  LDY $28                                   ; $1FE530 |
-  LDA $0640,y                               ; $1FE532 |
-  STA $11                                   ; $1FE535 |
-  LDA $24                                   ; $1FE537 |
-  AND #$03                                  ; $1FE539 |
-  TAY                                       ; $1FE53B |
-  LDX $03                                   ; $1FE53C |
-  LDA $06C0,y                               ; $1FE53E |
-  STA $0783,x                               ; $1FE541 |
-  LDA $06C4,y                               ; $1FE544 |
-  STA $0784,x                               ; $1FE547 |
-  LDA $28                                   ; $1FE54A |
-  CMP #$38                                  ; $1FE54C |
-  BCS code_1FE55C                           ; $1FE54E |
-  LDA $06C8,y                               ; $1FE550 |
-  STA $0785,x                               ; $1FE553 |
-  LDA $06CC,y                               ; $1FE556 |
-  STA $0786,x                               ; $1FE559 |
-code_1FE55C:
-  LDA $24                                   ; $1FE55C |
-  AND #$01                                  ; $1FE55E |
-  BEQ code_1FE588                           ; $1FE560 |
-  LDA $10                                   ; $1FE562 |
-  AND $E5C5,y                               ; $1FE564 |
-  STA $10                                   ; $1FE567 |
-  LDA $11                                   ; $1FE569 |
-  AND $E5C9,y                               ; $1FE56B |
-  ORA $10                                   ; $1FE56E |
-  STA $07A4,x                               ; $1FE570 |
-  LDY $28                                   ; $1FE573 |
-  STA $0640,y                               ; $1FE575 |
-  LDA #$23                                  ; $1FE578 |
-  STA $07A1,x                               ; $1FE57A |
-  TYA                                       ; $1FE57D |
-  ORA #$C0                                  ; $1FE57E |
-  STA $07A2,x                               ; $1FE580 |
-  LDA #$00                                  ; $1FE583 |
-  STA $07A3,x                               ; $1FE585 |
-code_1FE588:
-  INC $03                                   ; $1FE588 |
-  INC $03                                   ; $1FE58A |
-  INC $03                                   ; $1FE58C |
-  INC $03                                   ; $1FE58E |
-  LDA $28                                   ; $1FE590 |
-  CLC                                       ; $1FE592 |
-  ADC #$08                                  ; $1FE593 |
-  STA $28                                   ; $1FE595 |
-  CMP #$40                                  ; $1FE597 |
-  BCC code_1FE52D                           ; $1FE599 |
-  LDA #$20                                  ; $1FE59B |
-  STA $0780                                 ; $1FE59D |
-  LDA $24                                   ; $1FE5A0 |
-  STA $0781                                 ; $1FE5A2 |
-  LDA #$1D                                  ; $1FE5A5 |
-  STA $0782                                 ; $1FE5A7 |
-  LDY #$00                                  ; $1FE5AA |
-  LDA $24                                   ; $1FE5AC |
-  AND #$01                                  ; $1FE5AE |
-  BEQ code_1FE5B4                           ; $1FE5B0 |
-  LDY #$20                                  ; $1FE5B2 |
-code_1FE5B4:
-  LDA #$FF                                  ; $1FE5B4 |
-  STA $07A1,y                               ; $1FE5B6 |
-  LDY $F8                                   ; $1FE5B9 |
-  CPY #$02                                  ; $1FE5BB |
-  BEQ code_1FE5C1                           ; $1FE5BD |
-  STA $1A                                   ; $1FE5BF |
-code_1FE5C1:
-  CLC                                       ; $1FE5C1 |
+.same_direction:
+  LDA $24                                   ; $1FE501 |\ advance nametable column pointer
+  CLC                                       ; $1FE503 | | $24 += direction step ($E5C3,x)
+  ADC $E5C3,x                               ; $1FE504 | |
+  CMP #$20                                  ; $1FE507 | | wrap at 32 columns (NES nametable)
+  AND #$1F                                  ; $1FE509 | |
+  STA $24                                   ; $1FE50B | |
+  BCC .skip_metatile_advance                ; $1FE50D |/ no wrap → skip metatile base update
+.update_metatile_base:
+  LDA $29                                   ; $1FE50F |\ $29 += direction step
+  CLC                                       ; $1FE511 | | (metatile column in level data)
+  ADC $E5C3,x                               ; $1FE512 | |
+  STA $29                                   ; $1FE515 |/
+; --- build nametable column from metatile data ---
+.skip_metatile_advance:
+  LDA $22                                   ; $1FE517 |\ select stage data bank
+  STA $F5                                   ; $1FE519 | |
+  JSR select_PRG_banks                      ; $1FE51B |/
+  LDA $24                                   ; $1FE51E |\ $28 = attribute table row
+  LSR                                       ; $1FE520 | | = nametable column / 4
+  LSR                                       ; $1FE521 | |
+  STA $28                                   ; $1FE522 |/
+  LDY $29                                   ; $1FE524 |\ set up metatile data pointer
+  JSR metatile_column_ptr                   ; $1FE526 |/ for column $29
+  LDA #$00                                  ; $1FE529 |\ $03 = buffer write offset
+  STA $03                                   ; $1FE52B |/ (increments by 4 per row)
+.column_row_loop:
+  JSR metatile_to_chr_tiles                 ; $1FE52D | decode metatile → $06C0 tile buffer
+  LDY $28                                   ; $1FE530 |\ $11 = current attribute byte
+  LDA $0640,y                               ; $1FE532 | | from attribute cache
+  STA $11                                   ; $1FE535 |/
+  LDA $24                                   ; $1FE537 |\ Y = column within metatile (0-3)
+  AND #$03                                  ; $1FE539 | |
+  TAY                                       ; $1FE53B |/
+  LDX $03                                   ; $1FE53C |\ write 2 or 4 CHR tiles to buffer
+  LDA $06C0,y                               ; $1FE53E | | top-left tile
+  STA $0783,x                               ; $1FE541 | |
+  LDA $06C4,y                               ; $1FE544 | | bottom-left tile
+  STA $0784,x                               ; $1FE547 |/
+  LDA $28                                   ; $1FE54A |\ if row >= $38 (bottom 2 rows):
+  CMP #$38                                  ; $1FE54C | | skip second pair (status bar area)
+  BCS .skip_bottom_tiles                    ; $1FE54E |/
+  LDA $06C8,y                               ; $1FE550 |\ top-right tile
+  STA $0785,x                               ; $1FE553 | |
+  LDA $06CC,y                               ; $1FE556 | | bottom-right tile
+  STA $0786,x                               ; $1FE559 |/
+.skip_bottom_tiles:
+  LDA $24                                   ; $1FE55C |\ if column is odd: update attribute byte
+  AND #$01                                  ; $1FE55E | | (attributes cover 2×2 metatile groups)
+  BEQ .skip_attribute                       ; $1FE560 |/
+  LDA $10                                   ; $1FE562 |\ merge new attribute bits:
+  AND $E5C5,y                               ; $1FE564 | | mask with direction table
+  STA $10                                   ; $1FE567 | |
+  LDA $11                                   ; $1FE569 | | combine with old attribute
+  AND $E5C9,y                               ; $1FE56B | |
+  ORA $10                                   ; $1FE56E | |
+  STA $07A4,x                               ; $1FE570 |/ store in attribute buffer
+  LDY $28                                   ; $1FE573 |\ update attribute cache
+  STA $0640,y                               ; $1FE575 |/
+  LDA #$23                                  ; $1FE578 |\ attribute table PPU address:
+  STA $07A1,x                               ; $1FE57A | | $23C0 + row offset
+  TYA                                       ; $1FE57D | |
+  ORA #$C0                                  ; $1FE57E | |
+  STA $07A2,x                               ; $1FE580 | |
+  LDA #$00                                  ; $1FE583 | | count = 0 (single byte)
+  STA $07A3,x                               ; $1FE585 |/
+.skip_attribute:
+  INC $03                                   ; $1FE588 |\ advance buffer offset by 4
+  INC $03                                   ; $1FE58A | |
+  INC $03                                   ; $1FE58C | |
+  INC $03                                   ; $1FE58E |/
+  LDA $28                                   ; $1FE590 |\ advance attribute row by 8
+  CLC                                       ; $1FE592 | | (each metatile = 8 pixel rows)
+  ADC #$08                                  ; $1FE593 | |
+  STA $28                                   ; $1FE595 | |
+  CMP #$40                                  ; $1FE597 | | < $40 (8 rows)? loop
+  BCC .column_row_loop                      ; $1FE599 |/
+  LDA #$20                                  ; $1FE59B |\ finalize PPU buffer header:
+  STA $0780                                 ; $1FE59D | | $0780 = $20 (nametable $2000 base)
+  LDA $24                                   ; $1FE5A0 | | $0781 = nametable column
+  STA $0781                                 ; $1FE5A2 | |
+  LDA #$1D                                  ; $1FE5A5 | | $0782 = $1D (30 tiles = full column)
+  STA $0782                                 ; $1FE5A7 |/
+  LDY #$00                                  ; $1FE5AA |\ select attribute buffer terminator pos:
+  LDA $24                                   ; $1FE5AC | | odd column → Y=$20 (secondary buffer)
+  AND #$01                                  ; $1FE5AE | | even column → Y=$00 (primary buffer)
+  BEQ .set_terminator                       ; $1FE5B0 | |
+  LDY #$20                                  ; $1FE5B2 |/
+.set_terminator:
+  LDA #$FF                                  ; $1FE5B4 |\ write $FF end marker
+  STA $07A1,y                               ; $1FE5B6 |/
+  LDY $F8                                   ; $1FE5B9 |\ if $F8 == 2 (dual nametable):
+  CPY #$02                                  ; $1FE5BB | | don't flag NMI yet (caller handles it)
+  BEQ .column_done                          ; $1FE5BD | |
+  STA $1A                                   ; $1FE5BF |/ else: flag NMI to drain buffer
+.column_done:
+  CLC                                       ; $1FE5C1 | C=0 → column was rendered
   RTS                                       ; $1FE5C2 |
 
+; Direction/column rendering tables:
+; $E5C3: direction step (+1/-1 for right/left)
+; $E5C5: attribute mask tables (4 bytes each)
+; $E5CD: initial $25 values per direction
+; $E5CF: initial $24 values per direction
   db $FF, $01, $33, $33, $CC, $CC, $CC, $CC ; $1FE5C3 |
   db $33, $33, $00, $FF, $01, $1F           ; $1FE5CB |
 
-code_1FE5D1:
-  JSR clear_entity_table                           ; $1FE5D1 |
-code_1FE5D4:
-  LDA $FC                                   ; $1FE5D4 |
-  CLC                                       ; $1FE5D6 |
-  ADC #$04                                  ; $1FE5D7 |
-  STA $FC                                   ; $1FE5D9 |
-  BCC code_1FE5DF                           ; $1FE5DB |
-  INC $F9                                   ; $1FE5DD |
-code_1FE5DF:
-  LDA #$01                                  ; $1FE5DF |
-  STA $10                                   ; $1FE5E1 |
-  JSR code_1FE467                           ; $1FE5E3 |
-  LDA $FC                                   ; $1FE5E6 |
-  STA $25                                   ; $1FE5E8 |
-  LDA $0340                                 ; $1FE5EA |
-  CLC                                       ; $1FE5ED |
-  ADC #$D0                                  ; $1FE5EE |
-  STA $0340                                 ; $1FE5F0 |
-  LDA $0360                                 ; $1FE5F3 |
-  ADC #$00                                  ; $1FE5F6 |
-  STA $0360                                 ; $1FE5F8 |
-  LDA $0380                                 ; $1FE5FB |
-  ADC #$00                                  ; $1FE5FE |
-  STA $0380                                 ; $1FE600 |
-  JSR process_frame_yield_with_player                           ; $1FE603 |
-  LDA $FC                                   ; $1FE606 |
-  BNE code_1FE5D4                           ; $1FE608 |
-  LDA $22                                   ; $1FE60A |
-  STA $F5                                   ; $1FE60C |
-  JSR select_PRG_banks                      ; $1FE60E |
-  JMP code_1EC83D                           ; $1FE611 |
+; ===========================================================================
+; fast_scroll_right — rapid camera scroll during room transition
+; ===========================================================================
+; Called during horizontal room advance. Scrolls camera right at 4 pixels
+; per frame while simultaneously advancing player X by ~$D0/$100 per frame
+; (net rightward movement). Renders columns each frame and yields.
+; Loops until $FC wraps back to 0 (full screen scrolled).
+; ---------------------------------------------------------------------------
+fast_scroll_right:
+  JSR clear_entity_table                    ; $1FE5D1 |\ clear all enemies
+.fast_scroll_loop:
+  LDA $FC                                   ; $1FE5D4 |\ $FC += 4 (scroll 4 pixels/frame)
+  CLC                                       ; $1FE5D6 | |
+  ADC #$04                                  ; $1FE5D7 | |
+  STA $FC                                   ; $1FE5D9 | |
+  BCC .no_screen_cross                      ; $1FE5DB | | carry → screen boundary crossed
+  INC $F9                                   ; $1FE5DD |/ $F9++ (camera screen)
+.no_screen_cross:
+  LDA #$01                                  ; $1FE5DF |\ $10 = 1 (scroll right)
+  STA $10                                   ; $1FE5E1 |/
+  JSR render_scroll_column                  ; $1FE5E3 | render column for new position
+  LDA $FC                                   ; $1FE5E6 |\ update $25 = previous $FC
+  STA $25                                   ; $1FE5E8 |/
+  LDA $0340                                 ; $1FE5EA |\ player X sub += $D0
+  CLC                                       ; $1FE5ED | | (24-bit add: sub + pixel + screen)
+  ADC #$D0                                  ; $1FE5EE | | net effect: player slides right
+  STA $0340                                 ; $1FE5F0 | | slightly faster than camera
+  LDA $0360                                 ; $1FE5F3 | |
+  ADC #$00                                  ; $1FE5F6 | |
+  STA $0360                                 ; $1FE5F8 | |
+  LDA $0380                                 ; $1FE5FB | |
+  ADC #$00                                  ; $1FE5FE | |
+  STA $0380                                 ; $1FE600 |/
+  JSR process_frame_yield_with_player       ; $1FE603 | render frame + yield to NMI
+  LDA $FC                                   ; $1FE606 |\ loop until $FC wraps to 0
+  BNE .fast_scroll_loop                     ; $1FE608 |/ (full 256-pixel screen scrolled)
+  LDA $22                                   ; $1FE60A |\ re-select stage bank
+  STA $F5                                   ; $1FE60C | |
+  JSR select_PRG_banks                      ; $1FE60E |/
+  JMP code_1EC83D                           ; $1FE611 | level init helper
 
-code_1FE614:
-  JSR clear_entity_table                           ; $1FE614 |
-  LDA $23                                   ; $1FE617 |
-  AND #$04                                  ; $1FE619 |
-  LSR                                       ; $1FE61B |
-  LSR                                       ; $1FE61C |
-  TAX                                       ; $1FE61D |
-  LDA $E7EB,x                               ; $1FE61E |
-  STA $24                                   ; $1FE621 |
-code_1FE623:
-  LDA $23                                   ; $1FE623 |
-  AND #$04                                  ; $1FE625 |
-  BEQ code_1FE653                           ; $1FE627 |
-  LDA $FA                                   ; $1FE629 |
-  CLC                                       ; $1FE62B |
-  ADC #$03                                  ; $1FE62C |
-  STA $FA                                   ; $1FE62E |
-  CMP #$F0                                  ; $1FE630 |
-  BCC code_1FE638                           ; $1FE632 |
-  ADC #$0F                                  ; $1FE634 |
-  STA $FA                                   ; $1FE636 |
-code_1FE638:
-  LDA $03A0                                 ; $1FE638 |
-  SEC                                       ; $1FE63B |
-  SBC #$C0                                  ; $1FE63C |
-  STA $03A0                                 ; $1FE63E |
-  LDA $03C0                                 ; $1FE641 |
-  SBC #$02                                  ; $1FE644 |
-  STA $03C0                                 ; $1FE646 |
-  BCS code_1FE67A                           ; $1FE649 |
-  SBC #$0F                                  ; $1FE64B |
-  STA $03C0                                 ; $1FE64D |
-  JMP code_1FE67A                           ; $1FE650 |
+; ===========================================================================
+; vertical_scroll_animate — animate vertical room transition
+; ===========================================================================
+; Scrolls the screen vertically at 3 pixels per frame while moving the
+; player Y position at ~2.75 pixels per frame. Uses $FA as vertical
+; fine scroll position (0-$EF, wraps at $F0 like $03C0).
+; $23 bit 2 selects direction: set=down ($04), clear=up ($08).
+; Loops until $FA reaches 0 (full screen scrolled).
+; ---------------------------------------------------------------------------
+vertical_scroll_animate:
+  JSR clear_entity_table                    ; $1FE614 | clear all enemies
+  LDA $23                                   ; $1FE617 |\ X = direction index:
+  AND #$04                                  ; $1FE619 | | $04 → X=1 (scrolling down)
+  LSR                                       ; $1FE61B | | $08 → X=0 (scrolling up)
+  LSR                                       ; $1FE61C | |
+  TAX                                       ; $1FE61D |/
+  LDA $E7EB,x                               ; $1FE61E |\ $24 = initial row from table
+  STA $24                                   ; $1FE621 |/
+.vert_scroll_loop:
+  LDA $23                                   ; $1FE623 |\ bit 2 set = scrolling down
+  AND #$04                                  ; $1FE625 | |
+  BEQ .scroll_up                            ; $1FE627 |/
 
-code_1FE653:
-  LDA $FA                                   ; $1FE653 |
-  SEC                                       ; $1FE655 |
-  SBC #$03                                  ; $1FE656 |
-  STA $FA                                   ; $1FE658 |
-  BCS code_1FE660                           ; $1FE65A |
-  SBC #$0F                                  ; $1FE65C |
-  STA $FA                                   ; $1FE65E |
-code_1FE660:
-  LDA $03A0                                 ; $1FE660 |
-  CLC                                       ; $1FE663 |
-  ADC #$C0                                  ; $1FE664 |
-  STA $03A0                                 ; $1FE666 |
-  LDA $03C0                                 ; $1FE669 |
-  ADC #$02                                  ; $1FE66C |
-  STA $03C0                                 ; $1FE66E |
-  CMP #$F0                                  ; $1FE671 |
-  BCC code_1FE67A                           ; $1FE673 |
-  ADC #$0F                                  ; $1FE675 |
-  STA $03C0                                 ; $1FE677 |
-code_1FE67A:
-  JSR code_1FE698                           ; $1FE67A |
-  LDA $FA                                   ; $1FE67D |
-  STA $26                                   ; $1FE67F |
-  LDA $12                                   ; $1FE681 |
-  PHA                                       ; $1FE683 |
-  JSR process_frame_yield_with_player                           ; $1FE684 |
-  PLA                                       ; $1FE687 |
-  STA $12                                   ; $1FE688 |
-  LDA $FA                                   ; $1FE68A |
-  BEQ code_1FE691                           ; $1FE68C |
-  JMP code_1FE623                           ; $1FE68E |
+; --- scroll down: camera moves down, player moves up ---
+  LDA $FA                                   ; $1FE629 |\ $FA += 3 (fine Y scroll advances)
+  CLC                                       ; $1FE62B | |
+  ADC #$03                                  ; $1FE62C | |
+  STA $FA                                   ; $1FE62E | |
+  CMP #$F0                                  ; $1FE630 | | wrap at $F0 (NES screen height)
+  BCC .move_player_up                       ; $1FE632 | |
+  ADC #$0F                                  ; $1FE634 | | skip $F0-$FF range
+  STA $FA                                   ; $1FE636 |/
+.move_player_up:
+  LDA $03A0                                 ; $1FE638 |\ player Y sub -= $C0
+  SEC                                       ; $1FE63B | | (player moves up ~2.75 px/frame)
+  SBC #$C0                                  ; $1FE63C | |
+  STA $03A0                                 ; $1FE63E | |
+  LDA $03C0                                 ; $1FE641 | | player Y pixel -= 2 + borrow
+  SBC #$02                                  ; $1FE644 | |
+  STA $03C0                                 ; $1FE646 | |
+  BCS .render_vert_column                   ; $1FE649 | |
+  SBC #$0F                                  ; $1FE64B | | wrap at screen boundary
+  STA $03C0                                 ; $1FE64D | |
+  JMP .render_vert_column                   ; $1FE650 |/
 
-code_1FE691:
-  LDA $22                                   ; $1FE691 |
-  STA $F5                                   ; $1FE693 |
-  JMP select_PRG_banks                      ; $1FE695 |
+; --- scroll up: camera moves up, player moves down ---
+.scroll_up:
+  LDA $FA                                   ; $1FE653 |\ $FA -= 3 (fine Y scroll retreats)
+  SEC                                       ; $1FE655 | |
+  SBC #$03                                  ; $1FE656 | |
+  STA $FA                                   ; $1FE658 | |
+  BCS .move_player_down                     ; $1FE65A | |
+  SBC #$0F                                  ; $1FE65C | | wrap below $00
+  STA $FA                                   ; $1FE65E |/
+.move_player_down:
+  LDA $03A0                                 ; $1FE660 |\ player Y sub += $C0
+  CLC                                       ; $1FE663 | | (player moves down ~2.75 px/frame)
+  ADC #$C0                                  ; $1FE664 | |
+  STA $03A0                                 ; $1FE666 | |
+  LDA $03C0                                 ; $1FE669 | | player Y pixel += 2 + carry
+  ADC #$02                                  ; $1FE66C | |
+  STA $03C0                                 ; $1FE66E | |
+  CMP #$F0                                  ; $1FE671 | | wrap at $F0
+  BCC .render_vert_column                   ; $1FE673 | |
+  ADC #$0F                                  ; $1FE675 | |
+  STA $03C0                                 ; $1FE677 |/
+.render_vert_column:
+  JSR render_vert_row                       ; $1FE67A | render row for new vertical position
+  LDA $FA                                   ; $1FE67D |\ $26 = previous $FA (for delta)
+  STA $26                                   ; $1FE67F |/
+  LDA $12                                   ; $1FE681 |\ preserve $12 across frame yield
+  PHA                                       ; $1FE683 | |
+  JSR process_frame_yield_with_player       ; $1FE684 | render frame + yield to NMI
+  PLA                                       ; $1FE687 | |
+  STA $12                                   ; $1FE688 |/
+  LDA $FA                                   ; $1FE68A |\ loop until $FA == 0 (full screen)
+  BEQ .vert_scroll_done                     ; $1FE68C | |
+  JMP .vert_scroll_loop                     ; $1FE68E |/
 
-code_1FE698:
-  LDA $FA                                   ; $1FE698 |
-  SEC                                       ; $1FE69A |
-  SBC $26                                   ; $1FE69B |
-  BPL code_1FE6A4                           ; $1FE69D |
-  EOR #$FF                                  ; $1FE69F |
-  CLC                                       ; $1FE6A1 |
-  ADC #$01                                  ; $1FE6A2 |
-code_1FE6A4:
-  STA $03                                   ; $1FE6A4 |
-  BEQ code_1FE6C1                           ; $1FE6A6 |
-  LDA $23                                   ; $1FE6A8 |
-  AND #$04                                  ; $1FE6AA |
-  BEQ code_1FE6B3                           ; $1FE6AC |
-  LDA $26                                   ; $1FE6AE |
-  JMP code_1FE6B7                           ; $1FE6B0 |
+.vert_scroll_done:
+  LDA $22                                   ; $1FE691 |\ re-select stage bank
+  STA $F5                                   ; $1FE693 | |
+  JMP select_PRG_banks                      ; $1FE695 |/
 
-code_1FE6B3:
-  LDA $26                                   ; $1FE6B3 |
-  EOR #$FF                                  ; $1FE6B5 |
-code_1FE6B7:
-  AND #$07                                  ; $1FE6B7 |
-  CLC                                       ; $1FE6B9 |
-  ADC $03                                   ; $1FE6BA |
-  LSR                                       ; $1FE6BC |
-  LSR                                       ; $1FE6BD |
-  LSR                                       ; $1FE6BE |
-  BNE code_1FE6C2                           ; $1FE6BF |
-code_1FE6C1:
+; ===========================================================================
+; render_vert_row — queue nametable row update during vertical scroll
+; ===========================================================================
+; Vertical equivalent of render_scroll_column. Computes whether an 8-pixel
+; row boundary was crossed (|$FA - $26| + fine position), and if so,
+; builds the PPU update buffer for the new row of metatiles.
+;
+; $FA = current vertical fine scroll, $26 = previous $FA
+; $23 bit 2: direction (set=down, clear=up)
+; $24 = nametable row pointer
+; ---------------------------------------------------------------------------
+render_vert_row:
+  LDA $FA                                   ; $1FE698 |\ $03 = |$FA - $26|
+  SEC                                       ; $1FE69A | | = absolute vertical scroll delta
+  SBC $26                                   ; $1FE69B | |
+  BPL .vdelta_positive                      ; $1FE69D | |
+  EOR #$FF                                  ; $1FE69F | | negate if negative
+  CLC                                       ; $1FE6A1 | |
+  ADC #$01                                  ; $1FE6A2 |/
+.vdelta_positive:
+  STA $03                                   ; $1FE6A4 | $03 = scroll delta (pixels)
+  BEQ .no_row_needed                        ; $1FE6A6 | zero → nothing to render
+  LDA $23                                   ; $1FE6A8 |\ get fine position for boundary check
+  AND #$04                                  ; $1FE6AA | | down: use $26 as-is
+  BEQ .vdir_up                              ; $1FE6AC | | up: invert $26
+  LDA $26                                   ; $1FE6AE | |
+  JMP .vcheck_boundary                      ; $1FE6B0 |/
+
+.vdir_up:
+  LDA $26                                   ; $1FE6B3 |\ invert for upward scroll
+  EOR #$FF                                  ; $1FE6B5 |/
+.vcheck_boundary:
+  AND #$07                                  ; $1FE6B7 |\ (fine pos & 7) + delta
+  CLC                                       ; $1FE6B9 | | if result / 8 > 0: crossed boundary
+  ADC $03                                   ; $1FE6BA | | → need to render new row
+  LSR                                       ; $1FE6BC | |
+  LSR                                       ; $1FE6BD | |
+  LSR                                       ; $1FE6BE | |
+  BNE .do_render_row                        ; $1FE6BF |/
+.no_row_needed:
   RTS                                       ; $1FE6C1 |
 
-code_1FE6C2:
+; --- render row: advance row pointer and build PPU update buffer ---
+.do_render_row:
   LDA $23                                   ; $1FE6C2 |
   AND #$04                                  ; $1FE6C4 |
   LSR                                       ; $1FE6C6 |
@@ -6148,7 +6276,7 @@ metatile_chr_ptr:
   STA $01                                   ; $1FE887 |
   LDY $28                                   ; $1FE889 |
   LDA ($20),y                               ; $1FE88B |  metatile index from column data
-.calc_chr_offset:
+calc_chr_offset:
   ASL                                       ; $1FE88D |\ multiply by 4
   ROL $01                                   ; $1FE88E | | (4 CHR tiles per metatile)
   ASL                                       ; $1FE890 | |
@@ -6921,7 +7049,7 @@ call_bank10_8003:
 ; ===========================================================================
 ; Converts entity X's screen position ($0360,x / $03C0,x) to a PPU nametable
 ; address and fills the NMI update buffer ($0780+) with two 2-tile rows of
-; blank tiles ($00). NMI's code_1EC4F8 drains this buffer during VBlank.
+; blank tiles ($00). NMI's drain_ppu_buffer drains this buffer during VBlank.
 ;
 ; Buffer format: [addr_hi][addr_lo][count][tile × (count+1)]...[FF=end]
 ; This builds two entries (top row + bottom row of metatile) + terminator.
@@ -7043,7 +7171,7 @@ queue_metatile_update:
   LDA #$00                                  ; $1FEF17 |\ alternate path: use $11 (scroll pos)
   STA $01                                   ; $1FEF19 | | for CHR tile offset calculation
   LDA $11                                   ; $1FEF1B | |
-  JSR .calc_chr_offset                      ; $1FEF1D | |
+  JSR calc_chr_offset                      ; $1FEF1D | |
   JSR metatile_to_chr_tiles_continue        ; $1FEF20 | |
   JMP .copy_tiles                           ; $1FEF23 |/
 .normal_lookup:
@@ -7349,7 +7477,7 @@ process_entity_display:
   STA $0580,x                               ; $1FF100 |/
   AND #$04                                  ; $1FF103 |\ bit 2 = invisible (skip OAM)
   BEQ setup_sprite_render                   ; $1FF105 |/
-.ret:
+sprite_render_ret:
   RTS                                       ; $1FF107 |
 
 ; --- setup_sprite_render ---
@@ -7388,7 +7516,7 @@ setup_sprite_render:
   LDX $00                                   ; $1FF139 |/  restore entity slot
 .bank_ready:
   LDA $05C0,x                               ; $1FF13B |\ OAM ID = 0? no sprite
-  BEQ .ret                                  ; $1FF13E |/ return
+  BEQ sprite_render_ret                     ; $1FF13E |/ return
   AND #$7F                                  ; $1FF140 |\ strip bank select bit
   TAY                                       ; $1FF142 |/
   LDA $8000,y                               ; $1FF143 |\ $00/$01 = animation sequence ptr
@@ -7463,7 +7591,7 @@ setup_sprite_render:
   AND #$20                                  ; $1FF1C6 | |
   BEQ .get_sprite_def                       ; $1FF1C8 |/ not yet? keep going
   LDA #$AF                                  ; $1FF1CA |\ use explosion sprite def $AF
-  BNE .write_oam                            ; $1FF1CC |/ (always branches)
+  BNE write_entity_oam                            ; $1FF1CC |/ (always branches)
 .get_sprite_def:
   LDA $05A0,x                               ; $1FF1CE |\ current frame index (strip bit 7)
   AND #$7F                                  ; $1FF1D1 | |
@@ -7471,7 +7599,7 @@ setup_sprite_render:
   ADC #$02                                  ; $1FF1D4 | |
   TAY                                       ; $1FF1D6 | |
   LDA ($00),y                               ; $1FF1D7 | | load sprite def ID from sequence
-  BNE .write_oam                            ; $1FF1D9 |/ nonzero? go draw it
+  BNE write_entity_oam                            ; $1FF1D9 |/ nonzero? go draw it
   STA $0300,x                               ; $1FF1DB |\ def ID = 0: deactivate entity
   LDA #$FF                                  ; $1FF1DE | | mark as despawned
   STA $04C0,x                               ; $1FF1E0 |/
@@ -8739,7 +8867,7 @@ platform_push_x_left:
   LDA $0380,x                               ; $1FFA86 | | (16-bit: X screen)
   SBC #$00                                  ; $1FFA89 | |
   STA $0380,x                               ; $1FFA8B |/
-  JMP .compare_x                            ; $1FFA8E |
+  JMP compare_x                            ; $1FFA8E |
 
 ; -----------------------------------------------
 ; platform_push_x_right — push entity X right by $10
@@ -8752,7 +8880,7 @@ platform_push_x_right:
   LDA $0380,x                               ; $1FFA9A | | (16-bit: X screen)
   ADC #$00                                  ; $1FFA9D | |
   STA $0380,x                               ; $1FFA9F |/
-.compare_x:
+compare_x:
   SEC                                       ; $1FFAA2 |\ compare: $02/$03 - entity_X
   LDA $02                                   ; $1FFAA3 | | result in carry flag
   SBC $0360,x                               ; $1FFAA5 | | C=1: entity left of ref point
@@ -8772,9 +8900,9 @@ platform_push_y_up:
   LDA $03C0,x                               ; $1FFAAF | |
   SBC $11                                   ; $1FFAB2 | |
   STA $03C0,x                               ; $1FFAB4 |/
-  BCS .compare_y                            ; $1FFAB7 |  no underflow? skip
+  BCS compare_y                            ; $1FFAB7 |  no underflow? skip
   DEC $03E0,x                               ; $1FFAB9 |  underflow: decrement Y screen
-  JMP .compare_y                            ; $1FFABC |
+  JMP compare_y                            ; $1FFABC |
 
 ; -----------------------------------------------
 ; platform_push_y_down — push entity Y down by $11
@@ -8790,12 +8918,12 @@ platform_push_y_down:
   STA $03C0,x                               ; $1FFAC5 |/
   BCS .y_screen_overflow                    ; $1FFAC8 |  carry? wrapped past $FF
   CMP #$F0                                  ; $1FFACA |\ below screen bottom ($F0)?
-  BCC .compare_y                            ; $1FFACC |/ no → done
+  BCC compare_y                            ; $1FFACC |/ no → done
   ADC #$0F                                  ; $1FFACE |\ wrap Y: $F0+$0F+C = next screen
   STA $03C0,x                               ; $1FFAD0 |/
 .y_screen_overflow:
   INC $03E0,x                               ; $1FFAD3 |  increment Y screen
-.compare_y:
+compare_y:
   SEC                                       ; $1FFAD6 |\ compare: $02/$03 - entity_Y
   LDA $02                                   ; $1FFAD7 | | result in carry flag
   SBC $03C0,x                               ; $1FFAD9 | | C=1: entity above ref point
@@ -9267,7 +9395,7 @@ process_frame_yield_full:
   LDA $F5                                   ; $1FFD71 | |
   PHA                                       ; $1FFD73 |/
   JSR process_frame_yield_with_player       ; $1FFD74 | $97=$04, process + yield
-.restore_banks:
+restore_banks:
   PLA                                       ; $1FFD77 |\ restore $A000 bank
   STA $F5                                   ; $1FFD78 |/
   PLA                                       ; $1FFD7A |\ restore $8000 bank
@@ -9283,7 +9411,7 @@ process_frame_yield:
   LDA $F5                                   ; $1FFD83 | |
   PHA                                       ; $1FFD85 |/
   JSR process_frame_and_yield               ; $1FFD86 | process + yield (caller's $97)
-  JMP .restore_banks                        ; $1FFD89 | restore banks and return
+  JMP restore_banks                        ; $1FFD89 | restore banks and return
 
 ; --- call_bank0E_A006 ---
 ; Switches $A000-$BFFF to bank $0E, calls entry point $A006 with X=$B8.
@@ -9297,7 +9425,7 @@ call_bank0E_A006:
   JSR select_PRG_banks                      ; $1FFD95 |/
   LDX $B8                                   ; $1FFD98 | X = parameter from $B8
   JSR $A006                                 ; $1FFD9A | call bank $0E entry point
-.restore_A000:
+restore_A000:
   PLA                                       ; $1FFD9D |\ restore $A000 bank
   STA $F5                                   ; $1FFD9E | |
   JSR select_PRG_banks                      ; $1FFDA0 |/
@@ -9315,7 +9443,7 @@ call_bank0E_A003:
   STA $F5                                   ; $1FFDAD | |
   JSR select_PRG_banks                      ; $1FFDAF |/
   JSR $A003                                 ; $1FFDB2 | call bank $0E entry point
-  JMP .restore_A000                         ; $1FFDB5 | restore and return
+  JMP restore_A000                         ; $1FFDB5 | restore and return
 
 ; unknown data table — 64 bytes, purpose not identified
   db $8A, $40, $A3, $00, $0F, $04, $4B, $50 ; $1FFDB8 |

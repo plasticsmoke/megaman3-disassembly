@@ -515,7 +515,7 @@ org $A000
   db $00, $00, $00, $00, $00, $00, $00, $10 ; $18AFF8 |
 
 org $9000
-  JMP code_189410                           ; $189000 |
+  JMP robot_master_intro                           ; $189000 |
 
   JMP code_18985D                           ; $189003 |
 
@@ -545,10 +545,10 @@ code_18902E:
   LDA #$00                                  ; $189037 |
   STA $10                                   ; $189039 |
   LDX #$10                                  ; $18903B |
-  JSR code_18939E                           ; $18903D |
+  JSR write_ppu_data_from_bank03                           ; $18903D |
   JSR task_yield                           ; $189040 |
   LDX #$11                                  ; $189043 |
-  JSR code_18939E                           ; $189045 |
+  JSR write_ppu_data_from_bank03                           ; $189045 |
   JSR task_yield                           ; $189048 |
   JSR fade_palette_out                           ; $18904B |
   LDX #$B4                                  ; $18904E |
@@ -601,7 +601,7 @@ code_18909D:
 code_1890B4:
   LDA $14                                   ; $1890B4 |
   AND #$10                                  ; $1890B6 |
-  BNE code_1890D0                           ; $1890B8 |
+  BNE stage_select_init                           ; $1890B8 |
   LDA $14                                   ; $1890BA |
   AND #$0C                                  ; $1890BC |
   BEQ code_1890CA                           ; $1890BE |
@@ -642,10 +642,10 @@ stage_select_init:
   LDA #$34                                  ; $1890D4 | CHR bank $34 for BG tiles
   STA $ED                                   ; $1890D6 |
   JSR select_CHR_banks.reset_flag           ; $1890D8 | apply CHR bank selection
-; Load sprite palettes from sprite_palette_data ($9C23)
+; Load sprite palettes from $9C23 ($9C23)
   LDY #$0F                                  ; $1890DB | counter = 16 bytes
 .load_sprite_palette:
-  LDA sprite_palette_data,y                 ; $1890DD | load sprite palette color
+  LDA $9C23,y                 ; $1890DD | load sprite palette color
   STA $0610,y                               ; $1890E0 | store to sprite palette buffer
   DEY                                       ; $1890E3 |
   BPL .load_sprite_palette                  ; $1890E4 | loop Y=$0F down to $00
@@ -680,17 +680,17 @@ stage_select_init:
   LDA #$04                                  ; $18911D |
   STA $10                                   ; $18911F |
   LDX #$00                                  ; $189121 |
-  JSR code_18939E                           ; $189123 | restore defeated boss portraits
+  JSR write_ppu_data_from_bank03                           ; $189123 | restore defeated boss portraits
 .load_bg_palette:
   LDA $9C65,y                               ; $189126 | load scroll params
   STA $10                                   ; $189129 |
   LDA $9C67,y                               ; $18912B |
   STA $11                                   ; $18912E |
   JSR rendering_off                           ; $189130 | enable PPU rendering
-  LDX bg_palette_index,y                    ; $189133 | X = offset into bg_palette_data
+  LDX $9C01,y                    ; $189133 | X = offset into $9C03
   LDY #$00                                  ; $189136 |
 .load_bg_palette_loop:
-  LDA bg_palette_data,x                     ; $189138 | load BG palette color
+  LDA $9C03,x                     ; $189138 | load BG palette color
   STA $0600,y                               ; $18913B | store to BG palette buffer
   STA $0620,y                               ; $18913E | store to working copy
   INX                                       ; $189141 |
@@ -750,10 +750,10 @@ code_189199:
   BNE code_189199                           ; $1891A7 |
   JSR code_18995C                           ; $1891A9 |
   LDX #$03                                  ; $1891AC |
-  JSR code_18939E                           ; $1891AE |
+  JSR write_ppu_data_from_bank03                           ; $1891AE |
   JSR task_yield                           ; $1891B1 |
   LDX #$04                                  ; $1891B4 |
-  JSR code_18939E                           ; $1891B6 |
+  JSR write_ppu_data_from_bank03                           ; $1891B6 |
   LDA $FD                                   ; $1891B9 |
   EOR #$01                                  ; $1891BB |
   STA $FD                                   ; $1891BD |
@@ -841,7 +841,7 @@ code_189258:
   LDA $14                                   ; $189258 |
   AND #$90                                  ; $18925A |
   BEQ code_189261                           ; $18925C |
-  JMP code_189300                           ; $18925E |
+  JMP stage_select_confirm                           ; $18925E |
 
 ; ==========================================================================
 ; STAGE SELECT SCREEN
@@ -1492,7 +1492,7 @@ code_18958A:
   STA $97                                   ; $18958F |
   JSR prepare_oam_buffer                           ; $189591 |
   JSR task_yield                           ; $189594 |
-  JSR code_189936                           ; $189597 |
+  JSR reset_stage_state                           ; $189597 |
   LDA #$10                                  ; $18959A |
   JSR submit_sound_ID_D9                    ; $18959C |
   LDA #$13                                  ; $18959F |
@@ -1515,10 +1515,10 @@ code_1895AF:
   LDA #$00                                  ; $1895C4 |
   STA $10                                   ; $1895C6 |
   LDX #$03                                  ; $1895C8 |
-  JSR code_18939E                           ; $1895CA |
+  JSR write_ppu_data_from_bank03                           ; $1895CA |
   JSR task_yield                           ; $1895CD |
   LDX #$04                                  ; $1895D0 |
-  JSR code_18939E                           ; $1895D2 |
+  JSR write_ppu_data_from_bank03                           ; $1895D2 |
   JSR task_yield                           ; $1895D5 |
   LDA #$04                                  ; $1895D8 |
   JSR code_1FE8B4                           ; $1895DA |
@@ -1613,7 +1613,7 @@ code_18968C:
   STA $97                                   ; $189691 |
   JSR prepare_oam_buffer                           ; $189693 |
   JSR task_yield                           ; $189696 |
-  JSR code_189936                           ; $189699 |
+  JSR reset_stage_state                           ; $189699 |
   LDA #$13                                  ; $18969C |
   STA $F5                                   ; $18969E |
   JSR select_PRG_banks                      ; $1896A0 |
@@ -1652,7 +1652,7 @@ code_1896DA:
   LDA #$04                                  ; $1896E3 |
   STA $10                                   ; $1896E5 |
   LDX #$12                                  ; $1896E7 |
-  JSR code_18939E                           ; $1896E9 |
+  JSR write_ppu_data_from_bank03                           ; $1896E9 |
   JSR task_yield                           ; $1896EC |
   LDA #$03                                  ; $1896EF |
   STA $F5                                   ; $1896F1 |
@@ -1855,7 +1855,7 @@ code_18983E:
   STX $19                                   ; $189852 |
   JSR task_yield                           ; $189854 |
   LDX #$0E                                  ; $189857 |
-  JSR code_18939E                           ; $189859 |
+  JSR write_ppu_data_from_bank03                           ; $189859 |
   RTS                                       ; $18985C |
 
 code_18985D:
@@ -1866,7 +1866,7 @@ code_18985D:
   JSR task_yield                           ; $189867 |
   LDA #$0E                                  ; $18986A |
   JSR submit_sound_ID_D9                    ; $18986C |
-  JSR code_189936                           ; $18986F |
+  JSR reset_stage_state                           ; $18986F |
   LDA #$01                                  ; $189872 |
   STA $FD                                   ; $189874 |
   LDA #$00                                  ; $189876 |
@@ -1905,7 +1905,7 @@ code_1898AD:
   LDX #$01                                  ; $1898B9 |
   LDA #$04                                  ; $1898BB |
   STA $10                                   ; $1898BD |
-  JSR code_18939E                           ; $1898BF |
+  JSR write_ppu_data_from_bank03                           ; $1898BF |
   LDA #$58                                  ; $1898C2 |
   STA $5E                                   ; $1898C4 |
   LDA #$07                                  ; $1898C6 |
@@ -1927,7 +1927,7 @@ code_1898DC:
   LDA #$04                                  ; $1898E6 |
   STA $10                                   ; $1898E8 |
   LDX #$02                                  ; $1898EA |
-  JSR code_18939E                           ; $1898EC |
+  JSR write_ppu_data_from_bank03                           ; $1898EC |
   JSR code_1893E9                           ; $1898EF |
 code_1898F2:
   JSR code_1893FE                           ; $1898F2 |
@@ -2189,7 +2189,7 @@ code_189ABC:
   PLA                                       ; $189ABD |
 code_189ABE:
   JSR fade_palette_in                           ; $189ABE |
-  JSR code_189936                           ; $189AC1 |
+  JSR reset_stage_state                           ; $189AC1 |
   LDA #$04                                  ; $189AC4 |
   STA $97                                   ; $189AC6 |
   JSR prepare_oam_buffer                           ; $189AC8 |
@@ -2227,7 +2227,7 @@ code_189B0E:
   PHA                                       ; $189B0E |
   LDA #$01                                  ; $189B0F |
   STA $10                                   ; $189B11 |
-  JSR code_1FE4F1                           ; $189B13 |
+  JSR do_render_column                           ; $189B13 |
   JSR task_yield                           ; $189B16 |
   PLA                                       ; $189B19 |
   SEC                                       ; $189B1A |
