@@ -819,6 +819,55 @@ code_189258:
   BEQ code_189261                           ; $18925C |
   JMP code_189300                           ; $18925E |
 
+; ==========================================================================
+; STAGE SELECT SCREEN
+; ==========================================================================
+; The stage select screen displays a 3×3 grid of boss portraits with
+; Mega Man's face in the center. The player moves a cursor between the
+; 9 grid positions using the D-pad.
+;
+; Grid layout:
+;   Spark Man ($06) | Snake Man ($05) | Needle Man ($00)
+;   Hard Man ($03)  | Mega Man (ctr)  | Top Man ($04)
+;   Gemini Man ($02)| Magnet Man ($01)| Shadow Man ($07)
+;
+; Visual composition:
+;   Background tiles: Blue "MEGA MAN" repeating pattern, portrait frame
+;     borders (8×6 tiles per frame), boss name text labels, "PUSH START"
+;   Nametable writes: Portrait face tiles (4×4 per boss, CHR bank selects face),
+;     center Mega Man face tiles ($CC-$FF)
+;   OAM sprites: Cursor bolt connectors (4 per selected frame, tiles $E4/$E5,
+;     palette $37 = red/orange), Mega Man eye sprites (6 per cursor position,
+;     eyes track toward selected boss), boss portrait detail sprites
+;
+; Key data tables in this bank:
+;   $9C75: megaman_eye_sprites — 9 × 12 bytes (6 sprites × tile+attr)
+;   $9CE1: stage_select_lookup — grid index → stage $22 value
+;   $9CF3: cursor_pos_y — bolt sprite Y base per grid position
+;   $9CFC: cursor_pos_x — bolt sprite X base per grid position
+;   $9D05: cursor_bolt_offset_y — Y offsets for 4 bolt corners
+;   $9D09: cursor_bolt_offset_x — X offsets for 4 bolt corners
+;   $9D0D: cursor_direction_offsets — D-pad bit → position delta
+;   $9D4C: portrait_addr_lo — PPU nametable low bytes for frame positions
+;   $9D55: portrait_addr_hi — PPU nametable high bytes for frame positions
+;   $9D5E: portrait_frame_tiles — frame border tile layout (groups)
+;   $9D99: face_tiles — 4×4 boss face tile IDs ($C8-$FB)
+;   $9DA9: face_attr_offsets — attribute table offsets per portrait
+;   $9DB2: center_portrait_data — Mega Man center face tiles ($CC-$FF)
+;   $9DC9: face_addr_hi — PPU high bytes for face tile writes
+;   $9DD2: face_addr_lo — PPU low bytes for face tile writes
+;
+; Portrait pixel positions (frame top-left corners):
+;   Col 0: x=16   Col 1: x=96   Col 2: x=176
+;   Row 0: y=24   Row 1: y=88   Row 2: y=152
+;
+; Cursor bolt pixel positions (base + offsets):
+;   Base Y: row 0=$18(24), row 1=$58(88), row 2=$98(152)
+;   Base X: col 0=$17(23), col 1=$67(103), col 2=$B7(183)
+;   Offsets: TL(0,0) TR(42,0) BL(0,38) BR(42,38)
+;   Bolt tile alternates $E4/$E5 every 8 frames for flash effect
+; ==========================================================================
+
 ; --- Stage select d-pad handling ---
 ; $12 = cursor column (0-2), $13 = cursor row offset (0/3/6)
 ; Combined ($12+$13) = grid index 0-8 into stage lookup table at $9CE1
@@ -857,12 +906,15 @@ code_189291:
   ASL                                       ; $189299 |
   STA $01                                   ; $18929A |
   ASL                                       ; $18929C |
-  ADC $01                                   ; $18929D |
+; --- Cursor sprite rendering ---
+; Writes 6 cursor selector sprites + 4 cursor bolt sprites to OAM.
+; Grid index = $12 + $13 = $00 (0-8).
+  ADC $01                                   ; $18929D | ×12 = OAM data offset for grid pos
   TAX                                       ; $18929F |
   LDY #$00                                  ; $1892A0 |
-code_1892A2:
-  LDA $9C75,x                               ; $1892A2 |
-  STA $0299,y                               ; $1892A5 |
+.copy_selector_sprites:
+  LDA $9C75,x                               ; $1892A2 | cursor selector OAM data (12 bytes/pos)
+  STA $0299,y                               ; $1892A5 | → OAM sprites at $0298+
   LDA $9C76,x                               ; $1892A8 |
   STA $029A,y                               ; $1892AB |
   INX                                       ; $1892AE |
@@ -870,41 +922,44 @@ code_1892A2:
   INY                                       ; $1892B0 |
   INY                                       ; $1892B1 |
   INY                                       ; $1892B2 |
-  INY                                       ; $1892B3 |
-  CPY #$18                                  ; $1892B4 |
-  BNE code_1892A2                           ; $1892B6 |
-  LDY $00                                   ; $1892B8 |
-  LDA $9CF3,y                               ; $1892BA |
+  INY                                       ; $1892B3 | Y += 4 (OAM entry size)
+  CPY #$18                                  ; $1892B4 | 6 sprites × 4 bytes = $18
+  BNE .copy_selector_sprites                ; $1892B6 |
+; --- Cursor bolt sprites (4 corner bolts) ---
+; Position from $9CF3/$9CFC tables, offsets from $9D05/$9D09.
+; Bolt tile alternates $E4/$E5 every 8 frames for flash effect.
+  LDY $00                                   ; $1892B8 | grid index
+  LDA $9CF3,y                               ; $1892BA | cursor Y base (per grid position)
   STA $00                                   ; $1892BD |
-  LDA $9CFC,y                               ; $1892BF |
+  LDA $9CFC,y                               ; $1892BF | cursor X base (per grid position)
   STA $01                                   ; $1892C2 |
-  LDA $95                                   ; $1892C4 |
+  LDA $95                                   ; $1892C4 | frame counter
   LSR                                       ; $1892C6 |
   LSR                                       ; $1892C7 |
-  LSR                                       ; $1892C8 |
-  AND #$01                                  ; $1892C9 |
+  LSR                                       ; $1892C8 | ÷8
+  AND #$01                                  ; $1892C9 | alternates 0/1
   CLC                                       ; $1892CB |
-  ADC #$E4                                  ; $1892CC |
+  ADC #$E4                                  ; $1892CC | tile $E4 or $E5 (bolt flash)
   STA $02                                   ; $1892CE |
-  LDX #$03                                  ; $1892D0 |
-  LDY #$C8                                  ; $1892D2 |
-code_1892D4:
-  LDA $00                                   ; $1892D4 |
+  LDX #$03                                  ; $1892D0 | 4 bolts (3→0)
+  LDY #$C8                                  ; $1892D2 | OAM offset $C8 (sprite 50-53)
+.draw_bolt:
+  LDA $00                                   ; $1892D4 | Y base
   CLC                                       ; $1892D6 |
-  ADC $9D05,x                               ; $1892D7 |
-  STA $0200,y                               ; $1892DA |
-  LDA $01                                   ; $1892DD |
+  ADC $9D05,x                               ; $1892D7 | + Y offset (0 or 38 for top/bottom)
+  STA $0200,y                               ; $1892DA | → OAM Y
+  LDA $01                                   ; $1892DD | X base
   CLC                                       ; $1892DF |
-  ADC $9D09,x                               ; $1892E0 |
-  STA $0203,y                               ; $1892E3 |
-  LDA $02                                   ; $1892E6 |
-  STA $0201,y                               ; $1892E8 |
+  ADC $9D09,x                               ; $1892E0 | + X offset (0 or 42 for left/right)
+  STA $0203,y                               ; $1892E3 | → OAM X
+  LDA $02                                   ; $1892E6 | bolt tile ($E4/$E5)
+  STA $0201,y                               ; $1892E8 | → OAM tile
   DEY                                       ; $1892EB |
   DEY                                       ; $1892EC |
   DEY                                       ; $1892ED |
-  DEY                                       ; $1892EE |
+  DEY                                       ; $1892EE | Y -= 4 (next OAM slot, backwards)
   DEX                                       ; $1892EF |
-  BPL code_1892D4                           ; $1892F0 |
+  BPL .draw_bolt                            ; $1892F0 |
 code_1892F2:
   LDA #$00                                  ; $1892F2 |
   STA $EE                                   ; $1892F4 |
@@ -1352,8 +1407,8 @@ code_18960F:
   LDY #$00                                  ; $18963B |
   STY $10                                   ; $18963D |
   LDX #$19                                  ; $18963F |
-  JSR code_18970B                           ; $189641 |
-  JSR code_1897EC                           ; $189644 |
+  JSR write_portrait_frames                           ; $189641 |
+  JSR write_center_portrait                           ; $189644 |
   JSR code_189A87                           ; $189647 |
   JMP code_189681                           ; $18964A |
 
@@ -1379,9 +1434,9 @@ code_189663:
   STA $10                                   ; $189673 |
   LDY #$01                                  ; $189675 |
   LDX #$19                                  ; $189677 |
-  JSR code_18970B                           ; $189679 |
+  JSR write_portrait_frames                           ; $189679 |
   LDX #$19                                  ; $18967C |
-  JSR code_189762                           ; $18967E |
+  JSR write_portrait_faces                           ; $18967E |
 code_189681:
   LDA #$01                                  ; $189681 |
   STA $12                                   ; $189683 |
@@ -1451,121 +1506,148 @@ code_1896FC:
 code_189708:
   JMP code_189212                           ; $189708 |
 
-code_18970B:
+; --- write_portrait_frames ---
+; Writes portrait frame border tiles to the nametable for all 8 boss positions.
+; Uses PPU update buffer at $0780+. Format per group:
+;   $0780: PPU addr high, $0781: PPU addr low, $0782: tile count-1, $0783+: tile IDs
+; Base addresses from $9D4C/$9D55 tables, tile layout from $9D5E data.
+; Iterates y=0,2,4(skip center),6,8 for all 9 grid positions minus Mega Man center.
+;
+; Portrait frame pixel positions (decoded from nametable addresses):
+;   Col 0: x=16   Col 1: x=96   Col 2: x=176
+;   Row 0: y=24   Row 1: y=88   Row 2: y=152
+; Frame dimensions: 8×6 tiles (64×48 px)
+write_portrait_frames:
   STX $0F                                   ; $18970B |
-code_18970D:
-  LDA $9D4C,y                               ; $18970D |
+.next_portrait:
+  LDA $9D4C,y                               ; $18970D | PPU addr low byte for portrait y
   STA $00                                   ; $189710 |
-  LDA $9D55,y                               ; $189712 |
+  LDA $9D55,y                               ; $189712 | PPU addr high byte ($20/$21/$22)
   ORA $10                                   ; $189715 |
   STA $01                                   ; $189717 |
   LDX #$00                                  ; $189719 |
-code_18971B:
-  LDA $9D5E,x                               ; $18971B |
-  BMI code_189749                           ; $18971E |
-  LDA $9D5F,x                               ; $189720 |
+.next_tile_group:
+  LDA $9D5E,x                               ; $18971B | row Y-offset (bit 7 = end marker)
+  BMI .portrait_done                        ; $18971E |
+  LDA $9D5F,x                               ; $189720 | row X-offset within nametable
   CLC                                       ; $189723 |
-  ADC $00                                   ; $189724 |
-  STA $0781,x                               ; $189726 |
-  LDA $9D5E,x                               ; $189729 |
-  ADC $01                                   ; $18972C |
-  STA $0780,x                               ; $18972E |
+  ADC $00                                   ; $189724 | + base low byte
+  STA $0781,x                               ; $189726 | → PPU addr low
+  LDA $9D5E,x                               ; $189729 | row offset (carry into high byte)
+  ADC $01                                   ; $18972C | + base high byte
+  STA $0780,x                               ; $18972E | → PPU addr high
   INX                                       ; $189731 |
   INX                                       ; $189732 |
-  LDA $9D5E,x                               ; $189733 |
+  LDA $9D5E,x                               ; $189733 | tile count (N → writes N+1 tiles)
   STA $0780,x                               ; $189736 |
-  STA $02                                   ; $189739 |
+  STA $02                                   ; $189739 | loop counter
   INX                                       ; $18973B |
-code_18973C:
-  LDA $9D5E,x                               ; $18973C |
+.copy_tiles:
+  LDA $9D5E,x                               ; $18973C | tile ID
   STA $0780,x                               ; $18973F |
   INX                                       ; $189742 |
   DEC $02                                   ; $189743 |
-  BPL code_18973C                           ; $189745 |
-  BMI code_18971B                           ; $189747 |
-code_189749:
-  STA $0780,x                               ; $189749 |
+  BPL .copy_tiles                           ; $189745 |
+  BMI .next_tile_group                      ; $189747 |
+.portrait_done:
+  STA $0780,x                               ; $189749 | $FF end marker
   STA $19                                   ; $18974C |
   TYA                                       ; $18974E |
   PHA                                       ; $18974F |
   LDX $0F                                   ; $189750 |
-  JSR code_1FFF1A                           ; $189752 |
+  JSR code_1FFF1A                           ; $189752 | submit PPU update buffer
   PLA                                       ; $189755 |
   TAY                                       ; $189756 |
-code_189757:
+.advance_portrait:
   INY                                       ; $189757 |
-  INY                                       ; $189758 |
+  INY                                       ; $189758 | y += 2
   CPY #$04                                  ; $189759 |
-  BEQ code_189757                           ; $18975B |
+  BEQ .advance_portrait                     ; $18975B | skip index 4 (center = Mega Man)
   CPY #$09                                  ; $18975D |
-  BCC code_18970D                           ; $18975F |
+  BCC .next_portrait                        ; $18975F | loop until all 9 done
   RTS                                       ; $189761 |
 
-code_189762:
+; --- write_portrait_faces ---
+; Writes 4×4 portrait face tiles into each boss portrait frame.
+; Face tiles from $9D99-$9DA8 are arranged as 4 rows of 4 tiles each.
+; PPU addresses from $9DC9 (high) / $9DD2 (low), rows spaced $20 (one nametable row).
+; Also writes attribute table entry at $23C0+ for palette assignment.
+;
+; Face pixel positions (2 tiles inside the frame border):
+;   Col 0: x=32   Col 1: x=112  Col 2: x=192
+;   Row 0: y=32   Row 1: y=96   Row 2: y=160
+; Face dimensions: 4×4 tiles (32×32 px)
+;
+; Face tile layout (same tiles for ALL portraits — actual portrait selected by CHR bank):
+;   Row 0: $C8 $C9 $CA $CB
+;   Row 1: $D8 $D9 $DA $DB
+;   Row 2: $E8 $E9 $EA $EB
+;   Row 3: $F8 $F9 $FA $FB
+write_portrait_faces:
   STX $0F                                   ; $189762 |
   LDX #$03                                  ; $189764 |
-code_189766:
-  LDA $9D99,x                               ; $189766 |
+.copy_face_tiles:
+  LDA $9D99,x                               ; $189766 | face row 0 tiles ($C8-$CB)
   STA $0783,x                               ; $189769 |
-  LDA $9D9D,x                               ; $18976C |
+  LDA $9D9D,x                               ; $18976C | face row 1 tiles ($D8-$DB)
   STA $078A,x                               ; $18976F |
-  LDA $9DA1,x                               ; $189772 |
+  LDA $9DA1,x                               ; $189772 | face row 2 tiles ($E8-$EB)
   STA $0791,x                               ; $189775 |
-  LDA $9DA5,x                               ; $189778 |
+  LDA $9DA5,x                               ; $189778 | face row 3 tiles ($F8-$FB)
   STA $0798,x                               ; $18977B |
   DEX                                       ; $18977E |
-  BPL code_189766                           ; $18977F |
+  BPL .copy_face_tiles                      ; $18977F |
   LDY #$00                                  ; $189781 |
-code_189783:
-  LDA $9DC9,y                               ; $189783 |
+.next_face:
+  LDA $9DC9,y                               ; $189783 | PPU addr high ($20/$21/$22)
   ORA $10                                   ; $189786 |
-  STA $0780                                 ; $189788 |
-  STA $0787                                 ; $18978B |
-  STA $078E                                 ; $18978E |
-  STA $0795                                 ; $189791 |
+  STA $0780                                 ; $189788 | row 0 PPU high
+  STA $0787                                 ; $18978B | row 1 PPU high
+  STA $078E                                 ; $18978E | row 2 PPU high
+  STA $0795                                 ; $189791 | row 3 PPU high
   CLC                                       ; $189794 |
-  LDA $9DD2,y                               ; $189795 |
-  STA $0781                                 ; $189798 |
-  ADC #$20                                  ; $18979B |
-  STA $0788                                 ; $18979D |
+  LDA $9DD2,y                               ; $189795 | PPU addr low (base)
+  STA $0781                                 ; $189798 | row 0 PPU low
+  ADC #$20                                  ; $18979B | + 1 nametable row (32 bytes)
+  STA $0788                                 ; $18979D | row 1 PPU low
   ADC #$20                                  ; $1897A0 |
-  STA $078F                                 ; $1897A2 |
+  STA $078F                                 ; $1897A2 | row 2 PPU low
   ADC #$20                                  ; $1897A5 |
-  STA $0796                                 ; $1897A7 |
-  LDA #$03                                  ; $1897AA |
+  STA $0796                                 ; $1897A7 | row 3 PPU low
+  LDA #$03                                  ; $1897AA | 4 tiles per row (count-1)
   STA $0782                                 ; $1897AC |
   STA $0789                                 ; $1897AF |
   STA $0790                                 ; $1897B2 |
   STA $0797                                 ; $1897B5 |
-  LDA #$23                                  ; $1897B8 |
+  LDA #$23                                  ; $1897B8 | attribute table addr high ($23xx)
   ORA $10                                   ; $1897BA |
   STA $079C                                 ; $1897BC |
-  LDA #$C0                                  ; $1897BF |
-  ORA $9DA9,y                               ; $1897C1 |
+  LDA #$C0                                  ; $1897BF | attribute table base ($23C0)
+  ORA $9DA9,y                               ; $1897C1 | + portrait-specific attr offset
   STA $079D                                 ; $1897C4 |
-  LDA #$00                                  ; $1897C7 |
+  LDA #$00                                  ; $1897C7 | 1 attribute byte (count-1=0)
   STA $079E                                 ; $1897C9 |
-  LDA #$55                                  ; $1897CC |
+  LDA #$55                                  ; $1897CC | attr value $55 = palette 1 for all quadrants
   STA $079F                                 ; $1897CE |
-  LDA #$FF                                  ; $1897D1 |
+  LDA #$FF                                  ; $1897D1 | end marker
   STA $07A0                                 ; $1897D3 |
   STA $19                                   ; $1897D6 |
   TYA                                       ; $1897D8 |
   PHA                                       ; $1897D9 |
   LDX $0F                                   ; $1897DA |
-  JSR code_1FFF1A                           ; $1897DC |
+  JSR code_1FFF1A                           ; $1897DC | submit PPU update buffer
   PLA                                       ; $1897DF |
   TAY                                       ; $1897E0 |
-code_1897E1:
+.advance_face:
   INY                                       ; $1897E1 |
-  INY                                       ; $1897E2 |
+  INY                                       ; $1897E2 | y += 2
   CPY #$04                                  ; $1897E3 |
-  BEQ code_1897E1                           ; $1897E5 |
+  BEQ .advance_face                         ; $1897E5 | skip center
   CPY #$09                                  ; $1897E7 |
-  BCC code_189783                           ; $1897E9 |
+  BCC .next_face                            ; $1897E9 |
   RTS                                       ; $1897EB |
 
-code_1897EC:
+write_center_portrait:
   LDA $9DB2                                 ; $1897EC |
   ORA $10                                   ; $1897EF |
   STA $0780                                 ; $1897F1 |
@@ -1794,7 +1876,7 @@ code_1899BA:
   BEQ code_1899CB                           ; $1899BF |
   CMP #$12                                  ; $1899C1 |
   BNE code_1899CB                           ; $1899C3 |
-  JSR code_1897EC                           ; $1899C5 |
+  JSR write_center_portrait                           ; $1899C5 |
   JSR code_1FFF21                           ; $1899C8 |
 code_1899CB:
   RTS                                       ; $1899CB |
@@ -1813,16 +1895,16 @@ code_1899DC:
   BEQ code_1899F9                           ; $1899DE |
   LDY #$01                                  ; $1899E0 |
   LDX #$01                                  ; $1899E2 |
-  JSR code_18970B                           ; $1899E4 |
+  JSR write_portrait_frames                           ; $1899E4 |
   LDA $60                                   ; $1899E7 |
   CMP #$12                                  ; $1899E9 |
   BNE code_1899F4                           ; $1899EB |
   LDY #$00                                  ; $1899ED |
   LDX #$01                                  ; $1899EF |
-  JSR code_18970B                           ; $1899F1 |
+  JSR write_portrait_frames                           ; $1899F1 |
 code_1899F4:
   LDX #$01                                  ; $1899F4 |
-  JSR code_189762                           ; $1899F6 |
+  JSR write_portrait_faces                           ; $1899F6 |
 code_1899F9:
   RTS                                       ; $1899F9 |
 
@@ -2068,26 +2150,74 @@ code_189B38:
   db $0F, $27, $17, $06, $0F, $27, $17, $21 ; $189C57 |
   db $0F, $20, $10, $21, $04, $02, $04, $FC ; $189C5F |
   db $00, $FF, $97, $ED, $01, $28, $47, $67 ; $189C67 |
-  db $01, $C0, $47, $68, $01, $C8, $F0, $03 ; $189C6F |
-  db $F1, $03, $F2, $03, $F3, $03, $F4, $03 ; $189C77 |
-  db $F5, $03, $F6, $03, $F7, $03, $F6, $43 ; $189C7F |
-  db $F8, $03, $F9, $03, $F8, $43, $F2, $43 ; $189C87 |
-  db $F1, $43, $F0, $43, $F5, $43, $F4, $43 ; $189C8F |
-  db $F3, $43, $E6, $03, $6F, $03, $E6, $43 ; $189C97 |
-  db $FA, $03, $FB, $03, $FC, $03, $E6, $03 ; $189C9F |
-  db $6F, $03, $E6, $43, $E7, $03, $E8, $03 ; $189CA7 |
-  db $E7, $43, $E6, $03, $6F, $03, $E6, $43 ; $189CAF |
-  db $FC, $43, $FB, $43, $FA, $43, $E6, $03 ; $189CB7 |
-  db $6F, $03, $E6, $43, $FD, $03, $FE, $03 ; $189CBF |
-  db $FF, $03, $E6, $03, $6F, $03, $E6, $43 ; $189CC7 |
-  db $80, $03, $81, $03, $80, $43, $E6, $03 ; $189CCF |
-  db $6F, $03, $E6, $43, $FF, $43, $FE, $43 ; $189CD7 |
-  db $FD, $43, $06, $05, $00, $03, $FF, $04 ; $189CDF |
-  db $02, $01, $07, $0A, $FF, $08, $FF, $FF ; $189CE7 |
-  db $FF, $09, $FF, $0B, $18, $18, $18, $58 ; $189CEF |
-  db $58, $58, $98, $98, $98, $17, $67, $B7 ; $189CF7 |
-  db $17, $67, $B7, $17, $67, $B7, $00, $00 ; $189CFF |
-  db $26, $26, $00, $2A, $00, $2A, $00, $01 ; $189D07 |
+  db $01, $C0, $47, $68, $01, $C8            ; $189C6F | (preceding data)
+; --- megaman_eye_sprites ($9C75) ---
+; Mega Man center portrait eye/face detail sprites. 6 sprites × 2 bytes (tile, attr)
+; per grid position. Attribute $03 = palette 3, $43 = palette 3 + H-flip.
+; Updates which way Mega Man looks based on cursor position.
+; Tiles $E6-$FF, $6F, $80-$81 are CHR sprite tiles for face details.
+;
+; Position 0 (Spark Man, top-left): eyes look upper-left
+  db $F0, $03, $F1, $03, $F2, $03          ; $189C75 |
+  db $F3, $03, $F4, $03, $F5, $03          ; $189C7B |
+; Position 1 (Snake Man, top-center): eyes look up
+  db $F6, $03, $F7, $03, $F6, $43          ; $189C81 |
+  db $F8, $03, $F9, $03, $F8, $43          ; $189C87 |
+; Position 2 (Needle Man, top-right): eyes look upper-right (pos 0 H-flipped)
+  db $F2, $43, $F1, $43, $F0, $43          ; $189C8D |
+  db $F5, $43, $F4, $43, $F3, $43          ; $189C93 |
+; Position 3 (Hard Man, middle-left): eyes look left
+  db $E6, $03, $6F, $03, $E6, $43          ; $189C99 |
+  db $FA, $03, $FB, $03, $FC, $03          ; $189C9F |
+; Position 4 (center): eyes look forward (straight ahead)
+  db $E6, $03, $6F, $03, $E6, $43          ; $189CA5 |
+  db $E7, $03, $E8, $03, $E7, $43          ; $189CAB |
+; Position 5 (Top Man, middle-right): eyes look right (pos 3 H-flipped lower)
+  db $E6, $03, $6F, $03, $E6, $43          ; $189CB1 |
+  db $FC, $43, $FB, $43, $FA, $43          ; $189CB7 |
+; Position 6 (Gemini Man, bottom-left): eyes look lower-left
+  db $E6, $03, $6F, $03, $E6, $43          ; $189CBD |
+  db $FD, $03, $FE, $03, $FF, $03          ; $189CC3 |
+; Position 7 (Magnet Man, bottom-center): eyes look down
+  db $E6, $03, $6F, $03, $E6, $43          ; $189CC9 |
+  db $80, $03, $81, $03, $80, $43          ; $189CCF |
+; Position 8 (Shadow Man, bottom-right): eyes look lower-right (pos 6 H-flipped)
+  db $E6, $03, $6F, $03, $E6, $43          ; $189CD5 |
+  db $FF, $43, $FE, $43, $FD, $43          ; $189CDB | (end: $189CDF = $FD, $43)
+; --- stage_select_lookup ($9CE1) ---
+; Grid index (col + row*3) → stage $22 value. $FF = not selectable.
+; Robot Masters (tier $60=0): indices 0-8
+; Doc Robots (tier $60=9):   indices 9-17
+;   Index: 0    1    2    3    4    5    6    7    8
+;   RM:    $06  $05  $00  $03  $FF  $04  $02  $01  $07
+;   Boss:  Sprk Snke Ndl  Hard ctr  Top  Gmni Mgnt Shdw
+;   Doc:   $0A  $FF  $08  $FF  $FF  $FF  $09  $FF  $0B
+  db $06, $05, $00, $03, $FF, $04           ; $189CE1 | RM: Spark/Snake/Needle/Hard/ctr/Top
+  db $02, $01, $07                          ; $189CE7 | RM: Gemini/Magnet/Shadow
+  db $0A, $FF, $08, $FF, $FF               ; $189CEA | Doc: Spark/$FF/Needle/$FF/$FF
+  db $FF, $09, $FF, $0B                    ; $189CEF | Doc: $FF/Gemini/$FF/Shadow
+; --- cursor_pos_y ($9CF3) ---
+; Y pixel position for cursor base, per grid index (9 entries).
+; Row 0=$18(24), Row 1=$58(88), Row 2=$98(152) — matches portrait frame Y positions.
+  db $18, $18, $18, $58, $58, $58, $98, $98 ; $189CF3 |
+  db $98                                    ; $189CFB |
+; --- cursor_pos_x ($9CFC) ---
+; X pixel position for cursor base, per grid index (9 entries).
+; Col 0=$17(23), Col 1=$67(103), Col 2=$B7(183) — 7px into each frame.
+  db $17, $67, $B7, $17, $67, $B7, $17, $67 ; $189CFC |
+  db $B7                                    ; $189D04 |
+; --- cursor_bolt_offset_y ($9D05) ---
+; Y offsets for the 4 corner bolts (indexed 3→0):
+;   [0]=$00 top, [1]=$00 top, [2]=$26(38) bottom, [3]=$26(38) bottom
+  db $00, $00, $26, $26                     ; $189D05 |
+; --- cursor_bolt_offset_x ($9D09) ---
+; X offsets for the 4 corner bolts (indexed 3→0):
+;   [0]=$00 left, [1]=$2A(42) right, [2]=$00 left, [3]=$2A(42) right
+; Bolt corners: TL(0,0) TR(42,0) BL(0,38) BR(42,38)
+  db $00, $2A, $00, $2A                    ; $189D09 |
+; --- cursor_direction_offsets ($9D0D) ---
+; Indexed by button bits: $01=Right, $02=Left, $04=Down, $08=Up
+  db $00, $01                               ; $189D0D |
   db $FF, $00, $03, $00, $00, $00, $FD, $0F ; $189D0F |
   db $20, $26, $0F, $0F, $0F, $0F, $0F, $0F ; $189D17 |
   db $0F, $0F, $0F, $0F, $0F, $0F, $0F, $0F ; $189D1F |
@@ -2095,25 +2225,88 @@ code_189B38:
   db $01, $2C, $11, $0F, $30, $37, $26, $0F ; $189D2F |
   db $20, $21, $11, $0F, $37, $17, $15, $0F ; $189D37 |
   db $20, $15, $05, $0F, $20, $10, $21, $7C ; $189D3F |
-  db $7E, $38, $39, $36, $25, $62, $6C, $76 ; $189D47 |
-  db $62, $6C, $76, $62, $6C, $76, $20, $20 ; $189D4F |
-  db $20, $21, $21, $21, $22, $22, $22, $00 ; $189D57 |
-  db $00, $07, $45, $E0, $E1, $E2, $E2, $E3 ; $189D5F |
-  db $E4, $4B, $00, $21, $05, $D5, $24, $24 ; $189D67 |
-  db $24, $24, $D6, $00, $41, $05, $E5, $24 ; $189D6F |
-  db $24, $24, $24, $E6, $00, $61, $05, $E5 ; $189D77 |
-  db $24, $24, $24, $24, $E6, $00, $81, $05 ; $189D7F |
-  db $F5, $24, $24, $24, $24, $F6, $00, $A0 ; $189D87 |
-  db $07, $55, $F0, $F1, $F2, $F2, $F3, $F4 ; $189D8F |
-  db $5B, $FF, $C8, $C9, $CA, $CB, $D8, $D9 ; $189D97 |
-  db $DA, $DB, $E8, $E9, $EA, $EB, $F8, $F9 ; $189D9F |
-  db $FA, $FB, $09, $00, $0E, $00, $00, $00 ; $189DA7 |
-  db $29, $00, $2E, $21, $8E, $CC, $CD, $CE ; $189DAF |
-  db $CF, $DC, $DD, $DE, $DF, $EC, $ED, $EE ; $189DB7 |
-  db $EF, $FC, $FD, $FE, $FF, $23, $DB, $01 ; $189DBF |
-  db $88, $22, $20, $20, $20, $21, $21, $21 ; $189DC7 |
-  db $22, $22, $22, $84, $8E, $98, $84, $8E ; $189DCF |
-  db $98, $84, $8E, $98, $78, $54, $10, $28 ; $189DD7 |
+  db $7E, $38, $39, $36, $25               ; $189D47 | CHR bank/tile data
+; --- portrait_addr_lo ($9D4C) ---
+; PPU nametable address low bytes for portrait frame positions (9 entries).
+; Repeats per column: $62(col2)/$6C(col12)/$76(col22).
+; Combined with $9D55 high bytes, pixel positions:
+;   (16,24) (96,24) (176,24) — row 0
+;   (16,88) (96,88) (176,88) — row 1
+;   (16,152)(96,152)(176,152)— row 2
+  db $62, $6C, $76                          ; $189D4C | row 0: Spark/Snake/Needle
+  db $62, $6C, $76                          ; $189D4F | row 1: Hard/center/Top
+  db $62, $6C, $76                          ; $189D52 | row 2: Gemini/Magnet/Shadow
+; --- portrait_addr_hi ($9D55) ---
+; PPU nametable address high bytes (9 entries).
+; Repeats per row: $20(row3)/$21(row11)/$22(row19).
+  db $20, $20, $20                          ; $189D55 | row 0 ($20xx = tile row 3)
+  db $21, $21, $21                          ; $189D58 | row 1 ($21xx = tile row 11)
+  db $22, $22, $22                          ; $189D5B | row 2 ($22xx = tile row 19)
+; --- portrait_frame_tiles ($9D5E) ---
+; Portrait frame tile layout. Groups of: [Y-offset, X-offset, count-1, tile IDs...]
+; $FF = end marker. Y/X offsets are relative to portrait base nametable address.
+; Frame is 8 tiles wide × 6 tiles tall (64×48 px).
+;
+; Group format in nametable offset terms:
+;   Row 0 (+$00): top border    — 8 tiles: $45 $E0 $E1 $E2 $E2 $E3 $E4 $4B
+;   Row 1 (+$21): frame body    — 6 tiles: $D5 $24 $24 $24 $24 $D6
+;   Row 2 (+$41): frame body    — 6 tiles: $E5 $24 $24 $24 $24 $E6
+;   Row 3 (+$61): frame body    — 6 tiles: $E5 $24 $24 $24 $24 $E6
+;   Row 4 (+$81): frame body    — 6 tiles: $F5 $24 $24 $24 $24 $F6
+;   Row 5 (+$A0): bottom border — 8 tiles: $55 $F0 $F1 $F2 $F2 $F3 $F4 $5B
+;   $24 = empty interior tile (face tiles written separately by write_portrait_faces)
+  db $00, $00, $07, $45, $E0, $E1, $E2, $E2 ; $189D5E | row 0: top border
+  db $E3, $E4, $4B                          ; $189D66 |
+  db $00, $21, $05, $D5, $24, $24, $24, $24 ; $189D69 | row 1: L border + interior + R border
+  db $D6                                    ; $189D71 |
+  db $00, $41, $05, $E5, $24, $24, $24, $24 ; $189D72 | row 2
+  db $E6                                    ; $189D7A |
+  db $00, $61, $05, $E5, $24, $24, $24, $24 ; $189D7B | row 3
+  db $E6                                    ; $189D83 |
+  db $00, $81, $05, $F5, $24, $24, $24, $24 ; $189D84 | row 4
+  db $F6                                    ; $189D8C |
+  db $00, $A0, $07, $55, $F0, $F1, $F2, $F2 ; $189D8D | row 5: bottom border
+  db $F3, $F4, $5B                          ; $189D95 |
+  db $FF                                    ; $189D98 | end marker
+; --- face_tiles_row0 ($9D99) ---
+; Portrait face tile IDs — 4×4 grid written by write_portrait_faces.
+; Same tile IDs for ALL portraits; CHR bank selects which boss face appears.
+  db $C8, $C9, $CA, $CB                    ; $189D99 | face row 0
+  db $D8, $D9, $DA, $DB                    ; $189D9D | face row 1
+  db $E8, $E9, $EA, $EB                    ; $189DA1 | face row 2
+  db $F8, $F9, $FA, $FB                    ; $189DA5 | face row 3
+; --- face_attr_offsets ($9DA9) ---
+; Attribute table offsets for portrait palette (OR'd with $23C0 base).
+  db $09, $00, $0E, $00, $00, $00          ; $189DA9 |
+  db $29, $00, $2E                          ; $189DAF | (attr offsets continued)
+; --- center_portrait_data ($9DB2) ---
+; Mega Man center portrait. PPU addr $218E = tile (14,12) = pixel (112,96).
+; Uses different face tiles ($CC-$FF) than boss portraits ($C8-$FB).
+  db $21                                    ; $189DB2 | PPU addr high
+  db $8E                                    ; $189DB3 | PPU addr low
+  db $CC, $CD, $CE, $CF                    ; $189DB4 | center face row 0
+  db $DC, $DD, $DE, $DF                    ; $189DB8 | center face row 1
+  db $EC, $ED, $EE, $EF                    ; $189DBC | center face row 2
+  db $FC, $FD, $FE, $FF                    ; $189DC0 | center face row 3
+; --- center_attr_data ($9DC4) ---
+; Attribute table write for center portrait palette.
+  db $23, $DB, $01, $88, $22               ; $189DC4 | $23DB: attr addr, 2 bytes: $88,$22
+; --- face_addr_hi ($9DC9) ---
+; PPU addr high bytes for face tile writes (9 entries). Same as $9D55.
+  db $20, $20, $20, $21, $21, $21          ; $189DC9 | rows 0/1/2
+  db $22, $22, $22                          ; $189DCF |
+; --- face_addr_lo ($9DD2) ---
+; PPU addr low bytes for face positions (9 entries).
+; Col 0=$84(tile4), Col 1=$8E(tile14), Col 2=$98(tile24).
+; Face pixel positions (inside frame, 2 tiles in from border):
+;   (32,32) (112,32) (192,32) — row 0
+;   (32,96) (112,96) (192,96) — row 1
+;   (32,160)(112,160)(192,160)— row 2
+  db $84, $8E, $98                          ; $189DD2 | row 0: Spark/Snake/Needle
+  db $84, $8E, $98                          ; $189DD5 | row 1: Hard/center/Top
+  db $84, $8E, $98                          ; $189DD8 | row 2: Gemini/Magnet/Shadow
+; --- portrait_beat_oam_offsets ($9DDB) ---
+  db $78, $54, $10, $28                    ; $189DDB |
   db $98, $40, $18, $64, $00, $07, $03, $01 ; $189DDF |
   db $05, $08, $04, $03, $04, $03, $40, $20 ; $189DE7 |
   db $01, $08, $00, $10, $04, $02, $80, $63 ; $189DEF |
