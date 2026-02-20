@@ -1,175 +1,287 @@
 bank $03
 org $A000
 
-  LDA #$33                                  ; $03A000 |
-  JSR submit_sound_ID_D9                    ; $03A002 |
-  LDA #$80                                  ; $03A005 |
-  STA $0310                                 ; $03A007 |
-  STA $0590                                 ; $03A00A |
-  LDA $A139,y                               ; $03A00D |
-  STA $05D0                                 ; $03A010 |
-  LDA $A14B,y                               ; $03A013 |
-  STA $0410                                 ; $03A016 |
-  LDA $A15D,y                               ; $03A019 |
-  STA $0430                                 ; $03A01C |
-  LDA $A16F,y                               ; $03A01F |
-  STA $0450                                 ; $03A022 |
-  LDA $A181,y                               ; $03A025 |
-  STA $0470                                 ; $03A028 |
-  LDA $A193,y                               ; $03A02B |
-  STA $03D0                                 ; $03A02E |
-  LDA $A1A5,y                               ; $03A031 |
-  STA $0370                                 ; $03A034 |
+; ===========================================================================
+; stage_transition_entry — horizontal scroll + boss name reveal
+; ===========================================================================
+; Entry point after stage select confirmation (JMP from bank18).
+; Y = adjusted grid index (used to index all parameter tables below).
+;
+; This routine:
+;   1. Plays stage intro music ($33)
+;   2. Loads stage parameters from lookup tables
+;   3. Horizontal scroll: 4px/frame for 64 frames (scrolls to new nametable)
+;      The MMC3 scanline IRQ creates a 3-strip effect:
+;        - Top strip (y=0-87): scrolls left, sliding portraits away
+;        - Middle band (y=88-151): stays fixed (blue boss intro band)
+;        - Bottom strip (y=152-239): scrolls left
+;   4. Waits 60 frames
+;   5. Waits for boss animation sync
+;   6. Writes boss name to nametable, 1 tile per 4 frames
+;   7. Returns to caller (bank18 robot_master_intro)
+; ---------------------------------------------------------------------------
+stage_transition_entry:
+  LDA #$33                                  ; $03A000 |\ play stage intro music
+  JSR submit_sound_ID_D9                    ; $03A002 |/
+  LDA #$80                                  ; $03A005 |\ mark entity slot $10 active
+  STA $0310                                 ; $03A007 | | (used for scroll entity)
+  STA $0590                                 ; $03A00A |/
+
+; Load stage parameters from lookup tables (indexed by Y = grid index).
+; Each table has 18 entries: 9 Robot Master + 9 Doc Robot stages.
+; Grid: 0=Spark, 1=Snake, 2=Needle, 3=Hard, 4=Center, 5=Top,
+;       6=Gemini, 7=Magnet, 8=Shadow
+  LDA $A139,y                               ; $03A00D |\ → $05D0 (stage config)
+  STA $05D0                                 ; $03A010 |/
+  LDA $A14B,y                               ; $03A013 |\ → $0410 (tileset / scroll speed sub)
+  STA $0410                                 ; $03A016 |/
+  LDA $A15D,y                               ; $03A019 |\ → $0430 (enemy/level data)
+  STA $0430                                 ; $03A01C |/
+  LDA $A16F,y                               ; $03A01F |\ → $0450 (sprite data)
+  STA $0450                                 ; $03A022 |/
+  LDA $A181,y                               ; $03A025 |\ → $0470 (scroll direction flag)
+  STA $0470                                 ; $03A028 |/
+  LDA $A193,y                               ; $03A02B |\ → $03D0 (scroll limit / position)
+  STA $03D0                                 ; $03A02E |/
+  LDA $A1A5,y                               ; $03A031 |\ → $0370 (BG scroll position)
+  STA $0370                                 ; $03A034 |/
+
+; Load intro sprite palettes (8 bytes → SP 0 and SP 1, both active + working copy).
   LDX #$07                                  ; $03A037 |
-code_03A039:
-  LDA $A1D9,x                               ; $03A039 |
-  STA $0610,x                               ; $03A03C |
-  STA $0630,x                               ; $03A03F |
+.load_sprite_palettes:
+  LDA $A1D9,x                               ; $03A039 | intro sprite palette data
+  STA $0610,x                               ; $03A03C | → active sprite palette buffer
+  STA $0630,x                               ; $03A03F | → working copy (for flash restore)
   DEX                                       ; $03A042 |
-  BPL code_03A039                           ; $03A043 |
-  LDA $A1B7,y                               ; $03A045 |
-  JSR $938B                                 ; $03A048 |
+  BPL .load_sprite_palettes                 ; $03A043 |
+
+  LDA $A1B7,y                               ; $03A045 |\ select CHR bank for this stage
+  JSR $938B                                 ; $03A048 |/
   JSR update_CHR_banks                      ; $03A04B |
+
   LDA #$00                                  ; $03A04E |
-  STA $05F0                                 ; $03A050 |
-  STA $05B0                                 ; $03A053 |
-  STA $0300                                 ; $03A056 |
-  LDA #$40                                  ; $03A059 |
-  STA $99                                   ; $03A05B |
-code_03A05D:
-  LDA $FC                                   ; $03A05D |
-  CLC                                       ; $03A05F |
-  ADC #$04                                  ; $03A060 |
-  STA $FC                                   ; $03A062 |
-  LDA $FD                                   ; $03A064 |
-  ADC #$00                                  ; $03A066 |
-  AND #$01                                  ; $03A068 |
-  STA $FD                                   ; $03A06A |
-  LDX #$10                                  ; $03A06C |
-  JSR code_1FF797                           ; $03A06E |
-  LDA $0470                                 ; $03A071 |
-  BPL code_03A082                           ; $03A074 |
-  LDA #$70                                  ; $03A076 |
-  CMP $03D0                                 ; $03A078 |
-  BCS code_03A082                           ; $03A07B |
-  STA $03D0                                 ; $03A07D |
-  BNE code_03A095                           ; $03A080 |
-code_03A082:
-  LDA $0350                                 ; $03A082 |
-  CLC                                       ; $03A085 |
-  ADC $0410                                 ; $03A086 |
-  STA $0350                                 ; $03A089 |
-  LDA $0370                                 ; $03A08C |
-  ADC $0430                                 ; $03A08F |
-  STA $0370                                 ; $03A092 |
-code_03A095:
-  JSR code_1FFD52                           ; $03A095 |
+  STA $05F0                                 ; $03A050 | clear entity slot $10 flags
+  STA $05B0                                 ; $03A053 | clear entity slot $10 anim phase
+  STA $0300                                 ; $03A056 | clear entity slot 0 type
+  LDA #$40                                  ; $03A059 |\ $99 = deceleration value for
+  STA $99                                   ; $03A05B |/ scroll physics (gravity)
+
+; --- Horizontal scroll loop ---
+; Scrolls X position by 4px/frame. $FC = X scroll low byte (0-255).
+; $FD bit 0 = nametable select (toggles when $FC overflows).
+; This scrolls the display from the old nametable (stage select)
+; to the new nametable (boss intro band). Takes 64 frames (256/4).
+; Simultaneously applies "gravity" to entity $10 (Y movement).
+.scroll_loop:
+  LDA $FC                                   ; $03A05D |\ $FC += 4
+  CLC                                       ; $03A05F | |
+  ADC #$04                                  ; $03A060 | |
+  STA $FC                                   ; $03A062 |/
+  LDA $FD                                   ; $03A064 |\ $FD = carry into nametable select
+  ADC #$00                                  ; $03A066 | |
+  AND #$01                                  ; $03A068 | | (wrap to 0-1)
+  STA $FD                                   ; $03A06A |/
+  LDX #$10                                  ; $03A06C |\ apply Y movement to entity $10
+  JSR code_1FF797                           ; $03A06E |/ (scroll entity — creates vertical effect)
+  LDA $0470                                 ; $03A071 |\ scroll direction check
+  BPL .normal_scroll                        ; $03A074 |/
+  LDA #$70                                  ; $03A076 |\ clamp $03D0 to max $70
+  CMP $03D0                                 ; $03A078 | |
+  BCS .normal_scroll                        ; $03A07B | |
+  STA $03D0                                 ; $03A07D | |
+  BNE .scroll_render                        ; $03A080 |/
+.normal_scroll:
+  LDA $0350                                 ; $03A082 |\ advance sub-pixel scroll
+  CLC                                       ; $03A085 | | $0350 += $0410
+  ADC $0410                                 ; $03A086 | |
+  STA $0350                                 ; $03A089 |/
+  LDA $0370                                 ; $03A08C |\ advance scroll position
+  ADC $0430                                 ; $03A08F | | $0370 += $0430 + carry
+  STA $0370                                 ; $03A092 |/
+.scroll_render:
+  JSR code_1FFD52                           ; $03A095 | process entities + wait for NMI
   LDA #$00                                  ; $03A098 |
-  STA $05F0                                 ; $03A09A |
-  LDA $FC                                   ; $03A09D |
-  BNE code_03A05D                           ; $03A09F |
-  LDA #$7E                                  ; $03A0A1 |
-  STA $E9                                   ; $03A0A3 |
-  JSR update_CHR_banks                      ; $03A0A5 |
-  LDA #$3C                                  ; $03A0A8 |
-code_03A0AA:
+  STA $05F0                                 ; $03A09A | clear entity $10 flags
+  LDA $FC                                   ; $03A09D |\ loop until $FC wraps to 0
+  BNE .scroll_loop                          ; $03A09F |/ (64 frames)
+
+; --- Post-scroll wait ---
+  LDA #$7E                                  ; $03A0A1 |\ update CHR bank
+  STA $E9                                   ; $03A0A3 | |
+  JSR update_CHR_banks                      ; $03A0A5 |/
+  LDA #$3C                                  ; $03A0A8 | A = $3C (60 frames)
+.post_scroll_wait:
   PHA                                       ; $03A0AA |
-  JSR code_1FFD52                           ; $03A0AB |
+  JSR code_1FFD52                           ; $03A0AB | process entities + wait for NMI
   LDA #$00                                  ; $03A0AE |
   STA $05F0                                 ; $03A0B0 |
   PLA                                       ; $03A0B3 |
   SEC                                       ; $03A0B4 |
-  SBC #$01                                  ; $03A0B5 |
-  BNE code_03A0AA                           ; $03A0B7 |
-code_03A0B9:
-  JSR code_1FFD52                           ; $03A0B9 |
-  LDY $22                                   ; $03A0BC |
-  LDA $A1C9,y                               ; $03A0BE |
-  CMP $05B0                                 ; $03A0C1 |
-  BNE code_03A0B9                           ; $03A0C4 |
-  LDA #$03                                  ; $03A0C6 |
-  STA $F5                                   ; $03A0C8 |
-  JSR select_PRG_banks                      ; $03A0CA |
-  JMP code_03A0D0                           ; $03A0CD |
+  SBC #$01                                  ; $03A0B5 | countdown
+  BNE .post_scroll_wait                     ; $03A0B7 |
 
-code_03A0D0:
-  LDA $60                                   ; $03A0D0 |
-  BNE code_03A122                           ; $03A0D2 |
-  LDA $FD                                   ; $03A0D4 |
-  AND #$01                                  ; $03A0D6 |
-  ASL                                       ; $03A0D8 |
-  ASL                                       ; $03A0D9 |
-  ORA #$22                                  ; $03A0DA |
-  STA $0780                                 ; $03A0DC |
-  LDA #$2B                                  ; $03A0DF |
-  STA $0781                                 ; $03A0E1 |
-  LDA #$00                                  ; $03A0E4 |
-  STA $0782                                 ; $03A0E6 |
-  STA $95                                   ; $03A0E9 |
-  LDA #$FF                                  ; $03A0EB |
-  STA $0784                                 ; $03A0ED |
-  LDA $22                                   ; $03A0F0 |
-  ASL                                       ; $03A0F2 |
-  STA $00                                   ; $03A0F3 |
-  ASL                                       ; $03A0F5 |
-  ASL                                       ; $03A0F6 |
-  ADC $00                                   ; $03A0F7 |
-  STA $10                                   ; $03A0F9 |
-code_03A0FB:
-  LDY $10                                   ; $03A0FB |
-  LDA $A1E1,y                               ; $03A0FD |
-  STA $0783                                 ; $03A100 |
-  INC $19                                   ; $03A103 |
-  LDA #$00                                  ; $03A105 |
-  STA $EE                                   ; $03A107 |
-  JSR code_1FFF21                           ; $03A109 |
-  INC $EE                                   ; $03A10C |
-  INC $95                                   ; $03A10E |
-  LDA $95                                   ; $03A110 |
-  AND #$03                                  ; $03A112 |
-  BNE code_03A0FB                           ; $03A114 |
-  INC $10                                   ; $03A116 |
-  INC $0781                                 ; $03A118 |
-  LDA $0781                                 ; $03A11B |
-  CMP #$35                                  ; $03A11E |
-  BNE code_03A0FB                           ; $03A120 |
-code_03A122:
-  LDA #$00                                  ; $03A122 |
-code_03A124:
+; --- Wait for boss animation sync ---
+; $A1C9,y = expected animation phase value for this stage.
+; Wait until entity $10's anim phase ($05B0) matches.
+.wait_anim_sync:
+  JSR code_1FFD52                           ; $03A0B9 | process entities + wait for NMI
+  LDY $22                                   ; $03A0BC | Y = stage number
+  LDA $A1C9,y                               ; $03A0BE | expected anim phase
+  CMP $05B0                                 ; $03A0C1 | current anim phase
+  BNE .wait_anim_sync                       ; $03A0C4 |
+  LDA #$03                                  ; $03A0C6 |\ re-select bank 03
+  STA $F5                                   ; $03A0C8 | | (may have been swapped during
+  JSR select_PRG_banks                      ; $03A0CA |/  entity processing)
+  JMP .write_boss_name                      ; $03A0CD |
+
+; ===========================================================================
+; Write boss name to nametable — 1 tile per 4 frames
+; ===========================================================================
+; PPU address: row 17, column 11 = $222B (or $262B for nametable 1).
+; Row 17 × 8 = pixel Y=136 — this places the name text inside the
+; blue band, below the boss sprite (verified: text at y=136-143).
+;
+; Boss name table at $A1E1 (10 chars per stage, indexed by stage*10):
+;   Stage $00 (Needle): "NEEDLE MAN"
+;   Stage $01 (Magnet): "MAGNET MAN"
+;   Stage $02 (Gemini): "GEMINI MAN"
+;   Stage $03 (Hard):   "HARD   MAN"
+;   Stage $04 (Top):    "TOP    MAN"
+;   Stage $05 (Snake):  "SNAKE  MAN"
+;   Stage $06 (Spark):  "SPARK  MAN"
+;   Stage $07 (Shadow): "SHADOW MAN"
+; Tile encoding: $0A=A, $0B=B, ... $23=Z, $25=space
+; ---------------------------------------------------------------------------
+.write_boss_name:
+  LDA $60                                   ; $03A0D0 |\ if not Robot Master ($60 != 0),
+  BNE .name_done                            ; $03A0D2 |/ skip name writing
+
+; Set up PPU write queue for 1-tile-at-a-time writes.
+; High byte: $22 or $26 depending on current nametable.
+  LDA $FD                                   ; $03A0D4 |\ nametable select → PPU high byte
+  AND #$01                                  ; $03A0D6 | |
+  ASL                                       ; $03A0D8 | | 0→$22 (NT0), 1→$26 (NT1)
+  ASL                                       ; $03A0D9 | |
+  ORA #$22                                  ; $03A0DA | |
+  STA $0780                                 ; $03A0DC |/
+  LDA #$2B                                  ; $03A0DF |\ PPU low byte = $2B (column 11)
+  STA $0781                                 ; $03A0E1 |/
+  LDA #$00                                  ; $03A0E4 |\ $0782 = 0 (single tile write mode)
+  STA $0782                                 ; $03A0E6 |/
+  STA $95                                   ; $03A0E9 | $95 = frame counter for 4-frame pacing
+  LDA #$FF                                  ; $03A0EB |\ $0784 = terminator
+  STA $0784                                 ; $03A0ED |/
+
+; Compute name table offset: stage * 10 = stage * 2 + stage * 8
+  LDA $22                                   ; $03A0F0 |\ $00 = stage * 2
+  ASL                                       ; $03A0F2 | |
+  STA $00                                   ; $03A0F3 |/
+  ASL                                       ; $03A0F5 |\ A = stage * 8
+  ASL                                       ; $03A0F6 |/
+  ADC $00                                   ; $03A0F7 | A = stage * 10
+  STA $10                                   ; $03A0F9 | $10 = offset into boss name table
+
+; Write one tile per 4 frames, advancing across the nametable row.
+; 10 columns ($2B to $34) × 4 frames = 40 frames total.
+.write_tile_loop:
+  LDY $10                                   ; $03A0FB | Y = current name table offset
+  LDA $A1E1,y                               ; $03A0FD | load tile ID (character)
+  STA $0783                                 ; $03A100 | → PPU write queue tile data
+  INC $19                                   ; $03A103 | flag PPU write pending
+  LDA #$00                                  ; $03A105 |\ allow NMI
+  STA $EE                                   ; $03A107 |/
+  JSR code_1FFF21                           ; $03A109 | wait for NMI (tile gets uploaded)
+  INC $EE                                   ; $03A10C | skip next NMI (pacing)
+  INC $95                                   ; $03A10E |\ frame counter
+  LDA $95                                   ; $03A110 | |
+  AND #$03                                  ; $03A112 | | every 4 frames:
+  BNE .write_tile_loop                      ; $03A114 |/ re-write same tile (visual hold)
+  INC $10                                   ; $03A116 | advance to next character
+  INC $0781                                 ; $03A118 |\ advance PPU column
+  LDA $0781                                 ; $03A11B | |
+  CMP #$35                                  ; $03A11E | | stop at column $35 (10 tiles done)
+  BNE .write_tile_loop                      ; $03A120 |/
+
+; --- Final wait and return ---
+.name_done:
+  LDA #$00                                  ; $03A122 | A = 0
+.final_wait:
   PHA                                       ; $03A124 |
   LDA #$00                                  ; $03A125 |
-  STA $EE                                   ; $03A127 |
-  JSR code_1FFF21                           ; $03A129 |
+  STA $EE                                   ; $03A127 | allow NMI
+  JSR code_1FFF21                           ; $03A129 | wait 1 frame
   INC $EE                                   ; $03A12C |
   PLA                                       ; $03A12E |
   SEC                                       ; $03A12F |
-  SBC #$01                                  ; $03A130 |
-  BNE code_03A124                           ; $03A132 |
+  SBC #$01                                  ; $03A130 | countdown (wraps: 0→$FF→254 loops)
+  BNE .final_wait                           ; $03A132 |
   LDA #$00                                  ; $03A134 |
   STA $EE                                   ; $03A136 |
-  RTS                                       ; $03A138 |
+  RTS                                       ; $03A138 | → returns to bank18 robot_master_intro
 
-  db $36, $22, $26, $2B, $00, $45, $32, $1F ; $03A139 |
-  db $3F, $65, $00, $65, $00, $00, $00, $65 ; $03A141 |
-  db $00, $65, $89, $00, $77, $3C, $00, $C4 ; $03A149 |
-  db $00, $00, $00, $89, $00, $77, $3C, $00 ; $03A151 |
-  db $C4, $00, $00, $00, $03, $00, $FC, $02 ; $03A159 |
-  db $00, $FD, $03, $00, $FD, $03, $00, $FC ; $03A161 |
-  db $02, $00, $FD, $03, $00, $FD, $C0, $D4 ; $03A169 |
-  db $C0, $79, $00, $79, $A8, $54, $A8, $C0 ; $03A171 |
-  db $D4, $C0, $79, $00, $79, $A8, $54, $A8 ; $03A179 |
-  db $FF, $02, $FF, $04, $00, $04, $05, $06 ; $03A181 |
-  db $05, $FF, $02, $FF, $04, $00, $04, $05 ; $03A189 |
-  db $06, $05, $30, $30, $30, $70, $70, $70 ; $03A191 |
-  db $B0, $B0, $B0, $30, $30, $30, $70, $70 ; $03A199 |
-  db $70, $B0, $B0, $B0, $30, $80, $D0, $30 ; $03A1A1 |
-  db $80, $D0, $30, $80, $D0, $30, $80, $D0 ; $03A1A9 |
-  db $30, $80, $D0, $30, $80, $D0, $28, $26 ; $03A1B1 |
-  db $25, $24, $00, $2A, $27, $23, $29, $1E ; $03A1B9 |
-  db $00, $1E, $00, $00, $00, $1E, $00, $1E ; $03A1C1 |
-  db $04, $03, $05, $06, $02, $02, $08, $03 ; $03A1C9 |
-  db $00, $00, $00, $00, $00, $00, $00, $00 ; $03A1D1 |
-  db $0F, $0F, $2C, $11, $0F, $0F, $30, $37 ; $03A1D9 |
+; ===========================================================================
+; Stage transition parameter tables ($A139-$A1E0)
+; ===========================================================================
+; 7 tables of 18 entries each, indexed by grid position Y:
+;   0=Spark  1=Snake  2=Needle  3=Hard   4=Center
+;   5=Top    6=Gemini 7=Magnet  8=Shadow
+;   9-17 = Doc Robot stages (same grid, +9 offset)
+; Then: CHR bank table (18), anim sync table (8 by stage#),
+;       padding (8), sprite palette (8).
+; ---------------------------------------------------------------------------
+
+; Table 1: → $05D0 (stage config byte)
+transition_stage_config:                    ;         | $03A139
+  db $36, $22, $26, $2B, $00, $45, $32, $1F, $3F  ; RM: Spark,Snake,Needle,Hard,Center,Top,Gemini,Magnet,Shadow
+  db $65, $00, $65, $00, $00, $00, $65, $00, $65  ; Doc Robot stages
+
+; Table 2: → $0410 (scroll sub-pixel speed)
+transition_scroll_subpx:                    ;         | $03A14B
+  db $89, $00, $77, $3C, $00, $C4, $00, $00, $00  ; RM
+  db $89, $00, $77, $3C, $00, $C4, $00, $00, $00  ; Doc Robot (same)
+
+; Table 3: → $0430 (scroll whole-pixel speed, signed)
+transition_scroll_speed:                    ;         | $03A15D
+  db $03, $00, $FC, $02, $00, $FD, $03, $00, $FD  ; RM
+  db $03, $00, $FC, $02, $00, $FD, $03, $00, $FD  ; Doc Robot (same)
+
+; Table 4: → $0450 (boss sprite Y position / animation param)
+transition_sprite_param:                    ;         | $03A16F
+  db $C0, $D4, $C0, $79, $00, $79, $A8, $54, $A8  ; RM
+  db $C0, $D4, $C0, $79, $00, $79, $A8, $54, $A8  ; Doc Robot (same)
+
+; Table 5: → $0470 (scroll direction flag; bit 7 set = special)
+transition_scroll_dir:                      ;         | $03A181
+  db $FF, $02, $FF, $04, $00, $04, $05, $06, $05  ; RM
+  db $FF, $02, $FF, $04, $00, $04, $05, $30, $30  ; Doc Robot
+
+; Table 6: → $03D0 (scroll limit / Y position)
+transition_scroll_limit:                    ;         | $03A193
+  db $30, $70, $70, $70, $B0, $B0, $B0, $B0, $B0  ; RM
+  db $30, $30, $30, $70, $70, $B0, $B0, $30, $80  ; Doc Robot
+
+; Table 7: → $0370 (BG scroll initial Y, 3-phase: $30/$80/$D0)
+transition_bg_scroll_y:                     ;         | $03A1A5
+  db $D0, $30, $80, $D0, $80, $D0, $30, $80, $D0  ; RM
+  db $30, $80, $D0, $30, $80, $D0, $30, $80, $D0  ; Doc Robot
+
+; Table 8: CHR bank number for each stage (via $938B)
+transition_chr_bank:                        ;         | $03A1B7
+  db $28, $26, $25, $24, $00, $2A, $27, $23, $29  ; RM
+  db $1E, $00, $1E, $00, $00, $00, $1E, $00, $1E  ; Doc Robot
+
+; Table 9: anim phase sync value (indexed by stage# $22, 8 entries)
+; Wait until entity $10's anim phase ($05B0) matches before writing name.
+transition_anim_sync:                       ;         | $03A1C9
+  db $04, $03, $05, $06, $02, $02, $08, $03       ; Needle,Magnet,Gemini,Hard,Top,Snake,Spark,Shadow
+
+; Padding (8 bytes, unused)
+  db $00, $00, $00, $00, $00, $00, $00, $00       ; $03A1D1
+
+; Intro sprite palette data (8 bytes → SP 0 + SP 1)
+transition_sprite_palette:                  ;         | $03A1D9
+  db $0F, $0F, $2C, $11                           ; SP 0: black, black, blue-magenta, blue
+  db $0F, $0F, $30, $37                           ; SP 1: black, black, white, light-orange
   db $17, $0E, $0E, $0D, $15, $0E, $25, $16 ; $03A1E1 |
   db $0A, $17, $16, $0A, $10, $17, $0E, $1D ; $03A1E9 |
   db $25, $16, $0A, $17, $10, $0E, $16, $12 ; $03A1F1 |

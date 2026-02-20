@@ -373,24 +373,28 @@ code_1EC0AA:
   JSR select_CHR_banks                      ; $1EC0B8 |
   LDA $F0                                   ; $1EC0BB |
   STA $8000                                 ; $1EC0BD |
-  LDA $7B                                   ; $1EC0C0 |
-  STA $C000                                 ; $1EC0C2 |
-  STA $C001                                 ; $1EC0C5 |
-  LDX $9B                                   ; $1EC0C8 |
-  STA $E000,x                               ; $1EC0CA |
-  BEQ code_1EC0E7                           ; $1EC0CD |
-  LDX $78                                   ; $1EC0CF |
-  LDA $50                                   ; $1EC0D1 |
-  BEQ code_1EC0DD                           ; $1EC0D3 |
-  LDA $7B                                   ; $1EC0D5 |
-  CMP $51                                   ; $1EC0D7 |
-  BCC code_1EC0DD                           ; $1EC0D9 |
-  LDX #$01                                  ; $1EC0DB |
+; --- NMI: set up MMC3 scanline IRQ for this frame ---
+; $7B = scanline count for first IRQ. $9B = enable flag (0=off, 1=on).
+; $78 = game mode, used to index irq_vector_table for the handler address.
+; $50/$51 = secondary split: if $50 != 0 and $7B >= $51, use gameplay handler.
+  LDA $7B                                   ; $1EC0C0 | scanline count for first split
+  STA $C000                                 ; $1EC0C2 | set MMC3 IRQ counter value
+  STA $C001                                 ; $1EC0C5 | latch counter (reload)
+  LDX $9B                                   ; $1EC0C8 | IRQ enable flag
+  STA $E000,x                               ; $1EC0CA | $9B=0 → $E000 (disable), $9B=1 → $E001 (enable)
+  BEQ code_1EC0E7                           ; $1EC0CD | if disabled, skip vector setup
+  LDX $78                                   ; $1EC0CF | X = game mode (index into vector table)
+  LDA $50                                   ; $1EC0D1 | secondary split flag
+  BEQ code_1EC0DD                           ; $1EC0D3 | if no secondary split, use mode index
+  LDA $7B                                   ; $1EC0D5 |\ if $7B < $51, use mode index
+  CMP $51                                   ; $1EC0D7 | | (first split happens before secondary)
+  BCC code_1EC0DD                           ; $1EC0D9 |/
+  LDX #$01                                  ; $1EC0DB | else override: use index 1 (gameplay)
 code_1EC0DD:
-  LDA $C4C8,x                               ; $1EC0DD |
+  LDA $C4C8,x                               ; $1EC0DD | IRQ vector low byte from table
   STA $9C                                   ; $1EC0E0 |
-  LDA $C4DA,x                               ; $1EC0E2 |
-  STA $9D                                   ; $1EC0E5 |
+  LDA $C4DA,x                               ; $1EC0E2 | IRQ vector high byte from table
+  STA $9D                                   ; $1EC0E5 | → $9C/$9D = handler address for JMP ($009C)
 code_1EC0E7:
   INC $92                                   ; $1EC0E7 |
   LDX #$FF                                  ; $1EC0E9 |
@@ -458,443 +462,651 @@ code_1EC0FE:
   PLP                                       ; $1EC141 |/
   RTS                                       ; $1EC142 | this is the "true" RTI
 
+; ===========================================================================
+; IRQ — MMC3 scanline IRQ entry point
+; ===========================================================================
+; Triggered by the MMC3 mapper when the scanline counter ($7B) reaches zero.
+; Saves registers, acknowledges the IRQ, re-enables it, then dispatches
+; to the handler whose address is stored at $9C/$9D (set by NMI each frame
+; from the irq_vector_table indexed by game mode $78).
+;
+; The IRQ handlers implement mid-frame scroll splits. For example, during
+; stage transitions ($78=$07), a two-IRQ chain creates a 3-strip effect:
+;   1. NMI sets top strip scroll + first counter ($7B = scanline 88)
+;   2. First IRQ ($C297) sets middle strip scroll, chains to second handler
+;   3. Second IRQ ($C2D2) restores bottom strip scroll
+; ---------------------------------------------------------------------------
 IRQ:
-  PHP                                       ; $1EC143 |
-  PHA                                       ; $1EC144 |
-  TXA                                       ; $1EC145 |
-  PHA                                       ; $1EC146 |
-  TYA                                       ; $1EC147 |
-  PHA                                       ; $1EC148 |
-  STA $E000                                 ; $1EC149 |
-  STA $E001                                 ; $1EC14C |
-  JMP ($009C)                               ; $1EC14F |
+  PHP                                       ; $1EC143 |\
+  PHA                                       ; $1EC144 | | save registers
+  TXA                                       ; $1EC145 | |
+  PHA                                       ; $1EC146 | |
+  TYA                                       ; $1EC147 | |
+  PHA                                       ; $1EC148 |/
+  STA $E000                                 ; $1EC149 | acknowledge MMC3 IRQ (disable)
+  STA $E001                                 ; $1EC14C | re-enable MMC3 IRQ
+  JMP ($009C)                               ; $1EC14F | dispatch to current handler
 
-code_1EC152:
-  LDA $78                                   ; $1EC152 |
-  CMP #$0B                                  ; $1EC154 |
-  BEQ code_1EC17B                           ; $1EC156 |
-  LDA $2002                                 ; $1EC158 |
-  LDA $52                                   ; $1EC15B |
-  STA $2006                                 ; $1EC15D |
-  LDA #$C0                                  ; $1EC160 |
-  STA $2006                                 ; $1EC162 |
-  LDA $52                                   ; $1EC165 |
-  LSR                                       ; $1EC167 |
-  LSR                                       ; $1EC168 |
-  AND #$03                                  ; $1EC169 |
-  ORA #$98                                  ; $1EC16B |
-  STA $2000                                 ; $1EC16D |
-  LDA #$00                                  ; $1EC170 |
-  STA $2005                                 ; $1EC172 |
-  STA $2005                                 ; $1EC175 |
-  JMP code_1EC4BD                           ; $1EC178 |
+; ===========================================================================
+; irq_gameplay_status_bar — split after HUD for gameplay area ($C152)
+; ===========================================================================
+; Fires after the status bar scanlines. Sets PPU scroll/nametable for the
+; gameplay area below. $52 encodes the PPU coarse Y and nametable for the
+; gameplay viewport. When mode $0B is active, falls through to a simpler
+; reset-to-origin variant.
+; ---------------------------------------------------------------------------
+irq_gameplay_status_bar:
+  LDA $78                                   ; $1EC152 | check game mode
+  CMP #$0B                                  ; $1EC154 | mode $0B (title)?
+  BEQ .reset_to_origin                      ; $1EC156 | → simplified scroll
+  LDA $2002                                 ; $1EC158 | reset PPU latch
+  LDA $52                                   ; $1EC15B |\ $2006 = $52:$C0
+  STA $2006                                 ; $1EC15D | | (sets coarse Y, nametable, coarse X=0)
+  LDA #$C0                                  ; $1EC160 | |
+  STA $2006                                 ; $1EC162 |/
+  LDA $52                                   ; $1EC165 |\ PPUCTRL: nametable from ($52 >> 2) & 3
+  LSR                                       ; $1EC167 | | merged with base $98 (NMI on, BG $1000)
+  LSR                                       ; $1EC168 | |
+  AND #$03                                  ; $1EC169 | |
+  ORA #$98                                  ; $1EC16B | |
+  STA $2000                                 ; $1EC16D |/
+  LDA #$00                                  ; $1EC170 |\ fine X = 0, fine Y = 0
+  STA $2005                                 ; $1EC172 | |
+  STA $2005                                 ; $1EC175 |/
+  JMP irq_exit                              ; $1EC178 |
 
-code_1EC17B:
-  LDA $2002                                 ; $1EC17B |
-  LDA #$20                                  ; $1EC17E |
-  STA $2006                                 ; $1EC180 |
-  LDA #$00                                  ; $1EC183 |
-  STA $2006                                 ; $1EC185 |
-  LDA #$98                                  ; $1EC188 |
-  STA $2000                                 ; $1EC18A |
-  LDA #$00                                  ; $1EC18D |
-  STA $2005                                 ; $1EC18F |
-  STA $2005                                 ; $1EC192 |
-  JMP code_1EC4BD                           ; $1EC195 |
+.reset_to_origin:
+  LDA $2002                                 ; $1EC17B | reset PPU latch
+  LDA #$20                                  ; $1EC17E |\ $2006 = $20:$00
+  STA $2006                                 ; $1EC180 | | (nametable 0, origin)
+  LDA #$00                                  ; $1EC183 | |
+  STA $2006                                 ; $1EC185 |/
+  LDA #$98                                  ; $1EC188 |\ PPUCTRL = $98 (NT 0, NMI, BG $1000)
+  STA $2000                                 ; $1EC18A |/
+  LDA #$00                                  ; $1EC18D |\ X = 0, Y = 0
+  STA $2005                                 ; $1EC18F | |
+  STA $2005                                 ; $1EC192 |/
+  JMP irq_exit                              ; $1EC195 |
 
-  LDA $2002                                 ; $1EC198 |
-  LDA $79                                   ; $1EC19B |
-  STA $2005                                 ; $1EC19D |
-  LDA #$00                                  ; $1EC1A0 |
-  STA $2005                                 ; $1EC1A2 |
-  LDA $50                                   ; $1EC1A5 |
-  BEQ code_1EC1BE                           ; $1EC1A7 |
-  LDA $51                                   ; $1EC1A9 |
-  SEC                                       ; $1EC1AB |
-  SBC #$9F                                  ; $1EC1AC |
-  STA $C000                                 ; $1EC1AE |
-  LDA $C4C9                                 ; $1EC1B1 |
-  STA $9C                                   ; $1EC1B4 |
-  LDA $C4DB                                 ; $1EC1B6 |
-  STA $9D                                   ; $1EC1B9 |
-  JMP code_1EC4BD                           ; $1EC1BB |
+; ===========================================================================
+; irq_gameplay_hscroll — horizontal scroll for gameplay area ($C198)
+; ===========================================================================
+; Sets X scroll to $79 (the gameplay horizontal scroll position).
+; If secondary split is enabled ($50 != 0), chains to status bar handler
+; for an additional split at scanline $51.
+; ---------------------------------------------------------------------------
+irq_gameplay_hscroll:
+  LDA $2002                                 ; $1EC198 | reset PPU latch
+  LDA $79                                   ; $1EC19B |\ X scroll = $79
+  STA $2005                                 ; $1EC19D |/
+  LDA #$00                                  ; $1EC1A0 |\ Y scroll = 0
+  STA $2005                                 ; $1EC1A2 |/
+  LDA $50                                   ; $1EC1A5 | secondary split enabled?
+  BEQ irq_jmp_exit_disable                  ; $1EC1A7 | no → last split
+  LDA $51                                   ; $1EC1A9 |\ counter = $51 - $9F
+  SEC                                       ; $1EC1AB | | (scanlines until secondary split)
+  SBC #$9F                                  ; $1EC1AC | |
+  STA $C000                                 ; $1EC1AE |/
+  LDA $C4C9                                 ; $1EC1B1 |\ chain to irq_gameplay_status_bar
+  STA $9C                                   ; $1EC1B4 | |
+  LDA $C4DB                                 ; $1EC1B6 | |
+  STA $9D                                   ; $1EC1B9 |/
+  JMP irq_exit                              ; $1EC1BB |
 
-code_1EC1BE:
-  JMP code_1EC4BA                           ; $1EC1BE |
+irq_jmp_exit_disable:                       ;         | shared trampoline for BEQ range
+  JMP irq_exit_disable                      ; $1EC1BE |
 
-  LDA $2002                                 ; $1EC1C1 |
-  LDA #$28                                  ; $1EC1C4 |
-  STA $2006                                 ; $1EC1C6 |
-  LDA #$00                                  ; $1EC1C9 |
-  STA $2006                                 ; $1EC1CB |
-  LDA $FF                                   ; $1EC1CE |
-  ORA #$02                                  ; $1EC1D0 |
-  STA $2000                                 ; $1EC1D2 |
-  LDA #$00                                  ; $1EC1D5 |
-  STA $2005                                 ; $1EC1D7 |
-  STA $2005                                 ; $1EC1DA |
-  LDA #$B0                                  ; $1EC1DD |
-  SEC                                       ; $1EC1DF |
-  SBC $7B                                   ; $1EC1E0 |
-  STA $C000                                 ; $1EC1E2 |
-  LDX $78                                   ; $1EC1E5 |
-  LDA $50                                   ; $1EC1E7 |
-  BEQ code_1EC1F3                           ; $1EC1E9 |
-  LDA $51                                   ; $1EC1EB |
-  CMP #$B0                                  ; $1EC1ED |
-  BNE code_1EC1F3                           ; $1EC1EF |
-  LDX #$00                                  ; $1EC1F1 |
-code_1EC1F3:
-  LDA $C4C9,x                               ; $1EC1F3 |
-  STA $9C                                   ; $1EC1F6 |
-  LDA $C4DB,x                               ; $1EC1F8 |
-  STA $9D                                   ; $1EC1FB |
-  JMP code_1EC4BD                           ; $1EC1FD |
+; ===========================================================================
+; irq_gameplay_ntswap — nametable swap after HUD ($C1C1)
+; ===========================================================================
+; Switches PPU to nametable 2 ($2800) at scroll origin (0,0).
+; Used for vertical level layouts where the gameplay area uses a different
+; nametable than the HUD. Chains to the next handler indexed by $78,
+; unless secondary split overrides to mode $00 (no-op).
+; ---------------------------------------------------------------------------
+irq_gameplay_ntswap:
+  LDA $2002                                 ; $1EC1C1 | reset PPU latch
+  LDA #$28                                  ; $1EC1C4 |\ $2006 = $28:$00
+  STA $2006                                 ; $1EC1C6 | | (nametable 2 origin)
+  LDA #$00                                  ; $1EC1C9 | |
+  STA $2006                                 ; $1EC1CB |/
+  LDA $FF                                   ; $1EC1CE |\ PPUCTRL: set nametable bit 1
+  ORA #$02                                  ; $1EC1D0 | | → nametable 2
+  STA $2000                                 ; $1EC1D2 |/
+  LDA #$00                                  ; $1EC1D5 |\ X = 0, Y = 0
+  STA $2005                                 ; $1EC1D7 | |
+  STA $2005                                 ; $1EC1DA |/
+  LDA #$B0                                  ; $1EC1DD |\ counter = $B0 - $7B
+  SEC                                       ; $1EC1DF | | (scanlines to next split)
+  SBC $7B                                   ; $1EC1E0 | |
+  STA $C000                                 ; $1EC1E2 |/
+  LDX $78                                   ; $1EC1E5 | chain index = current game mode
+  LDA $50                                   ; $1EC1E7 | secondary split?
+  BEQ .chain                                ; $1EC1E9 | no → use mode index
+  LDA $51                                   ; $1EC1EB |\ if $51 == $B0, override to mode $00
+  CMP #$B0                                  ; $1EC1ED | | (disable further splits)
+  BNE .chain                                ; $1EC1EF |/
+  LDX #$00                                  ; $1EC1F1 | X = 0 → irq_exit_disable handler
+.chain:
+  LDA $C4C9,x                               ; $1EC1F3 |\ chain to handler for mode X
+  STA $9C                                   ; $1EC1F6 | |
+  LDA $C4DB,x                               ; $1EC1F8 | |
+  STA $9D                                   ; $1EC1FB |/
+  JMP irq_exit                              ; $1EC1FD |
 
-  LDA $2002                                 ; $1EC200 |
-  LDA #$22                                  ; $1EC203 |
-  STA $2006                                 ; $1EC205 |
-  LDA #$C0                                  ; $1EC208 |
-  STA $2006                                 ; $1EC20A |
-  LDA $FF                                   ; $1EC20D |
-  STA $2000                                 ; $1EC20F |
-  LDA #$00                                  ; $1EC212 |
-  STA $2005                                 ; $1EC214 |
-  LDA #$B0                                  ; $1EC217 |
-  STA $2005                                 ; $1EC219 |
-  LDA $50                                   ; $1EC21C |
-  BEQ code_1EC1BE                           ; $1EC21E |
-  LDA $51                                   ; $1EC220 |
-  SEC                                       ; $1EC222 |
-  SBC #$B0                                  ; $1EC223 |
-  STA $C000                                 ; $1EC225 |
-  LDA $C4C9                                 ; $1EC228 |
-  STA $9C                                   ; $1EC22B |
-  LDA $C4DB                                 ; $1EC22D |
-  STA $9D                                   ; $1EC230 |
-  JMP code_1EC4BD                           ; $1EC232 |
+; ===========================================================================
+; irq_gameplay_vscroll — vertical scroll for gameplay area ($C200)
+; ===========================================================================
+; Sets PPU to $22C0 (nametable 0, bottom portion) with Y scroll = $B0 (176).
+; Used for stages with vertical scrolling — positions the viewport to show
+; the bottom part of the nametable. Optionally chains to status bar handler.
+; ---------------------------------------------------------------------------
+irq_gameplay_vscroll:
+  LDA $2002                                 ; $1EC200 | reset PPU latch
+  LDA #$22                                  ; $1EC203 |\ $2006 = $22:$C0
+  STA $2006                                 ; $1EC205 | | (nametable 0, coarse Y ≈ 22)
+  LDA #$C0                                  ; $1EC208 | |
+  STA $2006                                 ; $1EC20A |/
+  LDA $FF                                   ; $1EC20D |\ PPUCTRL from base value
+  STA $2000                                 ; $1EC20F |/
+  LDA #$00                                  ; $1EC212 |\ X scroll = 0
+  STA $2005                                 ; $1EC214 |/
+  LDA #$B0                                  ; $1EC217 |\ Y scroll = $B0 (176)
+  STA $2005                                 ; $1EC219 |/
+  LDA $50                                   ; $1EC21C | secondary split?
+  BEQ irq_jmp_exit_disable                  ; $1EC21E | no → exit disabled
+  LDA $51                                   ; $1EC220 |\ counter = $51 - $B0
+  SEC                                       ; $1EC222 | |
+  SBC #$B0                                  ; $1EC223 | |
+  STA $C000                                 ; $1EC225 |/
+  LDA $C4C9                                 ; $1EC228 |\ chain to irq_gameplay_status_bar
+  STA $9C                                   ; $1EC22B | |
+  LDA $C4DB                                 ; $1EC22D | |
+  STA $9D                                   ; $1EC230 |/
+  JMP irq_exit                              ; $1EC232 |
 
-  LDA $2002                                 ; $1EC235 |
-  LDA #$20                                  ; $1EC238 |
-  STA $2006                                 ; $1EC23A |
-  LDA $79                                   ; $1EC23D |
-  LSR                                       ; $1EC23F |
-  LSR                                       ; $1EC240 |
-  LSR                                       ; $1EC241 |
-  AND #$1F                                  ; $1EC242 |
-  ORA #$00                                  ; $1EC244 |
-  STA $2006                                 ; $1EC246 |
-  LDA $FF                                   ; $1EC249 |
-  AND #$FC                                  ; $1EC24B |
-  STA $2000                                 ; $1EC24D |
-  LDA $79                                   ; $1EC250 |
-  STA $2005                                 ; $1EC252 |
-  LDA #$00                                  ; $1EC255 |
-  STA $2005                                 ; $1EC257 |
-  LDA #$C0                                  ; $1EC25A |
-  SEC                                       ; $1EC25C |
-  SBC $7B                                   ; $1EC25D |
-  STA $C000                                 ; $1EC25F |
-  LDA $C4CE                                 ; $1EC262 |
-  STA $9C                                   ; $1EC265 |
-  LDA $C4E0                                 ; $1EC267 |
-  STA $9D                                   ; $1EC26A |
-  JMP code_1EC4BD                           ; $1EC26C |
+; ===========================================================================
+; irq_stagesel_first — stage select X scroll (mode $05)
+; ===========================================================================
+; Sets scroll for the upper portion of the stage select screen using the
+; standard NES mid-frame $2006/$2005 trick. X scroll comes from $79.
+; Chains to irq_stagesel_second after $C0 - $7B scanlines.
+; ---------------------------------------------------------------------------
+irq_stagesel_first:
+  LDA $2002                                 ; $1EC235 | reset PPU latch
+  LDA #$20                                  ; $1EC238 |\ $2006 = $20:coarseX
+  STA $2006                                 ; $1EC23A | | (nametable 0, coarse Y=0)
+  LDA $79                                   ; $1EC23D | |
+  LSR                                       ; $1EC23F | | coarse X = $79 >> 3
+  LSR                                       ; $1EC240 | |
+  LSR                                       ; $1EC241 | |
+  AND #$1F                                  ; $1EC242 | | mask to 0-31
+  ORA #$00                                  ; $1EC244 | | coarse Y=0 (top)
+  STA $2006                                 ; $1EC246 |/
+  LDA $FF                                   ; $1EC249 |\ PPUCTRL: nametable 0
+  AND #$FC                                  ; $1EC24B | |
+  STA $2000                                 ; $1EC24D |/
+  LDA $79                                   ; $1EC250 |\ fine X scroll = $79
+  STA $2005                                 ; $1EC252 |/
+  LDA #$00                                  ; $1EC255 |\ Y scroll = 0
+  STA $2005                                 ; $1EC257 |/
+  LDA #$C0                                  ; $1EC25A |\ counter = $C0 - $7B
+  SEC                                       ; $1EC25C | | (scanlines to bottom split)
+  SBC $7B                                   ; $1EC25D | |
+  STA $C000                                 ; $1EC25F |/
+  LDA $C4CE                                 ; $1EC262 |\ chain to irq_stagesel_second ($C26F)
+  STA $9C                                   ; $1EC265 | |
+  LDA $C4E0                                 ; $1EC267 | |
+  STA $9D                                   ; $1EC26A |/
+  JMP irq_exit                              ; $1EC26C |
 
-  LDA $2002                                 ; $1EC26F |
-  LDA #$23                                  ; $1EC272 |
-  STA $2006                                 ; $1EC274 |
-  LDA $79                                   ; $1EC277 |
-  LSR                                       ; $1EC279 |
-  LSR                                       ; $1EC27A |
-  LSR                                       ; $1EC27B |
-  AND #$1F                                  ; $1EC27C |
-  ORA #$00                                  ; $1EC27E |
-  STA $2006                                 ; $1EC280 |
-  LDA $FF                                   ; $1EC283 |
-  AND #$FC                                  ; $1EC285 |
-  STA $2000                                 ; $1EC287 |
-  LDA $79                                   ; $1EC28A |
-  STA $2005                                 ; $1EC28C |
-  LDA #$C0                                  ; $1EC28F |
-  STA $2005                                 ; $1EC291 |
-  JMP code_1EC4BA                           ; $1EC294 |
+; ===========================================================================
+; irq_stagesel_second — stage select bottom scroll (mode $06)
+; ===========================================================================
+; Sets scroll for the bottom portion of the stage select screen.
+; Uses nametable 0 at high coarse Y ($23xx). Last split — disables IRQ.
+; ---------------------------------------------------------------------------
+irq_stagesel_second:
+  LDA $2002                                 ; $1EC26F | reset PPU latch
+  LDA #$23                                  ; $1EC272 |\ $2006 = $23:coarseX
+  STA $2006                                 ; $1EC274 | | (nametable 0, high coarse Y)
+  LDA $79                                   ; $1EC277 | |
+  LSR                                       ; $1EC279 | | coarse X = $79 >> 3
+  LSR                                       ; $1EC27A | |
+  LSR                                       ; $1EC27B | |
+  AND #$1F                                  ; $1EC27C | |
+  ORA #$00                                  ; $1EC27E | |
+  STA $2006                                 ; $1EC280 |/
+  LDA $FF                                   ; $1EC283 |\ PPUCTRL: nametable 0
+  AND #$FC                                  ; $1EC285 | |
+  STA $2000                                 ; $1EC287 |/
+  LDA $79                                   ; $1EC28A |\ fine X scroll = $79
+  STA $2005                                 ; $1EC28C |/
+  LDA #$C0                                  ; $1EC28F |\ Y scroll = $C0 (192)
+  STA $2005                                 ; $1EC291 |/
+  JMP irq_exit_disable                      ; $1EC294 | last split
 
-  LDA $2002                                 ; $1EC297 |
-  LDA $79                                   ; $1EC29A |
-  EOR #$FF                                  ; $1EC29C |
-  CLC                                       ; $1EC29E |
-  ADC #$01                                  ; $1EC29F |
-  STA $9C                                   ; $1EC2A1 |
-  LDA $7A                                   ; $1EC2A3 |
-  EOR #$FF                                  ; $1EC2A5 |
-  ADC #$00                                  ; $1EC2A7 |
-  AND #$01                                  ; $1EC2A9 |
-  STA $9D                                   ; $1EC2AB |
-  LDA $FF                                   ; $1EC2AD |
-  AND #$FC                                  ; $1EC2AF |
-  ORA $9D                                   ; $1EC2B1 |
-  STA $2000                                 ; $1EC2B3 |
-  LDA $9C                                   ; $1EC2B6 |
-  STA $2005                                 ; $1EC2B8 |
-  LDA #$58                                  ; $1EC2BB |
-  STA $2005                                 ; $1EC2BD |
-  LDA #$40                                  ; $1EC2C0 |
-  STA $C000                                 ; $1EC2C2 |
-  LDA $C4D0                                 ; $1EC2C5 |
-  STA $9C                                   ; $1EC2C8 |
-  LDA $C4E2                                 ; $1EC2CA |
-  STA $9D                                   ; $1EC2CD |
-  JMP code_1EC4BD                           ; $1EC2CF |
+; ===========================================================================
+; irq_transition_first_split — middle strip scroll (mode $07, scanline 88)
+; ===========================================================================
+; First IRQ handler during stage transitions. Fires at scanline $7B (88).
+; Sets scroll for the MIDDLE strip (blue boss intro band, y=88-151).
+;
+; The top strip scrolls left via $FC/$FD (main scroll). The middle strip
+; must appear FIXED, so this handler NEGATES the scroll values ($79/$7A),
+; canceling the horizontal movement for the middle band.
+;
+; After setting the middle strip scroll, it programs the next IRQ to fire
+; 64 scanlines later (at scanline 152) and chains to the second split
+; handler (irq_transition_second_split at $C2D2).
+; ---------------------------------------------------------------------------
+irq_transition_first_split:
+  LDA $2002                                 ; $1EC297 | reset PPU address latch
+  LDA $79                                   ; $1EC29A |\ negate $79/$7A (two's complement)
+  EOR #$FF                                  ; $1EC29C | | inverted_X = -$79
+  CLC                                       ; $1EC29E | |
+  ADC #$01                                  ; $1EC29F |/
+  STA $9C                                   ; $1EC2A1 | $9C = inverted X scroll (temp)
+  LDA $7A                                   ; $1EC2A3 |\ negate high byte with carry
+  EOR #$FF                                  ; $1EC2A5 | |
+  ADC #$00                                  ; $1EC2A7 | |
+  AND #$01                                  ; $1EC2A9 |/ keep only nametable bit
+  STA $9D                                   ; $1EC2AB | $9D = inverted nametable select
+  LDA $FF                                   ; $1EC2AD |\ PPUCTRL: clear NT bits, set inverted NT
+  AND #$FC                                  ; $1EC2AF | |
+  ORA $9D                                   ; $1EC2B1 | |
+  STA $2000                                 ; $1EC2B3 |/ → middle strip uses opposite nametable
+  LDA $9C                                   ; $1EC2B6 |\ set X scroll = negated value
+  STA $2005                                 ; $1EC2B8 |/ (cancels horizontal movement)
+  LDA #$58                                  ; $1EC2BB |\ set Y scroll = $58 (88)
+  STA $2005                                 ; $1EC2BD |/ (top of middle band)
+  LDA #$40                                  ; $1EC2C0 |\ set next IRQ at 64 scanlines later
+  STA $C000                                 ; $1EC2C2 |/ (scanline 88+64 = 152)
+  LDA $C4D0                                 ; $1EC2C5 |\ chain to second split handler
+  STA $9C                                   ; $1EC2C8 | | $9C/$9D → $C2D2
+  LDA $C4E2                                 ; $1EC2CA | | (irq_transition_second_split)
+  STA $9D                                   ; $1EC2CD |/
+  JMP irq_exit                              ; $1EC2CF | exit without disabling IRQ
 
-  LDA $2002                                 ; $1EC2D2 |
-  LDA $7A                                   ; $1EC2D5 |
-  AND #$01                                  ; $1EC2D7 |
-  ASL                                       ; $1EC2D9 |
-  ASL                                       ; $1EC2DA |
-  ORA #$22                                  ; $1EC2DB |
-  STA $2006                                 ; $1EC2DD |
-  LDA $79                                   ; $1EC2E0 |
-  LSR                                       ; $1EC2E2 |
-  LSR                                       ; $1EC2E3 |
-  LSR                                       ; $1EC2E4 |
-  AND #$1F                                  ; $1EC2E5 |
-  ORA #$60                                  ; $1EC2E7 |
-  STA $2006                                 ; $1EC2E9 |
-  LDA $7A                                   ; $1EC2EC |
-  AND #$03                                  ; $1EC2EE |
-  ORA $FF                                   ; $1EC2F0 |
-  STA $2000                                 ; $1EC2F2 |
-  LDA $79                                   ; $1EC2F5 |
-  STA $2005                                 ; $1EC2F7 |
-  LDA #$98                                  ; $1EC2FA |
-  STA $2005                                 ; $1EC2FC |
-  JMP code_1EC4BA                           ; $1EC2FF |
+; ===========================================================================
+; irq_transition_second_split — bottom strip scroll (mode $07, scanline 152)
+; ===========================================================================
+; Second IRQ handler during stage transitions. Fires at scanline 152.
+; Restores scroll for the BOTTOM strip (y=152-239), which scrolls the same
+; direction as the top strip (the stage select background scrolling away).
+;
+; Uses the $2006/$2006/$2000/$2005/$2005 sequence — the standard NES
+; mid-frame scroll trick that sets both coarse and fine scroll via PPU
+; address register manipulation.
+; ---------------------------------------------------------------------------
+irq_transition_second_split:
+  LDA $2002                                 ; $1EC2D2 | reset PPU address latch
+  LDA $7A                                   ; $1EC2D5 |\ compute PPU $2006 high byte:
+  AND #$01                                  ; $1EC2D7 | | nametable bit → bits 2-3
+  ASL                                       ; $1EC2D9 | | ($7A & 1) << 2 | $22
+  ASL                                       ; $1EC2DA | | → $22 (NT 0) or $26 (NT 1)
+  ORA #$22                                  ; $1EC2DB | |
+  STA $2006                                 ; $1EC2DD |/
+  LDA $79                                   ; $1EC2E0 |\ compute PPU $2006 low byte:
+  LSR                                       ; $1EC2E2 | | ($79 >> 3) = coarse X scroll
+  LSR                                       ; $1EC2E3 | | | $60 = coarse Y=12 (scanline 96)
+  LSR                                       ; $1EC2E4 | |
+  AND #$1F                                  ; $1EC2E5 | |
+  ORA #$60                                  ; $1EC2E7 | |
+  STA $2006                                 ; $1EC2E9 |/
+  LDA $7A                                   ; $1EC2EC |\ PPUCTRL: set nametable bits from $7A
+  AND #$03                                  ; $1EC2EE | | merge with base value $FF
+  ORA $FF                                   ; $1EC2F0 | |
+  STA $2000                                 ; $1EC2F2 |/
+  LDA $79                                   ; $1EC2F5 |\ fine X scroll = $79 (low 3 bits used)
+  STA $2005                                 ; $1EC2F7 |/
+  LDA #$98                                  ; $1EC2FA |\ Y scroll = $98 (152) — bottom strip
+  STA $2005                                 ; $1EC2FC |/
+  JMP irq_exit_disable                      ; $1EC2FF | last split — disable IRQ
 
-  LDA $2002                                 ; $1EC302 |
-  LDY $73                                   ; $1EC305 |
-  LDA $69                                   ; $1EC307 |
-  EOR $C4EC,y                               ; $1EC309 |
-  CLC                                       ; $1EC30C |
-  ADC $C4EF,y                               ; $1EC30D |
-  STA $2005                                 ; $1EC310 |
-  LDA $C4F2,y                               ; $1EC313 |
-  STA $2005                                 ; $1EC316 |
-  LDA #$0E                                  ; $1EC319 |
-  STA $C000                                 ; $1EC31B |
-  LDA $C4D2                                 ; $1EC31E |
-  STA $9C                                   ; $1EC321 |
-  LDA $C4E4                                 ; $1EC323 |
-  STA $9D                                   ; $1EC326 |
-  JMP code_1EC4BD                           ; $1EC328 |
+; ===========================================================================
+; irq_wave_set_strip — water wave scroll strip (mode $09)
+; ===========================================================================
+; Creates a water wave effect (Gemini Man stage) by alternating X scroll
+; direction across strips. $73 indexes the current strip (0-2).
+;   Strip 0: X = -$69 + 1,  Y = $30 (48)
+;   Strip 1: X =  $69,      Y = $60 (96)
+;   Strip 2: X = -$69 + 1,  Y = $90 (144)
+; Chains to irq_wave_advance after 14 scanlines.
+; ---------------------------------------------------------------------------
+irq_wave_set_strip:
+  LDA $2002                                 ; $1EC302 | reset PPU latch
+  LDY $73                                   ; $1EC305 | Y = strip index (0-2)
+  LDA $69                                   ; $1EC307 |\ X scroll = $69 EOR mask + offset
+  EOR $C4EC,y                               ; $1EC309 | | masks: $FF/$00/$FF (negate strips 0,2)
+  CLC                                       ; $1EC30C | | offsets: $01/$00/$01
+  ADC $C4EF,y                               ; $1EC30D | | → alternating wave scroll
+  STA $2005                                 ; $1EC310 |/
+  LDA $C4F2,y                               ; $1EC313 |\ Y scroll from table: $30/$60/$90
+  STA $2005                                 ; $1EC316 |/
+  LDA #$0E                                  ; $1EC319 |\ next IRQ in 14 scanlines
+  STA $C000                                 ; $1EC31B |/
+  LDA $C4D2                                 ; $1EC31E |\ chain to irq_wave_advance ($C32B)
+  STA $9C                                   ; $1EC321 | |
+  LDA $C4E4                                 ; $1EC323 | |
+  STA $9D                                   ; $1EC326 |/
+  JMP irq_exit                              ; $1EC328 |
 
-  LDA $2002                                 ; $1EC32B |
-  LDY $73                                   ; $1EC32E |
-  LDA #$00                                  ; $1EC330 |
-  STA $2005                                 ; $1EC332 |
-  LDA $C4F5,y                               ; $1EC335 |
-  STA $2005                                 ; $1EC338 |
-  INC $73                                   ; $1EC33B |
+; ===========================================================================
+; irq_wave_advance — advance wave strip counter (mode $0A)
+; ===========================================================================
+; Resets X scroll to 0 between wave strips, advances $73 counter.
+; If all 3 strips done, optionally chains to secondary split.
+; Otherwise loops back to irq_wave_set_strip after 32 scanlines.
+; ---------------------------------------------------------------------------
+irq_wave_advance:
+  LDA $2002                                 ; $1EC32B | reset PPU latch
+  LDY $73                                   ; $1EC32E | Y = strip index
+  LDA #$00                                  ; $1EC330 |\ X scroll = 0 (reset between strips)
+  STA $2005                                 ; $1EC332 |/
+  LDA $C4F5,y                               ; $1EC335 |\ Y scroll from table: $40/$70/$A0
+  STA $2005                                 ; $1EC338 |/
+  INC $73                                   ; $1EC33B | advance to next strip
   LDA $73                                   ; $1EC33D |
-  CMP #$03                                  ; $1EC33F |
-  BEQ code_1EC355                           ; $1EC341 |
-  LDA #$20                                  ; $1EC343 |
-  STA $C000                                 ; $1EC345 |
-  LDA $C4D1                                 ; $1EC348 |
-  STA $9C                                   ; $1EC34B |
-  LDA $C4E3                                 ; $1EC34D |
-  STA $9D                                   ; $1EC350 |
-  JMP code_1EC4BD                           ; $1EC352 |
+  CMP #$03                                  ; $1EC33F | all 3 strips done?
+  BEQ .all_done                             ; $1EC341 | yes → finish
+  LDA #$20                                  ; $1EC343 |\ next IRQ in 32 scanlines
+  STA $C000                                 ; $1EC345 |/
+  LDA $C4D1                                 ; $1EC348 |\ chain back to irq_wave_set_strip ($C302)
+  STA $9C                                   ; $1EC34B | |
+  LDA $C4E3                                 ; $1EC34D | |
+  STA $9D                                   ; $1EC350 |/
+  JMP irq_exit                              ; $1EC352 |
 
-code_1EC355:
-  LDA #$00                                  ; $1EC355 |
+.all_done:
+  LDA #$00                                  ; $1EC355 | reset strip counter
   STA $73                                   ; $1EC357 |
-  LDA $50                                   ; $1EC359 |
-  BEQ code_1EC372                           ; $1EC35B |
-  LDA $51                                   ; $1EC35D |
-  SEC                                       ; $1EC35F |
-  SBC #$A0                                  ; $1EC360 |
-  STA $C000                                 ; $1EC362 |
-  LDA $C4C9                                 ; $1EC365 |
-  STA $9C                                   ; $1EC368 |
-  LDA $C4DB                                 ; $1EC36A |
-  STA $9D                                   ; $1EC36D |
-  JMP code_1EC4BD                           ; $1EC36F |
+  LDA $50                                   ; $1EC359 | secondary split?
+  BEQ .exit_disabled                        ; $1EC35B | no → last split
+  LDA $51                                   ; $1EC35D |\ counter = $51 - $A0
+  SEC                                       ; $1EC35F | |
+  SBC #$A0                                  ; $1EC360 | |
+  STA $C000                                 ; $1EC362 |/
+  LDA $C4C9                                 ; $1EC365 |\ chain to irq_gameplay_status_bar
+  STA $9C                                   ; $1EC368 | |
+  LDA $C4DB                                 ; $1EC36A | |
+  STA $9D                                   ; $1EC36D |/
+  JMP irq_exit                              ; $1EC36F |
 
-code_1EC372:
-  JMP code_1EC4BA                           ; $1EC372 |
+.exit_disabled:
+  JMP irq_exit_disable                      ; $1EC372 |
 
-  LDA $2002                                 ; $1EC375 |
-  LDA #$21                                  ; $1EC378 |
-  STA $2006                                 ; $1EC37A |
-  LDA #$40                                  ; $1EC37D |
-  STA $2006                                 ; $1EC37F |
-  LDA $FF                                   ; $1EC382 |
-  AND #$FC                                  ; $1EC384 |
-  STA $2000                                 ; $1EC386 |
-  LDA #$00                                  ; $1EC389 |
-  STA $2005                                 ; $1EC38B |
-  STA $2005                                 ; $1EC38E |
-  LDA #$4C                                  ; $1EC391 |
-  STA $C000                                 ; $1EC393 |
-  LDA $C4D4                                 ; $1EC396 |
-  STA $9C                                   ; $1EC399 |
-  LDA $C4E6                                 ; $1EC39B |
-  STA $9D                                   ; $1EC39E |
-  JMP code_1EC4BD                           ; $1EC3A0 |
+; ===========================================================================
+; irq_title_first — title/password screen first split (mode $0B)
+; ===========================================================================
+; Sets scroll to $2140 (nametable 0, tile row 10) with X=0, Y=0.
+; This positions the main content area of the title/password screen.
+; Chains to irq_title_second after $4C (76) scanlines.
+; ---------------------------------------------------------------------------
+irq_title_first:
+  LDA $2002                                 ; $1EC375 | reset PPU latch
+  LDA #$21                                  ; $1EC378 |\ $2006 = $21:$40
+  STA $2006                                 ; $1EC37A | | (nametable 0, tile row 10)
+  LDA #$40                                  ; $1EC37D | |
+  STA $2006                                 ; $1EC37F |/
+  LDA $FF                                   ; $1EC382 |\ PPUCTRL: nametable 0
+  AND #$FC                                  ; $1EC384 | |
+  STA $2000                                 ; $1EC386 |/
+  LDA #$00                                  ; $1EC389 |\ X = 0, Y = 0
+  STA $2005                                 ; $1EC38B | |
+  STA $2005                                 ; $1EC38E |/
+  LDA #$4C                                  ; $1EC391 |\ next IRQ in 76 scanlines
+  STA $C000                                 ; $1EC393 |/
+  LDA $C4D4                                 ; $1EC396 |\ chain to irq_title_second ($C3A3)
+  STA $9C                                   ; $1EC399 | |
+  LDA $C4E6                                 ; $1EC39B | |
+  STA $9D                                   ; $1EC39E |/
+  JMP irq_exit                              ; $1EC3A0 |
 
-  LDA $2002                                 ; $1EC3A3 |
-  LDA $6A                                   ; $1EC3A6 |
-  STA $2005                                 ; $1EC3A8 |
-  LDA #$00                                  ; $1EC3AB |
-  STA $2005                                 ; $1EC3AD |
-  LDA $50                                   ; $1EC3B0 |
-  BEQ code_1EC3C9                           ; $1EC3B2 |
-  LDA $51                                   ; $1EC3B4 |
-  SEC                                       ; $1EC3B6 |
-  SBC #$A0                                  ; $1EC3B7 |
-  STA $C000                                 ; $1EC3B9 |
-  LDA $C4C9                                 ; $1EC3BC |
-  STA $9C                                   ; $1EC3BF |
-  LDA $C4DB                                 ; $1EC3C1 |
-  STA $9D                                   ; $1EC3C4 |
-  JMP code_1EC4BD                           ; $1EC3C6 |
+; ===========================================================================
+; irq_title_second — title/password screen X scroll (mode $0C)
+; ===========================================================================
+; Sets X scroll from $6A for the bottom portion of the title screen.
+; Optionally chains to secondary split for HUD overlay.
+; ---------------------------------------------------------------------------
+irq_title_second:
+  LDA $2002                                 ; $1EC3A3 | reset PPU latch
+  LDA $6A                                   ; $1EC3A6 |\ X scroll = $6A
+  STA $2005                                 ; $1EC3A8 |/
+  LDA #$00                                  ; $1EC3AB |\ Y scroll = 0
+  STA $2005                                 ; $1EC3AD |/
+  LDA $50                                   ; $1EC3B0 | secondary split?
+  BEQ .exit_disabled                        ; $1EC3B2 | no → last split
+  LDA $51                                   ; $1EC3B4 |\ counter = $51 - $A0
+  SEC                                       ; $1EC3B6 | |
+  SBC #$A0                                  ; $1EC3B7 | |
+  STA $C000                                 ; $1EC3B9 |/
+  LDA $C4C9                                 ; $1EC3BC |\ chain to irq_gameplay_status_bar
+  STA $9C                                   ; $1EC3BF | |
+  LDA $C4DB                                 ; $1EC3C1 | |
+  STA $9D                                   ; $1EC3C4 |/
+  JMP irq_exit                              ; $1EC3C6 |
 
-code_1EC3C9:
-  JMP code_1EC4BA                           ; $1EC3C9 |
+.exit_disabled:
+  JMP irq_exit_disable                      ; $1EC3C9 |
 
-  LDA $2002                                 ; $1EC3CC |
-  LDA $6B                                   ; $1EC3CF |
-  ASL                                       ; $1EC3D1 |
-  ASL                                       ; $1EC3D2 |
-  ORA #$20                                  ; $1EC3D3 |
-  STA $2006                                 ; $1EC3D5 |
-  LDA $6A                                   ; $1EC3D8 |
-  LSR                                       ; $1EC3DA |
-  LSR                                       ; $1EC3DB |
-  LSR                                       ; $1EC3DC |
-  ORA #$E0                                  ; $1EC3DD |
-  STA $2006                                 ; $1EC3DF |
-  LDA $6A                                   ; $1EC3E2 |
-  STA $2005                                 ; $1EC3E4 |
-  LDA $7B                                   ; $1EC3E7 |
-  STA $2005                                 ; $1EC3E9 |
-  LDA $FF                                   ; $1EC3EC |
-  ORA $6B                                   ; $1EC3EE |
-  STA $2000                                 ; $1EC3F0 |
-  LDA #$AE                                  ; $1EC3F3 |
-  SEC                                       ; $1EC3F5 |
-  SBC $7B                                   ; $1EC3F6 |
-  STA $C000                                 ; $1EC3F8 |
-  LDA $C4D6                                 ; $1EC3FB |
-  STA $9C                                   ; $1EC3FE |
-  LDA $C4E8                                 ; $1EC400 |
-  STA $9D                                   ; $1EC403 |
-  JMP code_1EC4BD                           ; $1EC405 |
+; ===========================================================================
+; irq_cutscene_scroll — cutscene full scroll setup (mode $0D)
+; ===========================================================================
+; Full $2006/$2005 mid-frame scroll using $6A (X), $6B (nametable), $7B (Y).
+; Used for cutscene/intro sequences with arbitrary scroll positioning.
+; Chains to irq_cutscene_secondary after $AE - $7B scanlines.
+; ---------------------------------------------------------------------------
+irq_cutscene_scroll:
+  LDA $2002                                 ; $1EC3CC | reset PPU latch
+  LDA $6B                                   ; $1EC3CF |\ $2006 high = ($6B << 2) | $20
+  ASL                                       ; $1EC3D1 | | → $20 (NT 0) or $24 (NT 1)
+  ASL                                       ; $1EC3D2 | |
+  ORA #$20                                  ; $1EC3D3 | |
+  STA $2006                                 ; $1EC3D5 |/
+  LDA $6A                                   ; $1EC3D8 |\ $2006 low = ($6A >> 3) | $E0
+  LSR                                       ; $1EC3DA | | coarse X from $6A, high coarse Y
+  LSR                                       ; $1EC3DB | |
+  LSR                                       ; $1EC3DC | |
+  ORA #$E0                                  ; $1EC3DD | |
+  STA $2006                                 ; $1EC3DF |/
+  LDA $6A                                   ; $1EC3E2 |\ fine X scroll = $6A
+  STA $2005                                 ; $1EC3E4 |/
+  LDA $7B                                   ; $1EC3E7 |\ fine Y scroll = $7B
+  STA $2005                                 ; $1EC3E9 |/
+  LDA $FF                                   ; $1EC3EC |\ PPUCTRL: base | nametable bits from $6B
+  ORA $6B                                   ; $1EC3EE | |
+  STA $2000                                 ; $1EC3F0 |/
+  LDA #$AE                                  ; $1EC3F3 |\ counter = $AE - $7B
+  SEC                                       ; $1EC3F5 | | (scanlines to secondary split)
+  SBC $7B                                   ; $1EC3F6 | |
+  STA $C000                                 ; $1EC3F8 |/
+  LDA $C4D6                                 ; $1EC3FB |\ chain to irq_cutscene_secondary ($C408)
+  STA $9C                                   ; $1EC3FE | |
+  LDA $C4E8                                 ; $1EC400 | |
+  STA $9D                                   ; $1EC403 |/
+  JMP irq_exit                              ; $1EC405 |
 
-  LDA $50                                   ; $1EC408 |
-  BEQ code_1EC417                           ; $1EC40A |
-  LDA $51                                   ; $1EC40C |
-  SEC                                       ; $1EC40E |
-  SBC #$B0                                  ; $1EC40F |
-  TAX                                       ; $1EC411 |
-  BNE code_1EC417                           ; $1EC412 |
-  JMP code_1EC152                           ; $1EC414 |
+; ===========================================================================
+; irq_cutscene_secondary — cutscene secondary split (mode $0E)
+; ===========================================================================
+; Handles the bottom portion of cutscene screens. If $50 != 0 and
+; $51 - $B0 == 0, chains directly to status bar. Otherwise resets scroll
+; to $22C0 (nametable 0 bottom) and optionally chains for another split.
+; ---------------------------------------------------------------------------
+irq_cutscene_secondary:
+  LDA $50                                   ; $1EC408 | secondary split enabled?
+  BEQ .reset_scroll                         ; $1EC40A | no → reset to origin
+  LDA $51                                   ; $1EC40C |\ X = $51 - $B0
+  SEC                                       ; $1EC40E | | (remaining scanlines)
+  SBC #$B0                                  ; $1EC40F | |
+  TAX                                       ; $1EC411 |/
+  BNE .reset_scroll                         ; $1EC412 | non-zero → need scroll reset
+  JMP irq_gameplay_status_bar               ; $1EC414 | zero → chain directly to status bar
 
-code_1EC417:
-  LDA $2002                                 ; $1EC417 |
-  LDA #$22                                  ; $1EC41A |
-  STA $2006                                 ; $1EC41C |
-  LDA #$C0                                  ; $1EC41F |
-  STA $2006                                 ; $1EC421 |
-  LDA $FF                                   ; $1EC424 |
-  AND #$FC                                  ; $1EC426 |
-  STA $2000                                 ; $1EC428 |
-  LDA #$00                                  ; $1EC42B |
-  STA $2005                                 ; $1EC42D |
-  STA $2005                                 ; $1EC430 |
-  LDA $50                                   ; $1EC433 |
-  BEQ code_1EC447                           ; $1EC435 |
-  STX $C000                                 ; $1EC437 |
-  LDA $C4C9                                 ; $1EC43A |
-  STA $9C                                   ; $1EC43D |
-  LDA $C4DB                                 ; $1EC43F |
-  STA $9D                                   ; $1EC442 |
-  JMP code_1EC4BD                           ; $1EC444 |
+.reset_scroll:
+  LDA $2002                                 ; $1EC417 | reset PPU latch
+  LDA #$22                                  ; $1EC41A |\ $2006 = $22:$C0
+  STA $2006                                 ; $1EC41C | | (nametable 0, bottom portion)
+  LDA #$C0                                  ; $1EC41F | |
+  STA $2006                                 ; $1EC421 |/
+  LDA $FF                                   ; $1EC424 |\ PPUCTRL: nametable 0
+  AND #$FC                                  ; $1EC426 | |
+  STA $2000                                 ; $1EC428 |/
+  LDA #$00                                  ; $1EC42B |\ X = 0, Y = 0
+  STA $2005                                 ; $1EC42D | |
+  STA $2005                                 ; $1EC430 |/
+  LDA $50                                   ; $1EC433 | secondary split?
+  BEQ .exit_disabled                        ; $1EC435 | no → last split
+  STX $C000                                 ; $1EC437 |\ counter = X (from $51 - $B0 above)
+  LDA $C4C9                                 ; $1EC43A | | chain to irq_gameplay_status_bar
+  STA $9C                                   ; $1EC43D | |
+  LDA $C4DB                                 ; $1EC43F | |
+  STA $9D                                   ; $1EC442 |/
+  JMP irq_exit                              ; $1EC444 |
 
-code_1EC447:
-  JMP code_1EC4BA                           ; $1EC447 |
+.exit_disabled:
+  JMP irq_exit_disable                      ; $1EC447 |
 
-  LDA $2002                                 ; $1EC44A |
-  LDA $69                                   ; $1EC44D |
-  STA $2005                                 ; $1EC44F |
-  LDA #$00                                  ; $1EC452 |
-  STA $2005                                 ; $1EC454 |
-  LDA #$30                                  ; $1EC457 |
-  STA $C000                                 ; $1EC459 |
-  LDA $C4D8                                 ; $1EC45C |
-  STA $9C                                   ; $1EC45F |
-  LDA $C4EA                                 ; $1EC461 |
-  STA $9D                                   ; $1EC464 |
-  JMP code_1EC4BD                           ; $1EC466 |
+; ===========================================================================
+; irq_chr_split_first — scroll + chain to CHR swap (mode $0F)
+; ===========================================================================
+; Sets X scroll from $69, then chains to irq_chr_split_swap after 48
+; scanlines. First half of a two-part mid-frame CHR bank swap effect.
+; ---------------------------------------------------------------------------
+irq_chr_split_first:
+  LDA $2002                                 ; $1EC44A | reset PPU latch
+  LDA $69                                   ; $1EC44D |\ X scroll = $69
+  STA $2005                                 ; $1EC44F |/
+  LDA #$00                                  ; $1EC452 |\ Y scroll = 0
+  STA $2005                                 ; $1EC454 |/
+  LDA #$30                                  ; $1EC457 |\ next IRQ in 48 scanlines
+  STA $C000                                 ; $1EC459 |/
+  LDA $C4D8                                 ; $1EC45C |\ chain to irq_chr_split_swap ($C469)
+  STA $9C                                   ; $1EC45F | |
+  LDA $C4EA                                 ; $1EC461 | |
+  STA $9D                                   ; $1EC464 |/
+  JMP irq_exit                              ; $1EC466 |
 
-  LDA $2002                                 ; $1EC469 |
-  LDA $6A                                   ; $1EC46C |
-  STA $2005                                 ; $1EC46E |
-  LDA #$00                                  ; $1EC471 |
-  STA $2005                                 ; $1EC473 |
-  LDA $FF                                   ; $1EC476 |
-  AND #$FC                                  ; $1EC478 |
-  ORA $6B                                   ; $1EC47A |
-  STA $2000                                 ; $1EC47C |
-  LDA #$66                                  ; $1EC47F |
-  STA $E8                                   ; $1EC481 |
-  LDA #$72                                  ; $1EC483 |
-  STA $E9                                   ; $1EC485 |
-  JSR select_CHR_banks.reset_flag           ; $1EC487 |
-  LDA $F0                                   ; $1EC48A |
-  STA $8000                                 ; $1EC48C |
-  LDA #$78                                  ; $1EC48F |
-  STA $E8                                   ; $1EC491 |
-  LDA #$7A                                  ; $1EC493 |
-  STA $E9                                   ; $1EC495 |
-  INC $1B                                   ; $1EC497 |
-  JMP code_1EC4BA                           ; $1EC499 |
+; ===========================================================================
+; irq_chr_split_swap — scroll + mid-frame CHR bank swap (mode $10)
+; ===========================================================================
+; Sets X scroll from $6A with nametable from $6B, then performs a mid-frame
+; CHR bank swap: swaps BG CHR to banks $66/$72, then sets up $78/$7A for
+; the main loop to restore during NMI. $1B flag signals the swap occurred.
+; ---------------------------------------------------------------------------
+irq_chr_split_swap:
+  LDA $2002                                 ; $1EC469 | reset PPU latch
+  LDA $6A                                   ; $1EC46C |\ X scroll = $6A
+  STA $2005                                 ; $1EC46E |/
+  LDA #$00                                  ; $1EC471 |\ Y scroll = 0
+  STA $2005                                 ; $1EC473 |/
+  LDA $FF                                   ; $1EC476 |\ PPUCTRL: nametable from $6B
+  AND #$FC                                  ; $1EC478 | |
+  ORA $6B                                   ; $1EC47A | |
+  STA $2000                                 ; $1EC47C |/
+  LDA #$66                                  ; $1EC47F |\ swap BG CHR bank 0 → $66
+  STA $E8                                   ; $1EC481 |/
+  LDA #$72                                  ; $1EC483 |\ swap BG CHR bank 1 → $72
+  STA $E9                                   ; $1EC485 |/
+  JSR select_CHR_banks.reset_flag           ; $1EC487 | apply CHR bank swap
+  LDA $F0                                   ; $1EC48A |\ trigger MMC3 bank latch
+  STA $8000                                 ; $1EC48C |/
+  LDA #$78                                  ; $1EC48F |\ set up next banks for NMI restore
+  STA $E8                                   ; $1EC491 | | BG bank 0 → $78
+  LDA #$7A                                  ; $1EC493 | |
+  STA $E9                                   ; $1EC495 |/ BG bank 1 → $7A
+  INC $1B                                   ; $1EC497 | signal main loop: CHR swap occurred
+  JMP irq_exit_disable                      ; $1EC499 | last split
 
-  LDA $E8                                   ; $1EC49C |
-  PHA                                       ; $1EC49E |
-  LDA $E9                                   ; $1EC49F |
-  PHA                                       ; $1EC4A1 |
-  LDA #$66                                  ; $1EC4A2 |
-  STA $E8                                   ; $1EC4A4 |
-  LDA #$72                                  ; $1EC4A6 |
-  STA $E9                                   ; $1EC4A8 |
-  JSR select_CHR_banks.reset_flag           ; $1EC4AA |
-  LDA $F0                                   ; $1EC4AD |
-  STA $8000                                 ; $1EC4AF |
-  PLA                                       ; $1EC4B2 |
-  STA $E9                                   ; $1EC4B3 |
-  PLA                                       ; $1EC4B5 |
-  STA $E8                                   ; $1EC4B6 |
-  INC $1B                                   ; $1EC4B8 |
-code_1EC4BA:
-  STA $E000                                 ; $1EC4BA |
-code_1EC4BD:
-  PLA                                       ; $1EC4BD |
-  TAY                                       ; $1EC4BE |
-  PLA                                       ; $1EC4BF |
-  TAX                                       ; $1EC4C0 |
-  PLA                                       ; $1EC4C1 |
-  PLP                                       ; $1EC4C2 |
+; ===========================================================================
+; irq_chr_swap_only — CHR bank swap without scroll change (mode $11)
+; ===========================================================================
+; Performs a mid-frame CHR bank swap to $66/$72 without changing scroll.
+; Saves and restores $E8/$E9 so the main loop's bank setup is preserved.
+; Falls through to irq_exit_disable.
+; ---------------------------------------------------------------------------
+irq_chr_swap_only:
+  LDA $E8                                   ; $1EC49C |\ save current CHR bank addresses
+  PHA                                       ; $1EC49E | |
+  LDA $E9                                   ; $1EC49F | |
+  PHA                                       ; $1EC4A1 |/
+  LDA #$66                                  ; $1EC4A2 |\ temporarily swap BG CHR bank 0 → $66
+  STA $E8                                   ; $1EC4A4 |/
+  LDA #$72                                  ; $1EC4A6 |\ temporarily swap BG CHR bank 1 → $72
+  STA $E9                                   ; $1EC4A8 |/
+  JSR select_CHR_banks.reset_flag           ; $1EC4AA | apply CHR bank swap
+  LDA $F0                                   ; $1EC4AD |\ trigger MMC3 bank latch
+  STA $8000                                 ; $1EC4AF |/
+  PLA                                       ; $1EC4B2 |\ restore $E9
+  STA $E9                                   ; $1EC4B3 |/
+  PLA                                       ; $1EC4B5 |\ restore $E8
+  STA $E8                                   ; $1EC4B6 |/
+  INC $1B                                   ; $1EC4B8 | signal main loop: CHR swap occurred
+; --- IRQ exit routines ---
+; Handlers jump here when done. Two entry points:
+;   irq_exit_disable ($C4BA): disables IRQ (last split of frame)
+;   irq_exit ($C4BD): keeps IRQ enabled (more splits coming)
+irq_exit_disable:
+  STA $E000                                 ; $1EC4BA | disable MMC3 IRQ (no more splits)
+irq_exit:
+  PLA                                       ; $1EC4BD |\
+  TAY                                       ; $1EC4BE | |
+  PLA                                       ; $1EC4BF | | restore registers
+  TAX                                       ; $1EC4C0 | |
+  PLA                                       ; $1EC4C1 | |
+  PLP                                       ; $1EC4C2 |/
   RTI                                       ; $1EC4C3 |
 
-  db $00, $00, $00, $00, $BA, $52, $98, $C1 ; $1EC4C4 |
-  db $00, $35, $6F, $97, $D2, $02, $2B, $75 ; $1EC4CC |
-  db $A3, $CC, $08, $4A, $69, $9C, $C4, $C1 ; $1EC4D4 |
-  db $C1, $C1, $C2, $C2, $C2, $C2, $C2, $C3 ; $1EC4DC |
-  db $C3, $C3, $C3, $C3, $C4, $C4, $C4, $C4 ; $1EC4E4 |
-  db $FF, $00, $FF, $01, $00, $01, $30, $60 ; $1EC4EC |
-  db $90, $40, $70, $A0                     ; $1EC4F4 |
+; ===========================================================================
+; irq_vector_table — handler addresses indexed by game mode ($78)
+; ===========================================================================
+; NMI loads $9C/$9D from these tables: low bytes at $C4C8, high at $C4DA.
+; The IRQ entry point dispatches via JMP ($009C).
+;
+; Index | Handler  | Purpose
+; ------+----------+---------------------------------------------------
+;  $00  | $C4BA    | irq_exit_disable (no-op, no splits needed)
+;  $01  | $C152    | irq_gameplay_status_bar — HUD/gameplay split
+;  $02  | $C198    | irq_gameplay_hscroll — horizontal scroll after HUD
+;  $03  | $C1C1    | irq_gameplay_ntswap — nametable swap after HUD
+;  $04  | $C200    | irq_gameplay_vscroll — vertical scroll after HUD
+;  $05  | $C235    | irq_stagesel_first — stage select X scroll
+;  $06  | $C26F    | irq_stagesel_second — stage select bottom (chain)
+;  $07  | $C297    | irq_transition_first_split — 3-strip middle band
+;  $08  | $C2D2    | irq_transition_second_split — 3-strip bottom (chain)
+;  $09  | $C302    | irq_wave_set_strip — water wave strip (Gemini Man)
+;  $0A  | $C32B    | irq_wave_advance — wave strip loop (chain)
+;  $0B  | $C375    | irq_title_first — title/password first split
+;  $0C  | $C3A3    | irq_title_second — title/password X scroll (chain)
+;  $0D  | $C3CC    | irq_cutscene_scroll — full $2006/$2005 scroll
+;  $0E  | $C408    | irq_cutscene_secondary — secondary split (chain)
+;  $0F  | $C44A    | irq_chr_split_first — scroll + chain to CHR swap
+;  $10  | $C469    | irq_chr_split_swap — scroll + mid-frame CHR swap
+;  $11  | $C49C    | irq_chr_swap_only — CHR bank swap (no scroll)
+; ---------------------------------------------------------------------------
+; 4 unused bytes (padding/alignment)
+  db $00, $00, $00, $00                     ; $1EC4C4 |
+; low bytes of handler addresses ($C4C8, 18 entries)
+irq_vector_lo:
+  db $BA, $52, $98, $C1                     ; $1EC4C8 | modes $00-$03
+  db $00, $35, $6F, $97, $D2, $02, $2B, $75 ; $1EC4CC | modes $04-$0B
+  db $A3, $CC, $08, $4A, $69, $9C          ; $1EC4D4 | modes $0C-$11
+; high bytes of handler addresses ($C4DA, 18 entries)
+irq_vector_hi:
+  db $C4, $C1                              ; $1EC4DA | modes $00-$01
+  db $C1, $C1, $C2, $C2, $C2, $C2, $C2, $C3 ; $1EC4DC | modes $02-$09
+  db $C3, $C3, $C3, $C3, $C4, $C4, $C4, $C4 ; $1EC4E4 | modes $0A-$11
+; --- water wave scroll tables (used by irq_wave_set_strip/advance) ---
+; $73 indexes strip 0-2. Strips 0,2 invert X scroll; strip 1 keeps it.
+wave_eor_masks:
+  db $FF, $00, $FF                          ; $1EC4EC | EOR: negate/keep/negate X scroll
+wave_adc_offsets:
+  db $01, $00, $01                          ; $1EC4EF | ADC: +1/0/+1 (two's complement fixup)
+wave_y_scroll_set:
+  db $30, $60, $90                          ; $1EC4F2 | Y scroll for set_strip: 48/96/144
+wave_y_scroll_advance:
+  db $40, $70, $A0                          ; $1EC4F5 | Y scroll for advance: 64/112/160
 
 code_1EC4F8:
   LDX #$00                                  ; $1EC4F8 |
@@ -3723,7 +3935,7 @@ code_1ED95F:
   JSR code_1FE8B4                           ; $1ED966 |
   LDA #$04                                  ; $1ED969 |
   STA $10                                   ; $1ED96B |
-  JSR code_1FEF8C                           ; $1ED96D |
+  JSR fill_nametable_progressive                           ; $1ED96D |
   LDX #$00                                  ; $1ED970 |
   RTS                                       ; $1ED972 |
 
@@ -4201,7 +4413,7 @@ code_1EDD3C:
   JSR code_1FE8B4                           ; $1EDD45 |
   LDA #$04                                  ; $1EDD48 |
   STA $10                                   ; $1EDD4A |
-  JSR code_1FEF8C                           ; $1EDD4C |
+  JSR fill_nametable_progressive                           ; $1EDD4C |
   LDX #$00                                  ; $1EDD4F |
   RTS                                       ; $1EDD51 |
 
@@ -5038,7 +5250,7 @@ code_1FE388:
   STA $F8                                   ; $1FE38F |
   LDA #$E8                                  ; $1FE391 |
   STA $5E                                   ; $1FE393 |
-  JSR code_1FEB6D                           ; $1FE395 |
+  JSR clear_destroyed_blocks                           ; $1FE395 |
   JSR code_1FE614                           ; $1FE398 |
   LDA $22                                   ; $1FE39B |
   STA $F5                                   ; $1FE39D |
@@ -5275,7 +5487,7 @@ code_1FE517:
   LDA #$00                                  ; $1FE529 |
   STA $03                                   ; $1FE52B |
 code_1FE52D:
-  JSR code_1FE7F1                           ; $1FE52D |
+  JSR metatile_to_chr_tiles                           ; $1FE52D |
   LDY $28                                   ; $1FE530 |
   LDA $0640,y                               ; $1FE532 |
   STA $11                                   ; $1FE535 |
@@ -5529,7 +5741,7 @@ code_1FE70C:
   LDY $28                                   ; $1FE70C |
   LDA $0640,y                               ; $1FE70E |
   STA $11                                   ; $1FE711 |
-  JSR code_1FE7F1                           ; $1FE713 |
+  JSR metatile_to_chr_tiles                           ; $1FE713 |
   LDY $03                                   ; $1FE716 |
   LDA $24                                   ; $1FE718 |
   AND #$03                                  ; $1FE71A |
@@ -5631,84 +5843,111 @@ code_1FE7A1:
   db $00, $20, $40, $60, $01, $00, $1D, $00 ; $1FE7E1 |
   db $FF, $01, $00, $1D, $23, $2E, $2E, $23 ; $1FE7E9 |
 
-code_1FE7F1:
+; ===========================================================================
+; metatile_to_chr_tiles — convert 4 metatile quadrants to CHR tile IDs
+; ===========================================================================
+; Reads the current metatile definition via pointer at $00/$01 (set by
+; metatile_chr_ptr). Each metatile has 4 quadrants (indexed 0-3).
+; For each quadrant:
+;   - Reads metatile sub-index from ($00),y
+;   - Looks up 4 CHR tile IDs from tables $BB00-$BE00
+;   - Stores them to $06C0 buffer in 2×2 layout
+;   - Reads palette/attribute bits from $BF00
+;   - Accumulates attribute byte in $10 (2 bits per quadrant)
+;
+; $E89D offset table: {$00,$02,$08,$0A} maps quadrants to $06C0 offsets.
+; Output: $06C0 = 4×4 = 16 CHR tiles, $10 = attribute byte.
+; ---------------------------------------------------------------------------
+metatile_to_chr_tiles:
   JSR metatile_chr_ptr                           ; $1FE7F1 |
-code_1FE7F4:
-  LDY #$03                                  ; $1FE7F4 |
-  STY $02                                   ; $1FE7F6 |
+metatile_to_chr_tiles_continue:
+  LDY #$03                                  ; $1FE7F4 | start with quadrant 3
+  STY $02                                   ; $1FE7F6 | $02 = quadrant counter (3→0)
   LDA #$00                                  ; $1FE7F8 |
-  STA $10                                   ; $1FE7FA |
-code_1FE7FC:
-  LDY $02                                   ; $1FE7FC |
-  LDX $E89D,y                               ; $1FE7FE |
-  LDA ($00),y                               ; $1FE801 |
-  TAY                                       ; $1FE803 |
-  LDA $BB00,y                               ; $1FE804 |
-  STA $06C0,x                               ; $1FE807 |
-  LDA $BC00,y                               ; $1FE80A |
-  STA $06C1,x                               ; $1FE80D |
-  LDA $BD00,y                               ; $1FE810 |
-  STA $06C4,x                               ; $1FE813 |
-  LDA $BE00,y                               ; $1FE816 |
-  STA $06C5,x                               ; $1FE819 |
-  JSR code_1FE834                           ; $1FE81C |
-  LDA $BF00,y                               ; $1FE81F |
-  AND #$03                                  ; $1FE822 |
-  ORA $10                                   ; $1FE824 |
-  STA $10                                   ; $1FE826 |
-  DEC $02                                   ; $1FE828 |
-  BMI code_1FE833                           ; $1FE82A |
-  ASL $10                                   ; $1FE82C |
-  ASL $10                                   ; $1FE82E |
-  JMP code_1FE7FC                           ; $1FE830 |
+  STA $10                                   ; $1FE7FA | $10 = accumulated attribute bits
+.next_quadrant:
+  LDY $02                                   ; $1FE7FC | Y = current quadrant
+  LDX $E89D,y                               ; $1FE7FE | X = buffer offset for this quadrant
+  LDA ($00),y                               ; $1FE801 | read metatile sub-index
+  TAY                                       ; $1FE803 | Y = sub-index for CHR lookup
+  LDA $BB00,y                               ; $1FE804 |\ top-left tile
+  STA $06C0,x                               ; $1FE807 |/
+  LDA $BC00,y                               ; $1FE80A |\ top-right tile
+  STA $06C1,x                               ; $1FE80D |/
+  LDA $BD00,y                               ; $1FE810 |\ bottom-left tile
+  STA $06C4,x                               ; $1FE813 |/
+  LDA $BE00,y                               ; $1FE816 |\ bottom-right tile
+  STA $06C5,x                               ; $1FE819 |/
+  JSR breakable_block_override               ; $1FE81C | Gemini Man: zero destroyed blocks
+  LDA $BF00,y                               ; $1FE81F |\ attribute: low 2 bits = palette
+  AND #$03                                  ; $1FE822 | | merge into $10
+  ORA $10                                   ; $1FE824 | |
+  STA $10                                   ; $1FE826 |/
+  DEC $02                                   ; $1FE828 | next quadrant
+  BMI metatile_chr_exit                      ; $1FE82A | if all 4 done, return
+  ASL $10                                   ; $1FE82C |\ shift attribute bits left 2
+  ASL $10                                   ; $1FE82E | | (make room for next quadrant)
+  JMP .next_quadrant                        ; $1FE830 |/
 
-code_1FE833:
+metatile_chr_exit:                              ;         | shared RTS (metatile + breakable_block)
   RTS                                       ; $1FE833 |
 
-code_1FE834:
-  LDA $22                                   ; $1FE834 |
-  CMP #$02                                  ; $1FE836 |
-  BEQ code_1FE83E                           ; $1FE838 |
-  CMP #$09                                  ; $1FE83A |
-  BNE code_1FE833                           ; $1FE83C |
-code_1FE83E:
-  LDA $BF00,y                               ; $1FE83E |
-  AND #$F0                                  ; $1FE841 |
-  CMP #$70                                  ; $1FE843 |
-  BNE code_1FE833                           ; $1FE845 |
-  STY $0F                                   ; $1FE847 |
-  STX $0E                                   ; $1FE849 |
-  LDA $29                                   ; $1FE84B |
-  AND #$01                                  ; $1FE84D |
-  ASL                                       ; $1FE84F |
-  ASL                                       ; $1FE850 |
-  ASL                                       ; $1FE851 |
-  ASL                                       ; $1FE852 |
-  ASL                                       ; $1FE853 |
-  STA $0D                                   ; $1FE854 |
+; ===========================================================================
+; breakable_block_override — zero CHR tiles for destroyed blocks (Gemini Man)
+; ===========================================================================
+; Called from metatile_to_chr_tiles for Gemini Man stages only ($22 = $02 or
+; $09). Checks if the current metatile is a breakable block type (attribute
+; upper nibble = $7x). If so, looks up the destroyed-block bitfield at
+; $0110 — if the bit is set, the block has been destroyed and its 4 CHR
+; tiles are zeroed out (invisible).
+;
+; Y = metatile sub-index, X = $06C0 buffer offset (preserved on exit)
+; Uses bitmask_table ($EB82) for bit testing: $80,$40,$20,...,$01
+; ---------------------------------------------------------------------------
+breakable_block_override:
+  LDA $22                                   ; $1FE834 | current stage number
+  CMP #$02                                  ; $1FE836 | Gemini Man?
+  BEQ .check_block                          ; $1FE838 | yes → check
+  CMP #$09                                  ; $1FE83A | Doc Robot (Gemini Man stage)?
+  BNE metatile_chr_exit                      ; $1FE83C | no → skip (shared RTS above)
+.check_block:
+  LDA $BF00,y                               ; $1FE83E |\ attribute byte upper nibble
+  AND #$F0                                  ; $1FE841 | |
+  CMP #$70                                  ; $1FE843 | | breakable block type ($7x)?
+  BNE metatile_chr_exit                      ; $1FE845 |/ no → skip
+  STY $0F                                   ; $1FE847 | save Y (metatile sub-index)
+  STX $0E                                   ; $1FE849 | save X (buffer offset)
+  LDA $29                                   ; $1FE84B |\ compute destroyed-block array index:
+  AND #$01                                  ; $1FE84D | | Y = ($29 & 1) << 5 | ($28 >> 1)
+  ASL                                       ; $1FE84F | | ($29 bit 0 = screen page,
+  ASL                                       ; $1FE850 | |  $28 = metatile column position)
+  ASL                                       ; $1FE851 | |
+  ASL                                       ; $1FE852 | |
+  ASL                                       ; $1FE853 | |
+  STA $0D                                   ; $1FE854 |/
   LDA $28                                   ; $1FE856 |
-  PHA                                       ; $1FE858 |
-  LSR                                       ; $1FE859 |
-  ORA $0D                                   ; $1FE85A |
-  TAY                                       ; $1FE85C |
-  PLA                                       ; $1FE85D |
-  ASL                                       ; $1FE85E |
-  ASL                                       ; $1FE85F |
-  AND #$04                                  ; $1FE860 |
-  ORA $02                                   ; $1FE862 |
-  TAX                                       ; $1FE864 |
-  LDA $0110,y                               ; $1FE865 |
-  AND $EB82,x                               ; $1FE868 |
-  BEQ code_1FE87D                           ; $1FE86B |
-  LDX $0E                                   ; $1FE86D |
-  LDA #$00                                  ; $1FE86F |
-  STA $06C0,x                               ; $1FE871 |
-  STA $06C1,x                               ; $1FE874 |
-  STA $06C4,x                               ; $1FE877 |
-  STA $06C5,x                               ; $1FE87A |
-code_1FE87D:
-  LDY $0F                                   ; $1FE87D |
-  LDX $0E                                   ; $1FE87F |
+  PHA                                       ; $1FE858 | save $28
+  LSR                                       ; $1FE859 |\ Y = byte index into $0110 array
+  ORA $0D                                   ; $1FE85A | |
+  TAY                                       ; $1FE85C |/
+  PLA                                       ; $1FE85D |\ X = bit index within byte:
+  ASL                                       ; $1FE85E | | ($28 << 2) & $04 | $02 (quadrant)
+  ASL                                       ; $1FE85F | | combines column parity with quadrant
+  AND #$04                                  ; $1FE860 | |
+  ORA $02                                   ; $1FE862 | |
+  TAX                                       ; $1FE864 |/
+  LDA $0110,y                               ; $1FE865 |\ test destroyed bit
+  AND bitmask_table,x                        ; $1FE868 | | via bitmask_table
+  BEQ .restore                              ; $1FE86B |/ not destroyed → skip
+  LDX $0E                                   ; $1FE86D | restore buffer offset
+  LDA #$00                                  ; $1FE86F |\ zero all 4 CHR tiles (invisible)
+  STA $06C0,x                               ; $1FE871 | |
+  STA $06C1,x                               ; $1FE874 | |
+  STA $06C4,x                               ; $1FE877 | |
+  STA $06C5,x                               ; $1FE87A |/
+.restore:
+  LDY $0F                                   ; $1FE87D | restore Y
+  LDX $0E                                   ; $1FE87F | restore X
   RTS                                       ; $1FE881 |
 
 ; metatile_chr_ptr: sets $00/$01 pointer to 4-byte metatile CHR definition
@@ -5852,7 +6091,7 @@ code_1FE960:
   TAY                                       ; $1FE964 |
   LDA $BF00,y                               ; $1FE965 |
   AND #$F0                                  ; $1FE968 |
-  JSR code_1FEB30                           ; $1FE96A |
+  JSR breakable_block_collision                           ; $1FE96A |
   JSR code_1FEB8A                           ; $1FE96D |
   LDY $02                                   ; $1FE970 |
   STA $0042,y                               ; $1FE972 |
@@ -6040,7 +6279,7 @@ code_1FEA92:
   TAY                                       ; $1FEA96 |
   LDA $BF00,y                               ; $1FEA97 |  tile attribute byte
   AND #$F0                                  ; $1FEA9A |  upper nibble = collision type
-  JSR code_1FEB30                           ; $1FEA9C |  special: disappearing block ($70)
+  JSR breakable_block_collision                           ; $1FEA9C |  special: disappearing block ($70)
   JSR code_1FEB8A                           ; $1FEA9F |  special: Proto Man wall override
   LDY $02                                   ; $1FEAA2 |
   STA $0042,y                               ; $1FEAA4 |  store in $43 or $44
@@ -6128,66 +6367,80 @@ code_1FEB24:
   TAX                                       ; $1FEB2E |
   RTS                                       ; $1FEB2F |
 
-; disappearing_block_check: tile type $70 special handler
-; only active on stages $02 (Gemini Man) and $09 (Doc Robot Gemini)
-; checks $0110 buffer to see if block is currently visible
-; if not visible, overrides tile type to $00 (passthrough)
-code_1FEB30:
-  STA $06                                   ; $1FEB30 |
-  STX $05                                   ; $1FEB32 |
-  CMP #$70                                  ; $1FEB34 |\ only handle $70 tiles
-  BNE code_1FEB68                           ; $1FEB36 |/
+; ===========================================================================
+; breakable_block_collision — override tile type for destroyed blocks
+; ===========================================================================
+; Called during collision detection. If tile type is $70 (breakable block)
+; and we're on Gemini Man stages ($22 = $02 or $09), checks the $0110
+; destroyed-block bitfield. If the block is destroyed, overrides tile type
+; to $00 (passthrough) so the player can walk through it.
+;
+; A = tile type on entry, X = caller context (preserved)
+; Returns: A = tile type ($70 if intact, $00 if destroyed), X preserved
+; ---------------------------------------------------------------------------
+breakable_block_collision:
+  STA $06                                   ; $1FEB30 | save tile type
+  STX $05                                   ; $1FEB32 | save X
+  CMP #$70                                  ; $1FEB34 |\ only handle $70 (breakable block)
+  BNE .exit                                 ; $1FEB36 |/
   LDA $22                                   ; $1FEB38 |\ only on Gemini Man stages
   CMP #$02                                  ; $1FEB3A | | ($02 = Robot Master,
-  BEQ code_1FEB42                           ; $1FEB3C | |  $09 = Doc Robot)
+  BEQ .check_destroyed                      ; $1FEB3C | |  $09 = Doc Robot)
   CMP #$09                                  ; $1FEB3E | |
-  BNE code_1FEB68                           ; $1FEB40 |/
-code_1FEB42:
-  LDA $13                                   ; $1FEB42 |
-  AND #$01                                  ; $1FEB44 |
-  ASL                                       ; $1FEB46 |
-  ASL                                       ; $1FEB47 |
-  ASL                                       ; $1FEB48 |
-  ASL                                       ; $1FEB49 |
-  ASL                                       ; $1FEB4A |
-  STA $07                                   ; $1FEB4B |
+  BNE .exit                                 ; $1FEB40 |/
+.check_destroyed:
+  LDA $13                                   ; $1FEB42 |\ compute array index (same as
+  AND #$01                                  ; $1FEB44 | | breakable_block_override):
+  ASL                                       ; $1FEB46 | | Y = ($13 & 1) << 5 | ($28 >> 1)
+  ASL                                       ; $1FEB47 | | ($13 = screen page for collision,
+  ASL                                       ; $1FEB48 | |  $28 = metatile column position)
+  ASL                                       ; $1FEB49 | |
+  ASL                                       ; $1FEB4A | |
+  STA $07                                   ; $1FEB4B |/
   LDA $28                                   ; $1FEB4D |
-  PHA                                       ; $1FEB4F |
-  LSR                                       ; $1FEB50 |
-  ORA $07                                   ; $1FEB51 |
-  TAY                                       ; $1FEB53 |
-  PLA                                       ; $1FEB54 |
-  ASL                                       ; $1FEB55 |
-  ASL                                       ; $1FEB56 |
-  AND #$04                                  ; $1FEB57 |
-  ORA $03                                   ; $1FEB59 |
-  TAX                                       ; $1FEB5B |
-  LDA $0110,y                               ; $1FEB5C |
-  AND $EB82,x                               ; $1FEB5F |
-  BEQ code_1FEB68                           ; $1FEB62 |
-  LDA #$00                                  ; $1FEB64 |
-  STA $06                                   ; $1FEB66 |
-code_1FEB68:
-  LDA $06                                   ; $1FEB68 |
-  LDX $05                                   ; $1FEB6A |
+  PHA                                       ; $1FEB4F | save $28
+  LSR                                       ; $1FEB50 |\ Y = byte index into $0110 array
+  ORA $07                                   ; $1FEB51 | |
+  TAY                                       ; $1FEB53 |/
+  PLA                                       ; $1FEB54 |\ X = bit index within byte:
+  ASL                                       ; $1FEB55 | | ($28 << 2) & $04 | $03 (quadrant)
+  ASL                                       ; $1FEB56 | |
+  AND #$04                                  ; $1FEB57 | |
+  ORA $03                                   ; $1FEB59 | |
+  TAX                                       ; $1FEB5B |/
+  LDA $0110,y                               ; $1FEB5C |\ test destroyed bit
+  AND bitmask_table,x                       ; $1FEB5F | |
+  BEQ .exit                                 ; $1FEB62 |/ not destroyed → keep tile type
+  LDA #$00                                  ; $1FEB64 |\ destroyed → override to passthrough
+  STA $06                                   ; $1FEB66 |/
+.exit:
+  LDA $06                                   ; $1FEB68 | return tile type (maybe overridden)
+  LDX $05                                   ; $1FEB6A | restore X
   RTS                                       ; $1FEB6C |
 
-code_1FEB6D:
-  LDA $22                                   ; $1FEB6D |
-  CMP #$02                                  ; $1FEB6F |
-  BEQ code_1FEB77                           ; $1FEB71 |
-  CMP #$09                                  ; $1FEB73 |
-  BNE code_1FEB81                           ; $1FEB75 |
-code_1FEB77:
-  LDA #$00                                  ; $1FEB77 |
-  LDY #$3F                                  ; $1FEB79 |
-code_1FEB7B:
-  STA $0110,y                               ; $1FEB7B |
-  DEY                                       ; $1FEB7E |
-  BPL code_1FEB7B                           ; $1FEB7F |
-code_1FEB81:
+; ---------------------------------------------------------------------------
+; clear_destroyed_blocks — reset the $0110 destroyed-block bitfield
+; ---------------------------------------------------------------------------
+; Called on stage init. Zeros all 64 bytes ($0110-$014F) on Gemini Man
+; stages ($22 = $02 or $09), making all breakable blocks solid again.
+; ---------------------------------------------------------------------------
+clear_destroyed_blocks:
+  LDA $22                                   ; $1FEB6D |\ only on Gemini Man stages
+  CMP #$02                                  ; $1FEB6F | |
+  BEQ .clear                                ; $1FEB71 | |
+  CMP #$09                                  ; $1FEB73 | |
+  BNE .skip                                 ; $1FEB75 |/
+.clear:
+  LDA #$00                                  ; $1FEB77 |\ zero $0110..$014F (64 bytes)
+  LDY #$3F                                  ; $1FEB79 | | = 64 block slots
+.loop:                                              ; |
+  STA $0110,y                               ; $1FEB7B | |
+  DEY                                       ; $1FEB7E | |
+  BPL .loop                                 ; $1FEB7F |/
+.skip:
   RTS                                       ; $1FEB81 |
 
+bitmask_table:                                  ;         | bit 7..0 test masks
   db $80, $40, $20, $10, $08, $04, $02, $01 ; $1FEB82 |
 
 ; proto_man_wall_override: when $68 (cutscene-complete) is set,
@@ -6469,13 +6722,13 @@ code_1FEEAB:
   STA $01                                   ; $1FEF19 |
   LDA $11                                   ; $1FEF1B |
   JSR code_1FE88D                           ; $1FEF1D |
-  JSR code_1FE7F4                           ; $1FEF20 |
+  JSR metatile_to_chr_tiles_continue                           ; $1FEF20 |
   JMP code_1FEF2D                           ; $1FEF23 |
 
 code_1FEF26:
   TYA                                       ; $1FEF26 |
   JSR code_1FE8B4                           ; $1FEF27 |
-  JSR code_1FE7F1                           ; $1FEF2A |
+  JSR metatile_to_chr_tiles                           ; $1FEF2A |
 code_1FEF2D:
   LDX #$03                                  ; $1FEF2D |
 code_1FEF2F:
@@ -6506,108 +6759,145 @@ code_1FEF65:
   STX $19                                   ; $1FEF65 |
   RTS                                       ; $1FEF67 |
 
-code_1FEF68:
-  LDA #$00                                  ; $1FEF68 |
+; ===========================================================================
+; write_attribute_table — queue attribute table write to PPU
+; ===========================================================================
+; Called after fill_nametable_progressive finishes all 64 metatile columns.
+; Copies the 64-byte attribute buffer ($0640-$067F) to the PPU write queue,
+; targeting PPU $23C0 (attribute table of nametable 0 or 1 based on $10).
+; Resets $70 to 0 so the nametable fill can restart if needed.
+; ---------------------------------------------------------------------------
+write_attribute_table:
+  LDA #$00                                  ; $1FEF68 | reset progress counter
   STA $70                                   ; $1FEF6A |
-  LDA #$23                                  ; $1FEF6C |
-  ORA $10                                   ; $1FEF6E |
-  STA $0780                                 ; $1FEF70 |
-  LDA #$C0                                  ; $1FEF73 |
-  STA $0781                                 ; $1FEF75 |
-  LDY #$3F                                  ; $1FEF78 |
-  STY $0782                                 ; $1FEF7A |
-code_1FEF7D:
-  LDA $0640,y                               ; $1FEF7D |
-  STA $0783,y                               ; $1FEF80 |
+  LDA #$23                                  ; $1FEF6C |\ PPU address high byte: $23 or $27
+  ORA $10                                   ; $1FEF6E | | ($10 bit 2 = nametable select)
+  STA $0780                                 ; $1FEF70 |/
+  LDA #$C0                                  ; $1FEF73 |\ PPU address low byte: $C0
+  STA $0781                                 ; $1FEF75 |/ (attribute table start)
+  LDY #$3F                                  ; $1FEF78 |\ count = 64 bytes ($3F+1)
+  STY $0782                                 ; $1FEF7A |/
+.copy_attr:
+  LDA $0640,y                               ; $1FEF7D |\ copy attribute buffer to PPU queue
+  STA $0783,y                               ; $1FEF80 |/
   DEY                                       ; $1FEF83 |
-  BPL code_1FEF7D                           ; $1FEF84 |
-  STY $07C3                                 ; $1FEF86 |
-  STY $19                                   ; $1FEF89 |
+  BPL .copy_attr                            ; $1FEF84 |
+  STY $07C3                                 ; $1FEF86 | $FF terminator after data
+  STY $19                                   ; $1FEF89 | signal NMI to process queue
   RTS                                       ; $1FEF8B |
 
-code_1FEF8C:
-  LDA $70                                   ; $1FEF8C |
-  CMP #$40                                  ; $1FEF8E |
-  BEQ code_1FEF68                           ; $1FEF90 |
-  STA $28                                   ; $1FEF92 |
+; ===========================================================================
+; fill_nametable_progressive — fill nametable 4 metatile columns at a time
+; ===========================================================================
+; Called once per frame during level loading. Progress counter $70 tracks
+; the current metatile column (0-63). Each call processes 4 columns,
+; converting metatiles to CHR tiles and queuing them for PPU writes.
+;
+; Each metatile column = 2 CHR tiles wide. 4 columns = 8 tiles = one row
+; group. The PPU write queue gets 4 entries (one per tile row), each
+; containing 16 tiles ($0F + 1). After all 64 columns ($70=$40), branches
+; to write_attribute_table.
+;
+; PPU address layout: $70 maps to nametable position:
+;   - Low 3 bits × 4 = tile column offset within row
+;   - High 5 bits × 16 = tile row offset (each row = 32 bytes)
+;
+; $10 = nametable select (bit 2: 0=NT0, 4=NT1).
+; $28 = working column index within the 4-column group.
+; $0640 = attribute buffer (one byte per metatile column).
+; ---------------------------------------------------------------------------
+fill_nametable_progressive:
+  LDA $70                                   ; $1FEF8C |\ if $70 == $40 (64), all done
+  CMP #$40                                  ; $1FEF8E | | → write attribute table and reset
+  BEQ write_attribute_table                 ; $1FEF90 |/
+  STA $28                                   ; $1FEF92 | $28 = working column index
+; --- Compute PPU base address from $70 ---
+; Column ($70 & $07) × 4 → low byte offset.
+; Row ($70 & $F8) << 4 → high byte bits.
   PHA                                       ; $1FEF94 |
-  AND #$07                                  ; $1FEF95 |
-  ASL                                       ; $1FEF97 |
-  ASL                                       ; $1FEF98 |
-  STA $0781                                 ; $1FEF99 |
-  LDA #$02                                  ; $1FEF9C |
-  STA $0780                                 ; $1FEF9E |
+  AND #$07                                  ; $1FEF95 |\ column within row group × 4
+  ASL                                       ; $1FEF97 | |
+  ASL                                       ; $1FEF98 | |
+  STA $0781                                 ; $1FEF99 |/ → PPU addr low byte (partial)
+  LDA #$02                                  ; $1FEF9C |\ seed high byte = $02
+  STA $0780                                 ; $1FEF9E |/ (nametable $2000 base >> 8)
   PLA                                       ; $1FEFA1 |
-  AND #$F8                                  ; $1FEFA2 |
-  ASL                                       ; $1FEFA4 |
-  ROL $0780                                 ; $1FEFA5 |
-  ASL                                       ; $1FEFA8 |
-  ROL $0780                                 ; $1FEFA9 |
-  ASL                                       ; $1FEFAC |
-  ROL $0780                                 ; $1FEFAD |
-  ASL                                       ; $1FEFB0 |
-  ROL $0780                                 ; $1FEFB1 |
-  ORA $0781                                 ; $1FEFB4 |
-  STA $0781                                 ; $1FEFB7 |
+  AND #$F8                                  ; $1FEFA2 |\ row index × 128 via shift+rotate:
+  ASL                                       ; $1FEFA4 | | ($70 & $F8) << 4 into high/low
+  ROL $0780                                 ; $1FEFA5 | |
+  ASL                                       ; $1FEFA8 | |
+  ROL $0780                                 ; $1FEFA9 | |
+  ASL                                       ; $1FEFAC | |
+  ROL $0780                                 ; $1FEFAD | |
+  ASL                                       ; $1FEFB0 | |
+  ROL $0780                                 ; $1FEFB1 |/
+  ORA $0781                                 ; $1FEFB4 |\ merge low byte parts
+  STA $0781                                 ; $1FEFB7 |/
+; --- Set up 4 PPU write entries (4 tile rows) ---
+; Each entry is 19 bytes apart ($13). Low bytes advance by $20 (one row).
   CLC                                       ; $1FEFBA |
-  ADC #$20                                  ; $1FEFBB |
+  ADC #$20                                  ; $1FEFBB | row 1 low byte
   STA $0794                                 ; $1FEFBD |
-  ADC #$20                                  ; $1FEFC0 |
+  ADC #$20                                  ; $1FEFC0 | row 2 low byte
   STA $07A7                                 ; $1FEFC2 |
-  ADC #$20                                  ; $1FEFC5 |
+  ADC #$20                                  ; $1FEFC5 | row 3 low byte
   STA $07BA                                 ; $1FEFC7 |
-  LDA $0780                                 ; $1FEFCA |
-  ORA $10                                   ; $1FEFCD |
-  STA $0780                                 ; $1FEFCF |
-  STA $0793                                 ; $1FEFD2 |
-  STA $07A6                                 ; $1FEFD5 |
-  STA $07B9                                 ; $1FEFD8 |
-  LDA #$0F                                  ; $1FEFDB |
-  STA $0782                                 ; $1FEFDD |
-  STA $0795                                 ; $1FEFE0 |
-  STA $07A8                                 ; $1FEFE3 |
-  STA $07BB                                 ; $1FEFE6 |
-code_1FEFE9:
-  JSR code_1FE7F1                           ; $1FEFE9 |
-  LDA $28                                   ; $1FEFEC |
-  AND #$03                                  ; $1FEFEE |
-  TAX                                       ; $1FEFF0 |
-  LDY $F030,x                               ; $1FEFF1 |
-  LDX #$00                                  ; $1FEFF4 |
-code_1FEFF6:
-  LDA $06C0,x                               ; $1FEFF6 |
-  STA $0780,y                               ; $1FEFF9 |
-  INY                                       ; $1FEFFC |
-  INX                                       ; $1FEFFD |
-  TXA                                       ; $1FEFFE |
-  AND #$03                                  ; $1FEFFF |
-  BNE code_1FEFF6                           ; $1FF001 |
-  TYA                                       ; $1FF003 |
-  CLC                                       ; $1FF004 |
-  ADC #$0F                                  ; $1FF005 |
+  LDA $0780                                 ; $1FEFCA |\ high byte + nametable select ($10)
+  ORA $10                                   ; $1FEFCD | | same for all 4 entries
+  STA $0780                                 ; $1FEFCF | |
+  STA $0793                                 ; $1FEFD2 | |
+  STA $07A6                                 ; $1FEFD5 | |
+  STA $07B9                                 ; $1FEFD8 |/
+  LDA #$0F                                  ; $1FEFDB |\ tile count = 16 ($0F+1) per entry
+  STA $0782                                 ; $1FEFDD | |
+  STA $0795                                 ; $1FEFE0 | |
+  STA $07A8                                 ; $1FEFE3 | |
+  STA $07BB                                 ; $1FEFE6 |/
+; --- Process 4 metatile columns ---
+.convert_column:
+  JSR metatile_to_chr_tiles                 ; $1FEFE9 | convert metatile → 16 tiles in $06C0
+  LDA $28                                   ; $1FEFEC |\ which column within group? (0-3)
+  AND #$03                                  ; $1FEFEE | | determines position within entries
+  TAX                                       ; $1FEFF0 |/
+  LDY $F030,x                               ; $1FEFF1 | Y = starting offset {$03,$07,$0B,$0F}
+  LDX #$00                                  ; $1FEFF4 | X = source offset into $06C0
+.distribute_tiles:
+  LDA $06C0,x                               ; $1FEFF6 |\ copy 4 tiles from $06C0
+  STA $0780,y                               ; $1FEFF9 | | to current position in PPU entry
+  INY                                       ; $1FEFFC | |
+  INX                                       ; $1FEFFD | |
+  TXA                                       ; $1FEFFE | |
+  AND #$03                                  ; $1FEFFF | | (4 tiles per row)
+  BNE .distribute_tiles                     ; $1FF001 |/
+  TYA                                       ; $1FF003 |\ skip to next entry (+$0F)
+  CLC                                       ; $1FF004 | |
+  ADC #$0F                                  ; $1FF005 |/
   PHA                                       ; $1FF007 |
-  LDY $28                                   ; $1FF008 |
-  LDA $10                                   ; $1FF00A |
-  STA $0640,y                               ; $1FF00C |
+  LDY $28                                   ; $1FF008 |\ store attribute byte for this column
+  LDA $10                                   ; $1FF00A | |
+  STA $0640,y                               ; $1FF00C |/
   PLA                                       ; $1FF00F |
   TAY                                       ; $1FF010 |
-  CPY #$4C                                  ; $1FF011 |
-  BCC code_1FEFF6                           ; $1FF013 |
-  INC $70                                   ; $1FF015 |
-  INC $28                                   ; $1FF017 |
-  LDA $28                                   ; $1FF019 |
-  AND #$03                                  ; $1FF01B |
-  BNE code_1FEFE9                           ; $1FF01D |
-  LDA #$FF                                  ; $1FF01F |
-  STA $07CC                                 ; $1FF021 |
-  LDY $28                                   ; $1FF024 |
-  CPY #$39                                  ; $1FF026 |
-  BCC code_1FF02D                           ; $1FF028 |
-  STA $07A6                                 ; $1FF02A |
-code_1FF02D:
-  STA $19                                   ; $1FF02D |
+  CPY #$4C                                  ; $1FF011 |\ loop until all 4 rows filled
+  BCC .distribute_tiles                     ; $1FF013 |/ (Y < $4C → more rows)
+  INC $70                                   ; $1FF015 | advance progress counter
+  INC $28                                   ; $1FF017 | advance working column
+  LDA $28                                   ; $1FF019 |\ repeat for 4 columns total
+  AND #$03                                  ; $1FF01B | |
+  BNE .convert_column                       ; $1FF01D |/
+  LDA #$FF                                  ; $1FF01F |\ $FF terminator after 4th entry
+  STA $07CC                                 ; $1FF021 |/
+  LDY $28                                   ; $1FF024 |\ if past row 28 ($39 columns),
+  CPY #$39                                  ; $1FF026 | | disable 3rd PPU entry (rows 29-30
+  BCC .finish                               ; $1FF028 | | would overflow nametable)
+  STA $07A6                                 ; $1FF02A |/ terminate 3rd entry early
+.finish:
+  STA $19                                   ; $1FF02D | signal NMI to process PPU queue
   RTS                                       ; $1FF02F |
 
+; PPU entry column offsets — maps column-within-group (0-3) to starting
+; byte offset within each PPU write entry's data area.
+ppu_column_offsets:
   db $03, $07, $0B, $0F                     ; $1FF030 |
 
 code_1FF034:

@@ -615,65 +615,89 @@ code_1890CA:
   JSR code_1FFF21                           ; $1890CA |
   JMP code_1890B4                           ; $1890CD |
 
-code_1890D0:
-  LDA #$36                                  ; $1890D0 |
+; --- stage_select_init ($1890D0) ---
+; Entry point for the stage select screen. Sets up CHR banks, loads palettes,
+; and determines if this is a fresh start or return from a stage.
+;
+; Palette system:
+;   $0600-$060F = BG palette buffer (4 sub-palettes × 4 colors)
+;   $0610-$061F = Sprite palette buffer (4 sub-palettes × 4 colors)
+;   $0620-$062F = BG palette working copy
+;   $18 = palette update flag (nonzero → NMI uploads $0600-$061F to PPU $3F00-$3F1F)
+;
+; Fresh start ($0F=0): BG palettes from $9C33, sprite palettes from $9C23
+;   BG 0: $0F $20 $21 $11 — frame borders: black, white, lt blue, dk blue
+;   BG 1: $0F $20 $37 $29 — portrait face BG: black, white, tan, green
+;   BG 2: $0F $20 $26 $16 — portrait face detail: black, white, salmon, dk red
+;   BG 3: $0F $20 $10 $21 — text/misc: black, white, grey, lt blue
+;   SP 0: $0F $30 $15 $11 — cursor bolts + center portrait: transparent, white, dk magenta, dk blue
+;   SP 1: $0F $37 $21 $10 — face sprites 1: black, tan, lt blue, grey
+;   SP 2: $0F $37 $26 $15 — face sprites 2: black, tan, salmon, dk magenta
+;   SP 3: $0F $37 $26 $0F — face sprites 3: black, tan, salmon, black
+;
+; Return from stage ($0F=1): BG palettes from $9C43
+stage_select_init:
+  LDA #$36                                  ; $1890D0 | CHR bank $36 for sprite tiles
   STA $EC                                   ; $1890D2 |
-  LDA #$34                                  ; $1890D4 |
+  LDA #$34                                  ; $1890D4 | CHR bank $34 for BG tiles
   STA $ED                                   ; $1890D6 |
-  JSR select_CHR_banks.reset_flag           ; $1890D8 |
-  LDY #$0F                                  ; $1890DB |
-code_1890DD:
-  LDA $9C23,y                               ; $1890DD |
-  STA $0610,y                               ; $1890E0 |
+  JSR select_CHR_banks.reset_flag           ; $1890D8 | apply CHR bank selection
+; Load sprite palettes from sprite_palette_data ($9C23)
+  LDY #$0F                                  ; $1890DB | counter = 16 bytes
+.load_sprite_palette:
+  LDA sprite_palette_data,y                 ; $1890DD | load sprite palette color
+  STA $0610,y                               ; $1890E0 | store to sprite palette buffer
   DEY                                       ; $1890E3 |
-  BPL code_1890DD                           ; $1890E4 |
-  STY $18                                   ; $1890E6 |
-  LDY #$00                                  ; $1890E8 |
-  LDA $0200                                 ; $1890EA |
-  CMP #$97                                  ; $1890ED |
-  BEQ code_1890F2                           ; $1890EF |
-  INY                                       ; $1890F1 |
-code_1890F2:
-  STY $0F                                   ; $1890F2 |
-  LDA $9BFD,y                               ; $1890F4 |
-  JSR submit_sound_ID_D9                    ; $1890F7 |
+  BPL .load_sprite_palette                  ; $1890E4 | loop Y=$0F down to $00
+  STY $18                                   ; $1890E6 | Y=$FF, trigger palette update
+; Determine fresh start vs return: check if OAM is initialized
+  LDY #$00                                  ; $1890E8 | assume fresh start (Y=0)
+  LDA $0200                                 ; $1890EA | check OAM sprite 0 Y position
+  CMP #$97                                  ; $1890ED | $97 = sentinel for uninitialized
+  BEQ .set_mode                             ; $1890EF | fresh start → Y stays 0
+  INY                                       ; $1890F1 | returning from stage → Y=1
+.set_mode:
+  STY $0F                                   ; $1890F2 | $0F = 0 (fresh) or 1 (return)
+  LDA $9BFD,y                               ; $1890F4 | select music track
+  JSR submit_sound_ID_D9                    ; $1890F7 | play stage select music
   LDA #$00                                  ; $1890FA |
-  STA $70                                   ; $1890FC |
-  LDA $9C63,y                               ; $1890FE |
+  STA $70                                   ; $1890FC | clear NMI sync flag
+  LDA $9C63,y                               ; $1890FE | load screen scroll/setup param
   JSR code_1FE8B4                           ; $189101 |
   LDA #$04                                  ; $189104 |
   STA $97                                   ; $189106 |
-  JSR code_1EC5E9                           ; $189108 |
-code_18910B:
+  JSR code_1EC5E9                           ; $189108 | clear nametable/setup PPU
+.wait_nmi:
   LDA #$04                                  ; $18910B |
   STA $10                                   ; $18910D |
   JSR code_1FEF8C                           ; $18910F |
-  JSR code_1FFF21                           ; $189112 |
+  JSR code_1FFF21                           ; $189112 | wait for NMI
   LDA $70                                   ; $189115 |
-  BNE code_18910B                           ; $189117 |
-  LDY $0F                                   ; $189119 |
-  BEQ code_189126                           ; $18911B |
+  BNE .wait_nmi                             ; $189117 | loop until NMI complete
+; Load BG palettes — offset depends on fresh start vs return
+  LDY $0F                                   ; $189119 | Y = 0 (fresh) or 1 (return)
+  BEQ .load_bg_palette                      ; $18911B | skip portrait restore if fresh
   LDA #$04                                  ; $18911D |
   STA $10                                   ; $18911F |
   LDX #$00                                  ; $189121 |
-  JSR code_18939E                           ; $189123 |
-code_189126:
-  LDA $9C65,y                               ; $189126 |
+  JSR code_18939E                           ; $189123 | restore defeated boss portraits
+.load_bg_palette:
+  LDA $9C65,y                               ; $189126 | load scroll params
   STA $10                                   ; $189129 |
   LDA $9C67,y                               ; $18912B |
   STA $11                                   ; $18912E |
-  JSR code_1EC531                           ; $189130 |
-  LDX $9C01,y                               ; $189133 |
+  JSR code_1EC531                           ; $189130 | enable PPU rendering
+  LDX bg_palette_index,y                    ; $189133 | X = offset into bg_palette_data
   LDY #$00                                  ; $189136 |
-code_189138:
-  LDA $9C03,x                               ; $189138 |
-  STA $0600,y                               ; $18913B |
-  STA $0620,y                               ; $18913E |
+.load_bg_palette_loop:
+  LDA bg_palette_data,x                     ; $189138 | load BG palette color
+  STA $0600,y                               ; $18913B | store to BG palette buffer
+  STA $0620,y                               ; $18913E | store to working copy
   INX                                       ; $189141 |
   INY                                       ; $189142 |
-  CPY #$10                                  ; $189143 |
-  BNE code_189138                           ; $189145 |
-  STY $18                                   ; $189147 |
+  CPY #$10                                  ; $189143 | 16 bytes = 4 palettes × 4 colors
+  BNE .load_bg_palette_loop                 ; $189145 |
+  STY $18                                   ; $189147 | Y=$10, trigger palette update
   LDA #$20                                  ; $189149 |
   LDX #$24                                  ; $18914B |
   LDY #$00                                  ; $18914D |
@@ -837,7 +861,10 @@ code_189258:
 ;   Nametable writes: Portrait face tiles (4×4 per boss, CHR bank selects face),
 ;     center Mega Man face tiles ($CC-$FF)
 ;   OAM sprites: Cursor bolt connectors (4 per selected frame, tiles $E4/$E5,
-;     palette $37 = red/orange), Mega Man eye sprites (6 per cursor position,
+;     sprite palette 0: $0F/$30/$15/$11 — attribute byte never written, defaults
+;     to $00 from OAM clear. Tile $E4 = magenta fill ($15), tile $E5 = blue fill
+;     ($11), both with white ($30) upper-left highlight. Alternates every 8 frames.
+;     Mega Man eye sprites (6 per cursor position, attr $03 = sprite palette 3,
 ;     eyes track toward selected boss), boss portrait detail sprites
 ;
 ; Key data tables in this bank:
@@ -865,7 +892,7 @@ code_189258:
 ;   Base Y: row 0=$18(24), row 1=$58(88), row 2=$98(152)
 ;   Base X: col 0=$17(23), col 1=$67(103), col 2=$B7(183)
 ;   Offsets: TL(0,0) TR(42,0) BL(0,38) BR(42,38)
-;   Bolt tile alternates $E4/$E5 every 8 frames for flash effect
+;   Bolt tile $E4 = magenta ($15) fill, $E5 = blue ($11) fill, alternates every 8 frames
 ; ==========================================================================
 
 ; --- Stage select d-pad handling ---
@@ -928,6 +955,11 @@ code_189291:
 ; --- Cursor bolt sprites (4 corner bolts) ---
 ; Position from $9CF3/$9CFC tables, offsets from $9D05/$9D09.
 ; Bolt tile alternates $E4/$E5 every 8 frames for flash effect.
+; NOTE: OAM attribute byte is never written → defaults to $00 = sprite palette 0.
+; SP 0: $0F(transparent), $30(white), $15(dk_magenta), $11(dk_blue).
+; Tile $E4 uses color 2 ($15 magenta fill), tile $E5 uses color 3 ($11 blue fill).
+; Both tiles have color 1 ($30 white) as upper-left highlight.
+; Solid filled shape (not outline) — same pattern as center portrait bolt sprites.
   LDY $00                                   ; $1892B8 | grid index
   LDA $9CF3,y                               ; $1892BA | cursor Y base (per grid position)
   STA $00                                   ; $1892BD |
@@ -968,85 +1000,127 @@ code_1892F2:
   INC $95                                   ; $1892FB |
   JMP code_189258                           ; $1892FD |
 
-; --- Stage select confirmation (A or Start pressed) ---
-code_189300:
-  JSR code_1EC628                           ; $189300 |
-  LDA $12                                   ; $189303 | column
+; ===========================================================================
+; Stage select confirmation (A or Start pressed)
+; ===========================================================================
+; Called when the player presses A/Start on the stage select screen.
+; Validates the selection, then initiates the stage transition:
+;   1. Fills the offscreen nametable with boss intro layout (blue band)
+;   2. Loads transition palettes from $9C53
+;   3. Jumps to bank03 $A000 for the horizontal scroll + boss name reveal
+;
+; The boss intro layout is a solid light-blue band (NES $21) spanning
+; tile rows 11-18 (y=88-151), bordered by white ($20) lines at y=88-89
+; and y=150-151. This band is written into the offscreen nametable by
+; fill_nametable_progressive ($1FEF8C) using metatile data from bank $13.
+; The NMI/IRQ scroll split then creates a 3-strip effect:
+;   - Top strip    (y=0-87):    scrolls horizontally, sliding portraits away
+;   - Middle band  (y=88-151):  stays fixed, shows blue intro band + boss sprite
+;   - Bottom strip (y=152-239): scrolls horizontally, sliding portraits away
+; ---------------------------------------------------------------------------
+stage_select_confirm:
+  JSR code_1EC628                           ; $189300 | disable rendering
+  LDA $12                                   ; $189303 | $12 = cursor column (0-2)
   CLC                                       ; $189305 |
-  ADC $13                                   ; $189306 | + row offset
+  ADC $13                                   ; $189306 | $13 = cursor row offset (0/3/6)
   TAY                                       ; $189308 | Y = grid index (0-8)
   CPY #$04                                  ; $189309 | index 4 = center position
-  BNE code_189316                           ; $18930B | not center → try select
-  LDA $60                                   ; $18930D | center only works when
-  CMP #$12                                  ; $18930F | $60 == $12 (Doc Robot complete?)
-  BNE code_189316                           ; $189311 |
-  JMP code_189ABC                           ; $189313 | → special center action
+  BNE .validate_boss                        ; $18930B | not center → try select
+  LDA $60                                   ; $18930D | center only selectable when
+  CMP #$12                                  ; $18930F | $60 == $12 (all Doc Robots beaten)
+  BNE .validate_boss                        ; $189311 |
+  JMP code_189ABC                           ; $189313 | → Wily fortress entrance
 
-code_189316:
+.validate_boss:
   LDA $61                                   ; $189316 | $61 = boss-defeated bitmask
   AND $9DED,y                               ; $189318 | check if this boss already beaten
-  BNE code_1892F2                           ; $18931B | already beaten → can't select
-  LDA $60                                   ; $18931D | stage page offset
-  CMP #$0A                                  ; $18931F | >= $0A = invalid
-  BCS code_1892F2                           ; $189321 |
-  TYA                                       ; $189323 | Y = grid index
+  BNE code_1892F2                           ; $18931B | already beaten → back to select loop
+  LDA $60                                   ; $18931D | $60 = game progression page
+  CMP #$0A                                  ; $18931F | >= $0A = invalid state
+  BCS code_1892F2                           ; $189321 | → back to select loop
+  TYA                                       ; $189323 | Y = grid index (0-8)
   CLC                                       ; $189324 |
-  ADC $60                                   ; $189325 | + page offset (0 for Robot Masters)
-  TAY                                       ; $189327 |
-; Stage select lookup table at $9CE1:
+  ADC $60                                   ; $189325 | + page offset (0=Robot Masters, $0A=Doc Robot)
+  TAY                                       ; $189327 | Y = adjusted grid index for table lookup
+; Stage select lookup table at $9CE1 (9 entries per page):
 ;   Index: 0     1     2     3     4     5     6     7     8
 ;   Value: $06   $05   $00   $03   $FF   $04   $02   $01   $07
 ;   Boss:  Spark Snake Needl Hard  (n/a) Top   Gemin Magnt Shadw
 ;   Grid:  TL    TM    TR    ML    CTR   MR    BL    BM    BR
-  LDA $9CE1,y                               ; $189328 | look up stage index
-  BMI code_1892F2                           ; $18932B | $FF = not selectable (center)
-  STA $22                                   ; $18932D | set current stage
-  STY $0F                                   ; $18932F |
-  LDA #$13                                  ; $189331 |
-  STA $F5                                   ; $189333 |
-  JSR select_PRG_banks                      ; $189335 |
-  LDA #$04                                  ; $189338 |
-  STA $97                                   ; $18933A |
-  JSR code_1EC5E9                           ; $18933C |
-  LDA #$76                                  ; $18933F |
-  STA $E9                                   ; $189341 |
-  JSR update_CHR_banks                      ; $189343 |
-  LDA $FD                                   ; $189346 |
-  PHA                                       ; $189348 |
-  EOR #$01                                  ; $189349 |
-  STA $FD                                   ; $18934B |
-  PLA                                       ; $18934D |
-  AND #$01                                  ; $18934E |
-  ASL                                       ; $189350 |
-  ASL                                       ; $189351 |
-  STA $10                                   ; $189352 |
-  LDA #$03                                  ; $189354 |
-  JSR code_1FE8B4                           ; $189356 |
-  LDA #$00                                  ; $189359 |
-  STA $70                                   ; $18935B |
-  STA $EE                                   ; $18935D |
-code_18935F:
-  LDA $10                                   ; $18935F |
-  PHA                                       ; $189361 |
-  JSR code_1FEF8C                           ; $189362 |
-  JSR code_1FFF21                           ; $189365 |
-  PLA                                       ; $189368 |
-  STA $10                                   ; $189369 |
-  LDA $70                                   ; $18936B |
-  BNE code_18935F                           ; $18936D |
+  LDA $9CE1,y                               ; $189328 | look up stage number
+  BMI code_1892F2                           ; $18932B | $FF = center (not selectable)
+  STA $22                                   ; $18932D | $22 = current stage number
+  STY $0F                                   ; $18932F | $0F = save adjusted grid index
+
+; --- Set up PRG/CHR banks for the boss intro layout ---
+  LDA #$13                                  ; $189331 |\ select PRG bank $13
+  STA $F5                                   ; $189333 | | (contains boss intro metatile data
+  JSR select_PRG_banks                      ; $189335 |/  at $AF00+, referenced by fill routine)
+  LDA #$04                                  ; $189338 |\ set rendering mode
+  STA $97                                   ; $18933A |/
+  JSR code_1EC5E9                           ; $18933C | configure PPU
+  LDA #$76                                  ; $18933F |\ set CHR bank $76
+  STA $E9                                   ; $189341 | | (boss intro screen tileset)
+  JSR update_CHR_banks                      ; $189343 |/
+
+; --- Determine which nametable to fill (the offscreen one) ---
+; $FD bit 0 = currently displayed nametable. Toggle it so the NEW
+; nametable becomes visible, then compute $10 = old nametable's
+; PPU address bit (0 or 4) to write the intro layout into it first.
+  LDA $FD                                   ; $189346 |\ toggle displayed nametable
+  PHA                                       ; $189348 | |
+  EOR #$01                                  ; $189349 | |
+  STA $FD                                   ; $18934B |/
+  PLA                                       ; $18934D |\ $10 = OLD nametable select bit
+  AND #$01                                  ; $18934E | | bit 0 → shifted left 2 = 0 or 4
+  ASL                                       ; $189350 | | 0 = nametable $2000, 4 = nametable $2400
+  ASL                                       ; $189351 | |
+  STA $10                                   ; $189352 |/
+
+; --- Set up metatile pointer and fill nametable ---
+; code_1FE8B4 computes: ($20/$21) = $AF00 + (A << 6)
+; A=$03 → column 3 of bank $13 level data → pointer $AFC0
+  LDA #$03                                  ; $189354 |\ set metatile column pointer
+  JSR code_1FE8B4                           ; $189356 |/ ($20/$21) → $AFC0 in bank $13
+  LDA #$00                                  ; $189359 |\ $70 = nametable fill progress (0-63)
+  STA $70                                   ; $18935B |/ starts at 0
+  STA $EE                                   ; $18935D | $EE = NMI skip flag (0=allow NMI)
+
+; Fill the offscreen nametable progressively.
+; fill_nametable_progressive writes 4 tile rows per call.
+; 16 calls × 4 rows = 64 rows → full nametable.
+; When $70 reaches $40, it writes the attribute table and resets $70 to 0.
+.fill_nametable_loop:
+  LDA $10                                   ; $18935F |\ preserve nametable select
+  PHA                                       ; $189361 |/
+  JSR fill_nametable_progressive            ; $189362 | write 4 rows to PPU queue
+  JSR code_1FFF21                           ; $189365 | wait for NMI (PPU uploads queued data)
+  PLA                                       ; $189368 |\ restore nametable select
+  STA $10                                   ; $189369 |/
+  LDA $70                                   ; $18936B | $70 = 0 when fill complete
+  BNE .fill_nametable_loop                  ; $18936D | loop until done
+
+; --- Load transition palette and jump to bank03 ---
+; $9C53: 16-byte palette for the boss intro screen (BG palettes only).
+; This replaces the stage select palettes with the intro band colors.
   LDY #$0F                                  ; $18936F |
-code_189371:
-  LDA $9C53,y                               ; $189371 |
-  STA $0600,y                               ; $189374 |
-  STA $0620,y                               ; $189377 |
+.load_transition_palette:
+  LDA $9C53,y                               ; $189371 | copy 16 bytes from $9C53
+  STA $0600,y                               ; $189374 | to BG palette buffer
+  STA $0620,y                               ; $189377 | and working copy
   DEY                                       ; $18937A |
-  BPL code_189371                           ; $18937B |
-  STY $18                                   ; $18937D |
-  LDA #$03                                  ; $18937F |
-  STA $F5                                   ; $189381 |
-  JSR select_PRG_banks                      ; $189383 |
-  LDY $0F                                   ; $189386 |
-  JMP $A000                                 ; $189388 |
+  BPL .load_transition_palette              ; $18937B |
+  STY $18                                   ; $18937D | $18 = $FF → flag palette upload
+
+; Jump to bank03 entry point.
+; Y = adjusted grid index (used by bank03 to index stage parameter tables).
+; This is a JMP (not JSR) — bank03's RTS returns to whoever called the
+; stage select, not back here.
+  LDA #$03                                  ; $18937F |\ select PRG bank $03
+  STA $F5                                   ; $189381 | |
+  JSR select_PRG_banks                      ; $189383 |/
+  LDY $0F                                   ; $189386 | Y = adjusted grid index
+  JMP $A000                                 ; $189388 | → bank03 stage_transition_entry
 
   PHA                                       ; $18938B |
   LDA #$01                                  ; $18938C |
@@ -1058,46 +1132,60 @@ code_189371:
   STA $F5                                   ; $189399 |
   JMP select_PRG_banks                      ; $18939B |
 
-code_18939E:
-  STY $04                                   ; $18939E |
-  STX $05                                   ; $1893A0 |
-  LDA $F5                                   ; $1893A2 |
-  PHA                                       ; $1893A4 |
-  LDA #$03                                  ; $1893A5 |
-  STA $F5                                   ; $1893A7 |
-  JSR select_PRG_banks                      ; $1893A9 |
-  LDX $05                                   ; $1893AC |
-  LDA $A56D,x                               ; $1893AE |
-  STA $02                                   ; $1893B1 |
-  LDA $A580,x                               ; $1893B3 |
-  STA $03                                   ; $1893B6 |
+; ---------------------------------------------------------------------------
+; write_ppu_data_from_bank03 — copy a PPU write command list from bank03
+; ---------------------------------------------------------------------------
+; Parameters: X = table index, $10 = nametable select (0 or 4)
+; Loads a pointer from bank03 tables $A56D/$A580 and copies the data
+; to the PPU write queue at $0780+. The data format is:
+;   byte 0: PPU high address (ORed with $10 for nametable select)
+;   byte 1: PPU low address
+;   byte 2: tile count (N)
+;   bytes 3..3+N: tile data
+;   ... (repeats for more rows)
+;   terminator: high byte with bit 7 set ($FF)
+; Used to write nametable tile data for the boss intro screen.
+; ---------------------------------------------------------------------------
+write_ppu_data_from_bank03:
+  STY $04                                   ; $18939E | save Y
+  STX $05                                   ; $1893A0 | save table index
+  LDA $F5                                   ; $1893A2 |\ save current PRG bank
+  PHA                                       ; $1893A4 |/
+  LDA #$03                                  ; $1893A5 |\ switch to bank 03
+  STA $F5                                   ; $1893A7 | | (contains PPU data tables)
+  JSR select_PRG_banks                      ; $1893A9 |/
+  LDX $05                                   ; $1893AC | X = table index
+  LDA $A56D,x                               ; $1893AE |\ ($02/$03) = pointer to PPU data
+  STA $02                                   ; $1893B1 | | low byte from $A56D+X
+  LDA $A580,x                               ; $1893B3 | | high byte from $A580+X
+  STA $03                                   ; $1893B6 |/
   LDY #$00                                  ; $1893B8 |
-code_1893BA:
-  LDA ($02),y                               ; $1893BA |
-  ORA $10                                   ; $1893BC |
-  STA $0780,y                               ; $1893BE |
-  BMI code_1893DE                           ; $1893C1 |
+.copy_ppu_entry:
+  LDA ($02),y                               ; $1893BA | PPU high address
+  ORA $10                                   ; $1893BC | OR nametable select bit
+  STA $0780,y                               ; $1893BE | store to PPU write queue
+  BMI .done                                 ; $1893C1 | bit 7 set = terminator ($FF)
   INY                                       ; $1893C3 |
-  LDA ($02),y                               ; $1893C4 |
+  LDA ($02),y                               ; $1893C4 | PPU low address
   STA $0780,y                               ; $1893C6 |
   INY                                       ; $1893C9 |
-  LDA ($02),y                               ; $1893CA |
+  LDA ($02),y                               ; $1893CA | tile count
   STA $0780,y                               ; $1893CC |
-  STA $00                                   ; $1893CF |
+  STA $00                                   ; $1893CF | save count for loop
   INY                                       ; $1893D1 |
-code_1893D2:
-  LDA ($02),y                               ; $1893D2 |
+.copy_tiles:
+  LDA ($02),y                               ; $1893D2 | tile data byte
   STA $0780,y                               ; $1893D4 |
   INY                                       ; $1893D7 |
   DEC $00                                   ; $1893D8 |
-  BPL code_1893D2                           ; $1893DA |
-  BMI code_1893BA                           ; $1893DC |
-code_1893DE:
-  STA $19                                   ; $1893DE |
-  PLA                                       ; $1893E0 |
-  STA $F5                                   ; $1893E1 |
-  JSR select_PRG_banks                      ; $1893E3 |
-  LDY $04                                   ; $1893E6 |
+  BPL .copy_tiles                           ; $1893DA |
+  BMI .copy_ppu_entry                       ; $1893DC | next PPU entry (always branches)
+.done:
+  STA $19                                   ; $1893DE | $19 = $FF → flag PPU write pending
+  PLA                                       ; $1893E0 |\ restore original PRG bank
+  STA $F5                                   ; $1893E1 | |
+  JSR select_PRG_banks                      ; $1893E3 |/
+  LDY $04                                   ; $1893E6 | restore Y
   RTS                                       ; $1893E8 |
 
 code_1893E9:
@@ -1124,197 +1212,272 @@ code_18940C:
 code_18940F:
   RTS                                       ; $18940F |
 
-code_189410:
-  LDY #$0B                                  ; $189410 |
-code_189412:
-  LDA $00A2,y                               ; $189412 |
-  BPL code_18941C                           ; $189415 |
-  LDA #$9C                                  ; $189417 |
-  STA $00A2,y                               ; $189419 |
-code_18941C:
-  DEY                                       ; $18941C |
-  BPL code_189412                           ; $18941D |
-  LDA $22                                   ; $18941F |\ stage < $08 = Robot Master stage
+; ===========================================================================
+; Robot Master stage intro sequence
+; ===========================================================================
+; Called after bank03 returns from the horizontal scroll + boss name reveal.
+; This routine handles:
+;   1. Refill HP/weapon energy
+;   2. Fill nametable with boss intro layout (blue band screen)
+;   3. Write stage-specific nametable data (boss face tiles)
+;   4. Boss sprite drops from top of screen to center of blue band
+;   5. Boss does intro animation, then switches to idle pose
+;   6. Wait, then Mega Man teleports in from below
+;   7. Palette fade to black + boss face flash
+;   8. Jump to stage loading
+;
+; Verified via Mesen save states:
+;   - Blue band: y=88-151 (tile rows 11-18), white borders at y=88-89/150-151
+;   - Boss sprite centered at ~x=124, y=112 (42×30 px bounding box)
+;   - Boss name text at y=136-143 (tile row 17, col 11 = PPU $222B)
+;   - Boss drops from y=$E8 (232) to y=$74 (116) at 4px/frame = 29 frames
+;   - Mega Man rises from y=$80 (128) to y=$C0 (192) at 2px/frame = 32 frames
+; ---------------------------------------------------------------------------
+robot_master_intro:
+  LDY #$0B                                  ; $189410 |\ refill weapon energy
+.refill_energy:                                       ; | loop Y = $0B down to $00
+  LDA $00A2,y                               ; $189412 | | $A2-$AD = weapon ammo
+  BPL .energy_ok                            ; $189415 | | if negative (depleted), set to full
+  LDA #$9C                                  ; $189417 | | $9C = full energy (28 units)
+  STA $00A2,y                               ; $189419 | |
+.energy_ok:
+  DEY                                       ; $18941C | |
+  BPL .refill_energy                        ; $18941D |/
+  LDA $22                                   ; $18941F |\ stage < $08 = Robot Master
   CMP #$08                                  ; $189421 | | stage >= $08 = Doc Robot/Wily
-  BCC code_189428                           ; $189423 |/
-  JMP code_189581                           ; $189425 |  handle Doc Robot/Wily stage init
+  BCC .robot_master_stage                   ; $189423 |/
+  JMP code_189581                           ; $189425 | → skip to stage loading for Doc/Wily
 
-code_189428:
-  JSR code_1EC752                           ; $189428 |
-  LDA #$04                                  ; $18942B |
-  STA $97                                   ; $18942D |
-  JSR code_1EC5E9                           ; $18942F |
-  JSR code_1FFF21                           ; $189432 |
-  LDA #$35                                  ; $189435 |
-  JSR submit_sound_ID_D9                    ; $189437 |
-  JSR code_189936                           ; $18943A |
-  LDA $22                                   ; $18943D |
-  PHA                                       ; $18943F |
-  LDA #$14                                  ; $189440 |
-  STA $22                                   ; $189442 |
-  LDA #$07                                  ; $189444 |
-  JSR code_1FE8B4                           ; $189446 |
-code_189449:
-  LDA #$00                                  ; $189449 |
-  STA $10                                   ; $18944B |
-  JSR code_1FEF8C                           ; $18944D |
-  JSR code_1FFF21                           ; $189450 |
-  LDA $70                                   ; $189453 |
-  BNE code_189449                           ; $189455 |
-  PLA                                       ; $189457 |
-  STA $22                                   ; $189458 |
-  LDX #$05                                  ; $18945A |
-  LDA #$00                                  ; $18945C |
-  STA $10                                   ; $18945E |
-  JSR code_18939E                           ; $189460 |
-  JSR code_1FFF21                           ; $189463 |
-  LDA $22                                   ; $189466 |
-  CLC                                       ; $189468 |
-  ADC #$06                                  ; $189469 |
-  TAX                                       ; $18946B |
-  JSR code_18939E                           ; $18946C |
+; --- Robot Master intro animation ---
+.robot_master_stage:
+  JSR code_1EC752                           ; $189428 | disable sprites/rendering
+  LDA #$04                                  ; $18942B |\ set rendering mode
+  STA $97                                   ; $18942D |/
+  JSR code_1EC5E9                           ; $18942F | configure PPU
+  JSR code_1FFF21                           ; $189432 | wait 1 frame
+  LDA #$35                                  ; $189435 |\ play sound $35
+  JSR submit_sound_ID_D9                    ; $189437 |/ (boss intro fanfare)
+  JSR reset_stage_state                     ; $18943A | zero out game state
+
+; Fill nametable 0 with boss intro layout from bank $13.
+; Temporarily set $22 = $14 so metatile pointer references the correct
+; level section in bank $13 (stage $14 = the boss intro screen layout).
+; code_1FE8B4 with A=$07 → metatile column 7 → pointer $B0C0.
+  LDA $22                                   ; $18943D |\ save real stage number
+  PHA                                       ; $18943F |/
+  LDA #$14                                  ; $189440 |\ $22 = $14 (boss intro layout ID)
+  STA $22                                   ; $189442 |/
+  LDA #$07                                  ; $189444 |\ metatile column 7
+  JSR code_1FE8B4                           ; $189446 |/ pointer → $B0C0 in bank $13
+.fill_intro_screen:
+  LDA #$00                                  ; $189449 |\ $10 = 0 → write to nametable $2000
+  STA $10                                   ; $18944B |/
+  JSR fill_nametable_progressive            ; $18944D | write 4 tile rows
+  JSR code_1FFF21                           ; $189450 | wait for NMI
+  LDA $70                                   ; $189453 | $70 = 0 when complete
+  BNE .fill_intro_screen                    ; $189455 |
+  PLA                                       ; $189457 |\ restore real stage number
+  STA $22                                   ; $189458 |/
+
+; Write stage-specific nametable data (boss face, decorations).
+; Two calls to write_ppu_data_from_bank03:
+;   X=$05: common intro data
+;   X=$22+$06: per-boss face data
+  LDX #$05                                  ; $18945A | table index $05 = common data
+  LDA #$00                                  ; $18945C |\ $10 = 0 → nametable $2000
+  STA $10                                   ; $18945E |/
+  JSR write_ppu_data_from_bank03            ; $189460 | write common intro nametable data
+  JSR code_1FFF21                           ; $189463 | wait for NMI
+  LDA $22                                   ; $189466 |\ X = stage + 6
+  CLC                                       ; $189468 | | (per-boss face data table index)
+  ADC #$06                                  ; $189469 | |
+  TAX                                       ; $18946B |/
+  JSR write_ppu_data_from_bank03            ; $18946C | write boss-specific face tiles
+
+; Load CHR bank configuration and palettes for the intro screen.
+; $9D46: 6 bytes of CHR bank IDs → $E8-$ED
+; $9D16: 32 bytes of palette data (BG + sprite) → $0620 working copy
   LDY #$05                                  ; $18946F |
-code_189471:
+.load_chr_banks:
   LDA $9D46,y                               ; $189471 |
   STA $00E8,y                               ; $189474 |
   DEY                                       ; $189477 |
-  BPL code_189471                           ; $189478 |
+  BPL .load_chr_banks                       ; $189478 |
   JSR update_CHR_banks                      ; $18947A |
   LDY #$1F                                  ; $18947D |
-code_18947F:
-  LDA $9D16,y                               ; $18947F |
+.load_intro_palettes:
+  LDA $9D16,y                               ; $18947F | 32 bytes: BG ($0620-$062F) + sprite ($0630-$063F)
   STA $0620,y                               ; $189482 |
   DEY                                       ; $189485 |
-  BPL code_18947F                           ; $189486 |
-  LDA #$80                                  ; $189488 |
-  STA $0360                                 ; $18948A |
-  LDA #$E8                                  ; $18948D |
-  STA $03C0                                 ; $18948F |
-  LDX #$00                                  ; $189492 |
-  LDA #$B0                                  ; $189494 |
-  JSR reset_sprite_anim                     ; $189496 |
-  LDA $0580                                 ; $189499 |
-  AND #$BF                                  ; $18949C |
-  STA $0580                                 ; $18949E |
-  JSR code_1FFF21                           ; $1894A1 |
-  JSR code_1EC74C                           ; $1894A4 |
-code_1894A7:
-  LDA $03C0                                 ; $1894A7 |
-  CMP #$74                                  ; $1894AA |
-  BEQ code_1894B9                           ; $1894AC |
-  SEC                                       ; $1894AE |
-  SBC #$04                                  ; $1894AF |
-  STA $03C0                                 ; $1894B1 |
-  LDA #$00                                  ; $1894B4 |
-  STA $05E0                                 ; $1894B6 |
-code_1894B9:
-  LDA $05A0                                 ; $1894B9 |
-  CMP #$02                                  ; $1894BC |
-  BNE code_1894C7                           ; $1894BE |
-  LDX #$00                                  ; $1894C0 |
-  LDA #$1A                                  ; $1894C2 |
-  JSR reset_sprite_anim                     ; $1894C4 |
-code_1894C7:
-  JSR code_1FFD6E                           ; $1894C7 |
-  LDA $05C0                                 ; $1894CA |
-  CMP #$1A                                  ; $1894CD |
-  BNE code_1894A7                           ; $1894CF |
-  LDX #$3C                                  ; $1894D1 |
-  JSR code_1FFF1A                           ; $1894D3 |
-code_1894D6:
-  LDA $0360                                 ; $1894D6 |
-  CMP #$C0                                  ; $1894D9 |
-  BEQ code_1894E9                           ; $1894DB |
-  CLC                                       ; $1894DD |
-  ADC #$02                                  ; $1894DE |
-  STA $0360                                 ; $1894E0 |
-  JSR code_1FFD6E                           ; $1894E3 |
-  JMP code_1894D6                           ; $1894E6 |
+  BPL .load_intro_palettes                  ; $189486 |
 
-code_1894E9:
-  LDX #$3C                                  ; $1894E9 |
-  JSR code_1FFF1A                           ; $1894EB |
-  LDA #$00                                  ; $1894EE |
-  STA $EE                                   ; $1894F0 |
-  LDY #$03                                  ; $1894F2 |
-  JSR code_18954A                           ; $1894F4 |
-  LDY #$07                                  ; $1894F7 |
-  JSR code_18954A                           ; $1894F9 |
-  LDY #$0B                                  ; $1894FC |
-  JSR code_18954A                           ; $1894FE |
-  LDX #$B4                                  ; $189501 |
-  JSR code_1FFF1A                           ; $189503 |
-  JMP code_189581                           ; $189506 |
+; --- Set up boss entity and begin drop animation ---
+; Entity slot 0: the boss sprite (reused as the intro display entity).
+; $0360 = entity 0 X position (player X during gameplay)
+; $03C0 = entity 0 Y position (player Y during gameplay)
+  LDA #$80                                  ; $189488 |\ entity 0 X = $80 (128 = centered)
+  STA $0360                                 ; $18948A |/
+  LDA #$E8                                  ; $18948D |\ entity 0 Y = $E8 (232 = below screen)
+  STA $03C0                                 ; $18948F |/
+  LDX #$00                                  ; $189492 |\ set animation to $B0
+  LDA #$B0                                  ; $189494 | | (boss intro drop animation)
+  JSR reset_sprite_anim                     ; $189496 |/
+  LDA $0580                                 ; $189499 |\ clear bit 6 of entity flags
+  AND #$BF                                  ; $18949C | | (enable rendering?)
+  STA $0580                                 ; $18949E |/
+  JSR code_1FFF21                           ; $1894A1 | wait 1 frame
+  JSR code_1EC74C                           ; $1894A4 | enable rendering
 
-code_189509:
-  LDA #$10                                  ; $189509 |
-  STA $10                                   ; $18950B |
-code_18950D:
-  LDY #$03                                  ; $18950D |
-  LDA $10                                   ; $18950F |
-  AND #$01                                  ; $189511 |
-  BNE code_18952F                           ; $189513 |
-  LDA $22                                   ; $189515 |
-  ASL                                       ; $189517 |
-  ASL                                       ; $189518 |
-  ASL                                       ; $189519 |
-  ORA #$03                                  ; $18951A |
-  TAX                                       ; $18951C |
-code_18951D:
-  LDA $9BB7,x                               ; $18951D |
+; Boss drop loop: decrement Y from $E8 to $74 at 4px/frame.
+; ($E8 - $74) / 4 = 29 frames for the boss to slide down.
+; When anim phase ($05A0) reaches $02, switch to idle anim $1A.
+.boss_drop_loop:
+  LDA $03C0                                 ; $1894A7 |\ if Y == $74, skip decrement
+  CMP #$74                                  ; $1894AA | | (target reached)
+  BEQ .check_anim_phase                     ; $1894AC |/
+  SEC                                       ; $1894AE |\ Y -= 4
+  SBC #$04                                  ; $1894AF | |
+  STA $03C0                                 ; $1894B1 |/
+  LDA #$00                                  ; $1894B4 |\ reset anim frame counter
+  STA $05E0                                 ; $1894B6 |/ (keep animation progressing)
+.check_anim_phase:
+  LDA $05A0                                 ; $1894B9 |\ check animation phase
+  CMP #$02                                  ; $1894BC | | phase 2 = intro anim done
+  BNE .boss_render_frame                    ; $1894BE |/
+  LDX #$00                                  ; $1894C0 |\ switch to idle animation $1A
+  LDA #$1A                                  ; $1894C2 | |
+  JSR reset_sprite_anim                     ; $1894C4 |/
+.boss_render_frame:
+  JSR code_1FFD6E                           ; $1894C7 | process sprites + wait for NMI
+  LDA $05C0                                 ; $1894CA |\ check current OAM ID
+  CMP #$1A                                  ; $1894CD | | $1A = idle pose active
+  BNE .boss_drop_loop                       ; $1894CF |/ loop until idle
+  LDX #$3C                                  ; $1894D1 |\ wait $3C (60) frames
+  JSR code_1FFF1A                           ; $1894D3 |/ (boss stands idle)
+
+; --- Mega Man teleport-in animation ---
+; Mega Man rises from Y=$80 to Y=$C0, 2px/frame = 32 frames.
+; (Teleporting from below the blue band upward into view.)
+.megaman_rise_loop:
+  LDA $0360                                 ; $1894D6 |\ if X == $C0, done
+  CMP #$C0                                  ; $1894D9 | |
+  BEQ .megaman_done                         ; $1894DB |/
+  CLC                                       ; $1894DD |\ X += 2
+  ADC #$02                                  ; $1894DE | | (note: using $0360 which is
+  STA $0360                                 ; $1894E0 |/  the X position for the entity)
+  JSR code_1FFD6E                           ; $1894E3 | process sprites + wait for NMI
+  JMP .megaman_rise_loop                    ; $1894E6 |
+
+; --- Palette fade to black ---
+; Fade all 3 BG palette groups to black ($0F).
+; Each call to fade_palette_to_black subtracts $10 per step
+; from palette colors, 4 frames per step, until all reach $0F.
+.megaman_done:
+  LDX #$3C                                  ; $1894E9 |\ wait $3C (60) frames
+  JSR code_1FFF1A                           ; $1894EB |/
+  LDA #$00                                  ; $1894EE |\ clear NMI skip flag
+  STA $EE                                   ; $1894F0 |/
+  LDY #$03                                  ; $1894F2 |\ fade BG palette 0 (bytes $00-$03)
+  JSR fade_palette_to_black                 ; $1894F4 |/
+  LDY #$07                                  ; $1894F7 |\ fade BG palette 1 (bytes $04-$07)
+  JSR fade_palette_to_black                 ; $1894F9 |/
+  LDY #$0B                                  ; $1894FC |\ fade BG palette 2 (bytes $08-$0B)
+  JSR fade_palette_to_black                 ; $1894FE |/
+  LDX #$B4                                  ; $189501 |\ wait $B4 (180) frames
+  JSR code_1FFF1A                           ; $189503 |/ (3 seconds on black screen)
+  JMP code_189581                           ; $189506 | → stage loading
+
+; ---------------------------------------------------------------------------
+; boss_face_palette_flash — alternates boss/default sprite palettes
+; ---------------------------------------------------------------------------
+; Called after the last palette fade (Y=$07 → code_189509 via BEQ).
+; Flashes 17 times ($10 counts $10 down to $00), 2 frames per flash.
+; Even frames: load boss-specific face colors from $9BB7 table.
+; Odd frames: restore default palette from $0630 working copy.
+; ---------------------------------------------------------------------------
+boss_face_palette_flash:
+  LDA #$10                                  ; $189509 |\ $10 = flash counter (17 iterations)
+  STA $10                                   ; $18950B |/
+.flash_loop:
+  LDY #$03                                  ; $18950D | process 4 palette colors (Y=3..0)
+  LDA $10                                   ; $18950F |\ even/odd toggle
+  AND #$01                                  ; $189511 | |
+  BNE .restore_default_palette              ; $189513 |/ odd → restore defaults
+; Even frames: load boss face colors from $9BB7 table.
+; $9BB7 + stage*8 = 8-byte palette (bright + dark variant).
+; Colors 0-3 from $9BB7 → SP 0 ($0610), colors 4-7 from $9BBB → SP 1 ($0618).
+  LDA $22                                   ; $189515 |\ X = stage * 8 + 3
+  ASL                                       ; $189517 | |
+  ASL                                       ; $189518 | |
+  ASL                                       ; $189519 | |
+  ORA #$03                                  ; $18951A | |
+  TAX                                       ; $18951C |/
+.load_boss_palette:
+  LDA $9BB7,x                               ; $18951D | bright variant → SP 0
   STA $0610,y                               ; $189520 |
-  LDA $9BBB,x                               ; $189523 |
+  LDA $9BBB,x                               ; $189523 | dark variant → SP 1
   STA $0618,y                               ; $189526 |
   DEX                                       ; $189529 |
   DEY                                       ; $18952A |
-  BNE code_18951D                           ; $18952B |
-  BEQ code_18953E                           ; $18952D |
-code_18952F:
-  LDA $0630,y                               ; $18952F |
+  BNE .load_boss_palette                    ; $18952B |
+  BEQ .flash_wait                           ; $18952D | (always branches)
+; Odd frames: copy default palettes back from $0630/$0638 working copy.
+.restore_default_palette:
+  LDA $0630,y                               ; $18952F | default SP 0
   STA $0610,y                               ; $189532 |
-  LDA $0638,y                               ; $189535 |
+  LDA $0638,y                               ; $189535 | default SP 1
   STA $0618,y                               ; $189538 |
   DEY                                       ; $18953B |
-  BNE code_18952F                           ; $18953C |
-code_18953E:
-  INC $18                                   ; $18953E |
-  LDX #$02                                  ; $189540 |
-  JSR code_1FFF1A                           ; $189542 |
-  DEC $10                                   ; $189545 |
-  BPL code_18950D                           ; $189547 |
+  BNE .restore_default_palette              ; $18953C |
+.flash_wait:
+  INC $18                                   ; $18953E | flag palette upload
+  LDX #$02                                  ; $189540 |\ wait 2 frames per flash
+  JSR code_1FFF1A                           ; $189542 |/
+  DEC $10                                   ; $189545 | decrement flash counter
+  BPL .flash_loop                           ; $189547 |
   RTS                                       ; $189549 |
 
-code_18954A:
-  LDA #$30                                  ; $18954A |
-  STA $10                                   ; $18954C |
-  STY $11                                   ; $18954E |
-code_189550:
-  LDY $11                                   ; $189550 |
-  LDX #$03                                  ; $189552 |
-code_189554:
-  LDA $0600,y                               ; $189554 |
+; ---------------------------------------------------------------------------
+; fade_palette_to_black — progressively fade a BG palette group to black
+; ---------------------------------------------------------------------------
+; Parameters: Y = palette end index (3, 7, or $0B for BG palette 0/1/2)
+; Subtracts $10 per step from each color in the palette group.
+; Colors that would go below $0F are clamped to $0F (black).
+; 4 steps × $10 = $40 total subtraction. 4 frames per step.
+; Source: $0600,y (base palette). Destination: $0604,y (working palette).
+; After the last step (Y=$07), chains into boss_face_palette_flash.
+; ---------------------------------------------------------------------------
+fade_palette_to_black:
+  LDA #$30                                  ; $18954A |\ $10 = starting subtract value
+  STA $10                                   ; $18954C |/ (decreases $30→$20→$10→$00)
+  STY $11                                   ; $18954E | save palette end index
+.fade_step:
+  LDY $11                                   ; $189550 | restore palette index
+  LDX #$03                                  ; $189552 | 4 colors per palette group
+.fade_color:
+  LDA $0600,y                               ; $189554 | load base palette color
   SEC                                       ; $189557 |
-  SBC $10                                   ; $189558 |
-  BCS code_18955E                           ; $18955A |
-  LDA #$0F                                  ; $18955C |
-code_18955E:
-  STA $0604,y                               ; $18955E |
+  SBC $10                                   ; $189558 | subtract fade amount
+  BCS .store_faded                          ; $18955A | if no underflow, use result
+  LDA #$0F                                  ; $18955C | clamp to black ($0F)
+.store_faded:
+  STA $0604,y                               ; $18955E | store to working palette
   DEY                                       ; $189561 |
   DEX                                       ; $189562 |
-  BPL code_189554                           ; $189563 |
-  STY $18                                   ; $189565 |
-  LDX #$04                                  ; $189567 |
-  JSR code_1FFF1A                           ; $189569 |
-  LDA $10                                   ; $18956C |
-  SEC                                       ; $18956E |
-  SBC #$10                                  ; $18956F |
-  STA $10                                   ; $189571 |
-  BCS code_189550                           ; $189573 |
-  LDA $11                                   ; $189575 |
-  CMP #$07                                  ; $189577 |
-  BEQ code_189509                           ; $189579 |
-  LDX #$1E                                  ; $18957B |
-  JSR code_1FFF1A                           ; $18957D |
+  BPL .fade_color                           ; $189563 |
+  STY $18                                   ; $189565 | flag palette upload
+  LDX #$04                                  ; $189567 |\ wait 4 frames per step
+  JSR code_1FFF1A                           ; $189569 |/
+  LDA $10                                   ; $18956C |\ $10 -= $10 (next darker step)
+  SEC                                       ; $18956E | |
+  SBC #$10                                  ; $18956F | |
+  STA $10                                   ; $189571 |/
+  BCS .fade_step                            ; $189573 | loop while $10 >= 0
+  LDA $11                                   ; $189575 |\ if this was BG palette 1 (Y=$07),
+  CMP #$07                                  ; $189577 | | chain into boss face flash
+  BEQ boss_face_palette_flash               ; $189579 |/
+  LDX #$1E                                  ; $18957B |\ wait $1E (30) frames between groups
+  JSR code_1FFF1A                           ; $18957D |/
   RTS                                       ; $189580 |
 
 code_189581:
@@ -1808,24 +1971,30 @@ code_18992C:
   JSR select_PRG_banks                      ; $189930 |
   JMP $A879                                 ; $189933 |
 
-code_189936:
+; ---------------------------------------------------------------------------
+; reset_stage_state — zero out game state for stage transition
+; ---------------------------------------------------------------------------
+; Clears scroll position, weapon state, screen page, and various
+; game state variables to prepare for the boss intro or stage load.
+; ---------------------------------------------------------------------------
+reset_stage_state:
   LDA #$00                                  ; $189936 |
-  STA $A000                                 ; $189938 |
-  STA $59                                   ; $18993B |
-  STA $F9                                   ; $18993D |
-  STA $0380                                 ; $18993F |
-  STA $03E0                                 ; $189942 |
-  STA $B1                                   ; $189945 |
+  STA $A000                                 ; $189938 | reset something in mapped bank
+  STA $59                                   ; $18993B | game sub-state
+  STA $F9                                   ; $18993D | camera/scroll page
+  STA $0380                                 ; $18993F | entity 0 screen page (Y high)
+  STA $03E0                                 ; $189942 | entity 0 screen page (X high)
+  STA $B1                                   ; $189945 | scroll-related
   STA $B2                                   ; $189947 |
   STA $B3                                   ; $189949 |
-  STA $FD                                   ; $18994B |
-  STA $FC                                   ; $18994D |
-  STA $A1                                   ; $18994F |
+  STA $FD                                   ; $18994B | horizontal scroll (nametable select)
+  STA $FC                                   ; $18994D | horizontal scroll (sub-tile)
+  STA $A1                                   ; $18994F | menu cursor
   STA $B4                                   ; $189951 |
-  STA $A0                                   ; $189953 |
+  STA $A0                                   ; $189953 | weapon ID (0 = Mega Buster)
   STA $9E                                   ; $189955 |
   STA $9F                                   ; $189957 |
-  STA $70                                   ; $189959 |
+  STA $70                                   ; $189959 | nametable fill progress counter
   RTS                                       ; $18995B |
 
 code_18995C:
