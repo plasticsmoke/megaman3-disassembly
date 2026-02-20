@@ -1017,6 +1017,10 @@ enemy_x_velocity_g:
   db $00, $00, $00, $00, $00, $00, $00, $00 ; $00BEE8 |
   db $00, $00, $00, $00, $00, $00, $00, $00 ; $00BEF0 |
   db $00, $00, $00, $00, $00, $00, $00, $00 ; $00BEF8 |
+; tile collision attribute table: 1 byte per metatile index
+; upper nibble = collision type: $00=air $10=solid $20=ladder $30=damage
+;   $40=ladder_top $50=spikes $70=disappearing_block
+; lower nibble = visual sub-type (not used for collision)
   db $00, $02, $02, $02, $10, $10, $02, $02 ; $00BF00 |
   db $01, $02, $02, $02, $10, $02, $10, $02 ; $00BF08 |
   db $10, $02, $10, $10, $13, $23, $01, $01 ; $00BF10 |

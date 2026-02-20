@@ -149,6 +149,27 @@
 ;   Hazard priority: $41 tracks max type, $30→damage, $50→death
 ;   $BF00 table is per-stage, loaded from the stage's PRG bank
 ;
+; LEVEL DATA FORMAT (per-stage PRG bank, mapped to $A000-$BFFF):
+;   Stage bank = stage_to_bank[$22] table at $C8B9 (usually bank = stage index)
+;   $A000-$A4FF: enemy data tables (flags, main routine IDs, spawn data)
+;   $AA00+:      screen metatile grid (column IDs, read during tile collision)
+;   $AA60:       screen pointer table (2 bytes/screen: init param, layout index)
+;   $AA80-$AA81: palette indices for stage
+;   $AA82+:      screen layout data, 20 bytes per screen:
+;                  bytes 0-15: 16 metatile column IDs (one per 16px column)
+;                  bytes 16-19: screen connection data (bit 7=flag, bits 0-6=target)
+;   $AB00+:      enemy placement tables (4 tables, indexed by stage enemy ID):
+;                  $AB00,y = screen number, $AC00,y = X pixel, $AD00,y = Y pixel,
+;                  $AE00,y = global enemy ID (→ bank $00 for AI/shape/HP)
+;   $AF00+:      metatile column definitions, 64 bytes per column ID
+;                  (vertical strip of metatile indices for one 16px-wide column)
+;   $B700+:      metatile CHR definitions, 4 bytes per metatile index
+;                  (2x2 CHR tile pattern: TL, TR, BL, BR)
+;   $BF00-$BFFF: collision attribute table, 1 byte per metatile index (256 entries)
+;                  upper nibble = collision type (see TILE COLLISION TYPES above)
+;   Screen = 16 columns x N rows of 16x16 metatiles = 256px wide
+;   load_stage routine at $1EC816 copies screen data to RAM ($0600+)
+;
 ; Entity Arrays (indexed by X, stride $20, 32 slots $00-$1F):
 ;   $0300,x = entity active flag (bit 7 = active)
 ;   $0320,x = main routine index (AI type, dispatched in process_sprites)
@@ -1316,21 +1337,34 @@ code_1EC80F:
   BNE code_1EC80F                           ; $1EC813 |
   RTS                                       ; $1EC815 |
 
-code_1EC816:
-  LDA $22                                   ; $1EC816 |
-  STA $F5                                   ; $1EC818 |
-  JSR select_PRG_banks                      ; $1EC81A |
-  LDA $AA80                                 ; $1EC81D |
-  STA $E8                                   ; $1EC820 |
-  LDA $AA81                                 ; $1EC822 |
-  STA $E9                                   ; $1EC825 |
-  LDX #$07                                  ; $1EC827 |
-code_1EC829:
-  LDA $C898,x                               ; $1EC829 |
-  STA $0610,x                               ; $1EC82C |
-  STA $0630,x                               ; $1EC82F |
-  DEX                                       ; $1EC832 |
-  BPL code_1EC829                           ; $1EC833 |
+; -----------------------------------------------
+; load_stage: loads level data from stage bank into RAM
+; reads screen layout, palette, and metatile column grid
+; STAGE BANK DATA LAYOUT ($A000-$BFFF per stage):
+;   $A000-$A4FF: global enemy data (bank $00 only: flags, AI IDs, shapes, HP)
+;   $AA00+:      screen metatile grid (loaded to RAM, used by tile collision)
+;   $AA60:       screen pointer table (2 bytes/screen: init param + layout index)
+;   $AA80-$AA81: palette indices
+;   $AA82+:      screen layout data (20 bytes/screen: 16 column IDs + 4 connection)
+;   $AF00+:      metatile column definitions (64 bytes per column ID)
+;   $B700+:      metatile CHR tile definitions (4 bytes per metatile: 2x2 CHR tiles)
+;   $BF00-$BFFF: tile collision attribute table (256 bytes, 1 per metatile)
+; -----------------------------------------------
+load_stage:
+  LDA $22                                   ; $1EC816 |\ switch to stage's PRG bank
+  STA $F5                                   ; $1EC818 | | ($A000-$BFFF = stage data)
+  JSR select_PRG_banks                      ; $1EC81A |/
+  LDA $AA80                                 ; $1EC81D |\ load palette indices
+  STA $E8                                   ; $1EC820 | | from stage bank
+  LDA $AA81                                 ; $1EC822 | |
+  STA $E9                                   ; $1EC825 |/
+  LDX #$07                                  ; $1EC827 |\ copy default palette
+code_1EC829:                                         ; | from $C898 (fixed bank)
+  LDA $C898,x                               ; $1EC829 | | to sprite palette RAM
+  STA $0610,x                               ; $1EC82C | |
+  STA $0630,x                               ; $1EC82F | |
+  DEX                                       ; $1EC832 | |
+  BPL code_1EC829                           ; $1EC833 |/
   LDA #$00                                  ; $1EC835 |
   STA $EA                                   ; $1EC837 |
   LDA #$01                                  ; $1EC839 |
@@ -1339,41 +1373,41 @@ code_1EC83D:
   LDA $2B                                   ; $1EC83D |
   ASL                                       ; $1EC83F |
   TAX                                       ; $1EC840 |
-  LDA $AA60,x                               ; $1EC841 |
+  LDA $AA60,x                               ; $1EC841 |  screen init param (saved for later)
   PHA                                       ; $1EC844 |
-  LDA $AA61,x                               ; $1EC845 |
-  ASL                                       ; $1EC848 |
-  ASL                                       ; $1EC849 |
-  STA $00                                   ; $1EC84A |
-  ASL                                       ; $1EC84C |
-  ASL                                       ; $1EC84D |
-  ADC $00                                   ; $1EC84E |
-  TAY                                       ; $1EC850 |
+  LDA $AA61,x                               ; $1EC845 |\ screen layout index
+  ASL                                       ; $1EC848 | | multiply by 20:
+  ASL                                       ; $1EC849 | | *4 → $00
+  STA $00                                   ; $1EC84A | | *16
+  ASL                                       ; $1EC84C | | *16 + *4 = *20
+  ASL                                       ; $1EC84D | | (20 bytes per screen entry:
+  ADC $00                                   ; $1EC84E | |  16 column IDs + 4 connection)
+  TAY                                       ; $1EC850 |/
   LDX #$00                                  ; $1EC851 |
-code_1EC853:
-  LDA $AA82,y                               ; $1EC853 |
-  STA $0600,x                               ; $1EC856 |
-  STA $0620,x                               ; $1EC859 |
-  INY                                       ; $1EC85C |
-  INX                                       ; $1EC85D |
-  CPX #$10                                  ; $1EC85E |
-  BNE code_1EC853                           ; $1EC860 |
+.load_columns:
+  LDA $AA82,y                               ; $1EC853 |\ copy 16 metatile column IDs
+  STA $0600,x                               ; $1EC856 | | to $0600-$060F (current screen)
+  STA $0620,x                               ; $1EC859 | | and $0620-$062F (mirror)
+  INY                                       ; $1EC85C | |
+  INX                                       ; $1EC85D | |
+  CPX #$10                                  ; $1EC85E | |
+  BNE .load_columns                         ; $1EC860 |/
   LDX #$00                                  ; $1EC862 |
-code_1EC864:
-  LDA $AA82,y                               ; $1EC864 |
-  PHA                                       ; $1EC867 |
-  AND #$80                                  ; $1EC868 |
-  STA $0100,x                               ; $1EC86A |
-  PLA                                       ; $1EC86D |
-  AND #$7F                                  ; $1EC86E |
-  STA $0108,x                               ; $1EC870 |
-  LDA #$00                                  ; $1EC873 |
-  STA $0104,x                               ; $1EC875 |
-  STA $010C,x                               ; $1EC878 |
-  INY                                       ; $1EC87B |
-  INX                                       ; $1EC87C |
-  CPX #$04                                  ; $1EC87D |
-  BNE code_1EC864                           ; $1EC87F |
+.load_connections:
+  LDA $AA82,y                               ; $1EC864 |\ 4 screen connection bytes:
+  PHA                                       ; $1EC867 | | bit 7 → $0100,x (direction flag)
+  AND #$80                                  ; $1EC868 | | bits 0-6 → $0108,x (target screen)
+  STA $0100,x                               ; $1EC86A | |
+  PLA                                       ; $1EC86D | |
+  AND #$7F                                  ; $1EC86E | |
+  STA $0108,x                               ; $1EC870 | |
+  LDA #$00                                  ; $1EC873 | |
+  STA $0104,x                               ; $1EC875 | |
+  STA $010C,x                               ; $1EC878 | |
+  INY                                       ; $1EC87B | |
+  INX                                       ; $1EC87C | |
+  CPX #$04                                  ; $1EC87D | |
+  BNE .load_connections                     ; $1EC87F |/
   LDA $0600                                 ; $1EC881 |
   STA $0610                                 ; $1EC884 |
   STA $0630                                 ; $1EC887 |
@@ -1405,6 +1439,10 @@ code_1EC8B4:
   TAX                                       ; $1EC8B7 |
   RTS                                       ; $1EC8B8 |
 
+; stage_to_bank: maps stage index ($22) → PRG bank ($F5)
+; $00=Needle $01=Magnet $02=Gemini $03=Hard $04=Top $05=Snake $06=Spark $07=Shadow
+; $08-$0B=Doc Robot (Needle/Gemini/Spark/Shadow stages)
+; $0C-$0F=Wily fortress, $10+=special/ending
   db $00, $01, $02, $03, $04, $05, $06, $07 ; $1EC8B9 |
   db $08, $09, $0A, $0B, $0C, $0D, $0D, $0F ; $1EC8C1 |
   db $0D, $11, $12, $13, $10, $1E, $0E      ; $1EC8C9 |
@@ -1511,7 +1549,7 @@ code_1EC991:
   LDA #$00                                  ; $1EC99B |
   STA $2B                                   ; $1EC99D |
   STA $2D                                   ; $1EC99F |
-  JSR code_1EC816                           ; $1EC9A1 |
+  JSR load_stage                           ; $1EC9A1 |
   LDA #$00                                  ; $1EC9A4 |
   STA $18                                   ; $1EC9A6 |
   JSR code_1FFF21                           ; $1EC9A8 |
@@ -1929,7 +1967,7 @@ code_1ECCBF:
   SEC                                       ; $1ECCCB |
   SBC #$01                                  ; $1ECCCC |
   BNE code_1ECCBF                           ; $1ECCCE |
-  JSR code_1EC816                           ; $1ECCD0 |
+  JSR load_stage                           ; $1ECCD0 |
   LDA #$00                                  ; $1ECCD3 |
   STA $18                                   ; $1ECCD5 |
   JSR code_1FFF21                           ; $1ECCD7 |
@@ -2924,14 +2962,14 @@ code_1ED396:
   INY                                       ; $1ED39E |
 code_1ED39F:
   JSR code_1FE8D6                           ; $1ED39F |
-  LDA $10                                   ; $1ED3A2 |
-  AND #$10                                  ; $1ED3A4 |
-  BEQ code_1ED3A9                           ; $1ED3A6 |
+  LDA $10                                   ; $1ED3A2 |\ solid ground ahead?
+  AND #$10                                  ; $1ED3A4 | | if yes, wall → stop slide
+  BEQ code_1ED3A9                           ; $1ED3A6 |/
   RTS                                       ; $1ED3A8 |
 
 code_1ED3A9:
-  LDA #$02                                  ; $1ED3A9 |
-  STA $30                                   ; $1ED3AB |
+  LDA #$02                                  ; $1ED3A9 |\ no wall → continue sliding
+  STA $30                                   ; $1ED3AB |/
   LDA #$14                                  ; $1ED3AD |
   STA $33                                   ; $1ED3AF |
   LDA #$10                                  ; $1ED3B1 |
@@ -2988,9 +3026,9 @@ code_1ED420:
   LDY #$03                                  ; $1ED420 |
   JSR code_1FF5C4                           ; $1ED422 |
 code_1ED425:
-  LDA $10                                   ; $1ED425 |
-  AND #$10                                  ; $1ED427 |
-  BNE code_1ED43E                           ; $1ED429 |
+  LDA $10                                   ; $1ED425 |\ solid ground under feet?
+  AND #$10                                  ; $1ED427 | | if on ground, land
+  BNE code_1ED43E                           ; $1ED429 |/
   LDA $33                                   ; $1ED42B |
   BEQ code_1ED43E                           ; $1ED42D |
   DEC $33                                   ; $1ED42F |
@@ -5233,7 +5271,7 @@ code_1FE517:
   LSR                                       ; $1FE521 |
   STA $28                                   ; $1FE522 |
   LDY $29                                   ; $1FE524 |
-  JSR code_1FE8B1                           ; $1FE526 |
+  JSR metatile_column_ptr                           ; $1FE526 |
   LDA #$00                                  ; $1FE529 |
   STA $03                                   ; $1FE52B |
 code_1FE52D:
@@ -5474,7 +5512,7 @@ code_1FE6E6:
   STA $F5                                   ; $1FE6E8 |
   JSR select_PRG_banks                      ; $1FE6EA |
   LDY $29                                   ; $1FE6ED |
-  JSR code_1FE8B1                           ; $1FE6EF |
+  JSR metatile_column_ptr                           ; $1FE6EF |
   LDA $24                                   ; $1FE6F2 |
   AND #$1C                                  ; $1FE6F4 |
   ASL                                       ; $1FE6F6 |
@@ -5594,7 +5632,7 @@ code_1FE7A1:
   db $FF, $01, $00, $1D, $23, $2E, $2E, $23 ; $1FE7E9 |
 
 code_1FE7F1:
-  JSR code_1FE882                           ; $1FE7F1 |
+  JSR metatile_chr_ptr                           ; $1FE7F1 |
 code_1FE7F4:
   LDY #$03                                  ; $1FE7F4 |
   STY $02                                   ; $1FE7F6 |
@@ -5673,30 +5711,37 @@ code_1FE87D:
   LDX $0E                                   ; $1FE87F |
   RTS                                       ; $1FE881 |
 
-code_1FE882:
-  JSR code_1EC8A0                           ; $1FE882 |
+; metatile_chr_ptr: sets $00/$01 pointer to 4-byte metatile CHR definition
+; reads metatile index from column data at ($20),y
+; each metatile = 4 CHR tile indices (2x2 pattern: TL, TR, BL, BR)
+; metatile definitions at $B700 + (metatile_index * 4) in stage bank
+metatile_chr_ptr:
+  JSR code_1EC8A0                           ; $1FE882 |  ensure stage bank selected
   LDA #$00                                  ; $1FE885 |
   STA $01                                   ; $1FE887 |
   LDY $28                                   ; $1FE889 |
-  LDA ($20),y                               ; $1FE88B |
-code_1FE88D:
-  ASL                                       ; $1FE88D |
-  ROL $01                                   ; $1FE88E |
-  ASL                                       ; $1FE890 |
-  ROL $01                                   ; $1FE891 |
-  STA $00                                   ; $1FE893 |
-  LDA $01                                   ; $1FE895 |
-  CLC                                       ; $1FE897 |
-  ADC #$B7                                  ; $1FE898 |
-  STA $01                                   ; $1FE89A |
+  LDA ($20),y                               ; $1FE88B |  metatile index from column data
+.calc_chr_offset:
+  ASL                                       ; $1FE88D |\ multiply by 4
+  ROL $01                                   ; $1FE88E | | (4 CHR tiles per metatile)
+  ASL                                       ; $1FE890 | |
+  ROL $01                                   ; $1FE891 |/
+  STA $00                                   ; $1FE893 |\ $00/$01 = $B700 + (index * 4)
+  LDA $01                                   ; $1FE895 | | pointer to CHR tile definition
+  CLC                                       ; $1FE897 | |
+  ADC #$B7                                  ; $1FE898 | |
+  STA $01                                   ; $1FE89A |/
   RTS                                       ; $1FE89C |
 
   db $00, $02, $08, $0A, $00, $80, $00, $80 ; $1FE89D |
   db $00, $80, $00, $80, $20, $20, $21, $21 ; $1FE8A5 |
   db $22, $22, $23, $23                     ; $1FE8AD |
 
-code_1FE8B1:
-  LDA $AA00,y                               ; $1FE8B1 |
+; metatile_column_ptr: sets $20/$21 pointer to metatile column data
+; Y = screen page → reads column ID from $AA00,y in stage bank
+; column data is at $AF00 + (column_ID * 64) — 64 bytes per column
+metatile_column_ptr:
+  LDA $AA00,y                               ; $1FE8B1 |  column ID from screen data
 code_1FE8B4:
   PHA                                       ; $1FE8B4 |
   LDA #$00                                  ; $1FE8B5 |
@@ -5714,11 +5759,11 @@ code_1FE8B4:
   ROL $00                                   ; $1FE8C7 |
   ASL                                       ; $1FE8C9 |
   ROL $00                                   ; $1FE8CA |
-  STA $20                                   ; $1FE8CC |
-  LDA $00                                   ; $1FE8CE |
-  CLC                                       ; $1FE8D0 |
-  ADC #$AF                                  ; $1FE8D1 |
-  STA $21                                   ; $1FE8D3 |
+  STA $20                                   ; $1FE8CC |\ $20/$21 = $AF00 + (column_ID << 6)
+  LDA $00                                   ; $1FE8CE | | pointer to metatile column data
+  CLC                                       ; $1FE8D0 | | in stage bank at $AF00+
+  ADC #$AF                                  ; $1FE8D1 | |
+  STA $21                                   ; $1FE8D3 |/
   RTS                                       ; $1FE8D5 |
 
 code_1FE8D6:
@@ -5798,9 +5843,9 @@ code_1FE94D:
   JSR select_PRG_banks                      ; $1FE953 |
   LDX $04                                   ; $1FE956 |
   LDY $13                                   ; $1FE958 |
-  JSR code_1FE8B1                           ; $1FE95A |
+  JSR metatile_column_ptr                           ; $1FE95A |
 code_1FE95D:
-  JSR code_1FE882                           ; $1FE95D |
+  JSR metatile_chr_ptr                           ; $1FE95D |
 code_1FE960:
   LDY $03                                   ; $1FE960 |
   LDA ($00),y                               ; $1FE962 |
@@ -5986,9 +6031,9 @@ code_1FEA6C:
   JSR select_PRG_banks                      ; $1FEA85 |
   LDX $04                                   ; $1FEA88 |
   LDY $13                                   ; $1FEA8A |
-  JSR code_1FE8B1                           ; $1FEA8C |
+  JSR metatile_column_ptr                           ; $1FEA8C |
 code_1FEA8F:
-  JSR code_1FE882                           ; $1FEA8F |
+  JSR metatile_chr_ptr                           ; $1FEA8F |
 code_1FEA92:
   LDY $03                                   ; $1FEA92 |
   LDA ($00),y                               ; $1FEA94 |  metatile index at position

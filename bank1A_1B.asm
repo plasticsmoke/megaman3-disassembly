@@ -1215,35 +1215,41 @@ spawn_enemy:
   LDA $0150,y                               ; $1A9CA4 | | if this bit is on, don't spawn
   AND $04                                   ; $1A9CA7 | |
   BNE check_new_enemies.ret                 ; $1A9CA9 |/
-; finally, actually spawn
-  LDY $04C0,x                               ; $1A9CAB | load stage ID for data
-  LDA $AB00,y                               ; $1A9CAE |\ screen #
+; finally, actually spawn — read from 4 per-stage enemy placement tables:
+;   $AB00,y = screen number (X page) where enemy appears
+;   $AC00,y = X pixel position within screen
+;   $AD00,y = Y pixel position
+;   $AE00,y = global enemy ID (indexes into bank $00 enemy data tables)
+; then switch to bank $00 to read global enemy properties:
+;   enemy_flags_g ($A000) / enemy_main_ID_g ($A100) / etc.
+  LDY $04C0,x                               ; $1A9CAB | load stage enemy ID for data
+  LDA $AB00,y                               ; $1A9CAE |\ enemy screen number
   STA $0380,x                               ; $1A9CB1 |/
-  LDA $AC00,y                               ; $1A9CB4 |\ X position
+  LDA $AC00,y                               ; $1A9CB4 |\ enemy X pixel position
   STA $0360,x                               ; $1A9CB7 |/
-  LDA $AD00,y                               ; $1A9CBA |\ Y position
+  LDA $AD00,y                               ; $1A9CBA |\ enemy Y pixel position
   STA $03C0,x                               ; $1A9CBD |/
   LDA $AE00,y                               ; $1A9CC0 |\ global enemy ID
   PHA                                       ; $1A9CC3 |/
   STX $05                                   ; $1A9CC4 | preserve X
   LDA #$00                                  ; $1A9CC6 |\  switch to bank $00
-  STA $F5                                   ; $1A9CC8 | | for $A000-$BFFF
-  JSR select_PRG_banks                      ; $1A9CCA |/  global enemy data
+  STA $F5                                   ; $1A9CC8 | | for global enemy data
+  JSR select_PRG_banks                      ; $1A9CCA |/  at $A000-$BFFF
   LDX $05                                   ; $1A9CCD | restore X
   PLA                                       ; $1A9CCF |\ Y = global enemy ID
-  TAY                                       ; $1A9CD0 |/ for initial data
-  LDA #$80                                  ; $1A9CD1 |\ active state
+  TAY                                       ; $1A9CD0 |/ for initial data lookup
+  LDA #$80                                  ; $1A9CD1 |\ mark entity active
   STA $0300,x                               ; $1A9CD3 |/
-  LDA enemy_flags_g,y                       ; $1A9CD6 |\ sprite flags
+  LDA enemy_flags_g,y                       ; $1A9CD6 |\ sprite flags from $A000,y
   STA $0580,x                               ; $1A9CD9 |/
-  LDA enemy_main_ID_g,y                     ; $1A9CDC |\ main routine pointer
+  LDA enemy_main_ID_g,y                     ; $1A9CDC |\ AI routine ID from $A100,y
   STA $0320,x                               ; $1A9CDF |/
-  LDA enemy_shape_g,y                       ; $1A9CE2 |\ shape properties
+  LDA enemy_shape_g,y                       ; $1A9CE2 |\ hitbox/shape from $A200,y
   STA $0480,x                               ; $1A9CE5 |/
-  LDA enemy_OAM_ID_g,y                      ; $1A9CE8 |\ OAM ID & init anim
+  LDA enemy_OAM_ID_g,y                      ; $1A9CE8 |\ sprite graphic ID
   JSR reset_sprite_anim                     ; $1A9CEB |/
-  JSR face_player                           ; $1A9CEE | facing
-  LDA enemy_health_g,y                      ; $1A9CF1 |\ health
+  JSR face_player                           ; $1A9CEE | face toward player
+  LDA enemy_health_g,y                      ; $1A9CF1 |\ HP from $A400,y
   STA $04E0,x                               ; $1A9CF4 |/
   LDA enemy_speed_ID_g,y                    ; $1A9CF7 |\ Y = speed ID
   TAY                                       ; $1A9CFA |/
