@@ -455,13 +455,13 @@ code_1EC0E7:
   PHA                                       ; $1EC126 | |
   TYA                                       ; $1EC127 | |
   PHA                                       ; $1EC128 |/
-  TSX                                       ; $1EC129 |\
-  SEC                                       ; $1EC12A | |
-  LDA $7C                                   ; $1EC12B | | restore original address
-  SBC #$01                                  ; $1EC12D | | from interrupt push
-  STA $0105,x                               ; $1EC12F | | onto the beginning of stack
-  LDA $7D                                   ; $1EC132 | | (for RTS)
-  SBC #$00                                  ; $1EC134 | |
+  TSX                                       ; $1EC129 |\ patch return address on stack:
+  SEC                                       ; $1EC12A | | $7C/$7D = original PC saved by NMI.
+  LDA $7C                                   ; $1EC12B | | Subtract 1 because RTS adds 1.
+  SBC #$01                                  ; $1EC12D | | Overwrites the stacked return address
+  STA $0105,x                               ; $1EC12F | | at SP+5/6 (behind P,A,X,Y,P).
+  LDA $7D                                   ; $1EC132 | | This makes the upcoming RTS
+  SBC #$00                                  ; $1EC134 | | resume at the interrupted location.
   STA $0106,x                               ; $1EC136 |/
   JSR play_sounds                           ; $1EC139 |
   PLA                                       ; $1EC13C |\
@@ -1583,14 +1583,14 @@ fade_start:
   DEY                                       ; $1EC777 |
   BPL .darken                               ; $1EC778 |
   STY $18                                   ; $1EC77A | $18 = palette dirty ($FF)
-  LDA $0E                                   ; $1EC77C | yield $0E frames
+  LDA $0E                                   ; $1EC77C | A = $0E (frames to wait per fade step)
 .yield_loop:
-  PHA                                       ; $1EC77E |
-  JSR task_yield                           ; $1EC77F |
-  PLA                                       ; $1EC782 |
-  SEC                                       ; $1EC783 |
-  SBC #$01                                  ; $1EC784 |
-  BNE .yield_loop                           ; $1EC786 |
+  PHA                                       ; $1EC77E |\ wait $0E frames between fade steps
+  JSR task_yield                           ; $1EC77F | | (lets NMI upload palette to PPU)
+  PLA                                       ; $1EC782 | |
+  SEC                                       ; $1EC783 | |
+  SBC #$01                                  ; $1EC784 | |
+  BNE .yield_loop                           ; $1EC786 |/
   LDA $0F                                   ; $1EC788 | advance subtract by step
   CLC                                       ; $1EC78A |
   ADC $0D                                   ; $1EC78B |
@@ -1787,19 +1787,19 @@ load_room:
   BNE .load_columns                         ; $1EC860 |/
   LDX #$00                                  ; $1EC862 |
 .load_connections:
-  LDA $AA82,y                               ; $1EC864 |\ 4 screen connection bytes:
-  PHA                                       ; $1EC867 | | bit 7 → $0100,x (direction flag)
-  AND #$80                                  ; $1EC868 | | bits 0-6 → $0108,x (target screen)
-  STA $0100,x                               ; $1EC86A | |
+  LDA $AA82,y                               ; $1EC864 |\ parse 4 screen connection bytes
+  PHA                                       ; $1EC867 | | (up/down/left/right exits):
+  AND #$80                                  ; $1EC868 | | bit 7 → $0100,x (scroll direction)
+  STA $0100,x                               ; $1EC86A | |   ($80=scroll, $00=warp)
   PLA                                       ; $1EC86D | |
-  AND #$7F                                  ; $1EC86E | |
+  AND #$7F                                  ; $1EC86E | | bits 0-6 → $0108,x (target screen#)
   STA $0108,x                               ; $1EC870 | |
-  LDA #$00                                  ; $1EC873 | |
-  STA $0104,x                               ; $1EC875 | |
+  LDA #$00                                  ; $1EC873 | | clear $0104,x and $010C,x
+  STA $0104,x                               ; $1EC875 | | (unused padding/high bytes)
   STA $010C,x                               ; $1EC878 | |
   INY                                       ; $1EC87B | |
   INX                                       ; $1EC87C | |
-  CPX #$04                                  ; $1EC87D | |
+  CPX #$04                                  ; $1EC87D | | 4 connections (U/D/L/R)
   BNE .load_connections                     ; $1EC87F |/
   LDA $0600                                 ; $1EC881 |\ copy first column ID to palette slots
   STA $0610                                 ; $1EC884 | | (overwritten by $A000 below)
@@ -2106,45 +2106,47 @@ gameplay_frame_loop:
   BEQ gameplay_no_pause                             ; $1ECA81 | |
   CMP #$09                                  ; $1ECA83 | |
   BCS gameplay_no_pause                             ; $1ECA85 |/
-  LDA $A0                                   ; $1ECA87 |
-  SEC                                       ; $1ECA89 |
-  SBC #$06                                  ; $1ECA8A |
-  BCC code_1ECA99                           ; $1ECA8C |
-  AND #$01                                  ; $1ECA8E |
-  BEQ code_1ECA99                           ; $1ECA90 |
-  LDA #$00                                  ; $1ECA92 |
-  STA $0301                                 ; $1ECA94 |
-  BEQ code_1ECAA4                           ; $1ECA97 |
+; --- pause check: despawn Rush (slot 1) when switching from Rush weapon ---
+  LDA $A0                                   ; $1ECA87 |\ weapon ID - 6: Rush weapons are $06-$0B
+  SEC                                       ; $1ECA89 | | carry clear = weapon < $06 (not Rush)
+  SBC #$06                                  ; $1ECA8A | |
+  BCC code_1ECA99                           ; $1ECA8C |/
+  AND #$01                                  ; $1ECA8E |\ odd result = Rush entity active ($07,$09,$0B)
+  BEQ code_1ECA99                           ; $1ECA90 |/ even = Rush item ($06,$08,$0A) — skip
+  LDA #$00                                  ; $1ECA92 |\ despawn slot 1 (Rush entity)
+  STA $0301                                 ; $1ECA94 | | before opening pause menu
+  BEQ code_1ECAA4                           ; $1ECA97 |/
 code_1ECA99:
-  LDA $0301                                 ; $1ECA99 |
-  ORA $0302                                 ; $1ECA9C |
-  ORA $0303                                 ; $1ECA9F |
-  BMI gameplay_no_pause                           ; $1ECAA2 |
+  LDA $0301                                 ; $1ECA99 |\ if ANY weapon slot (1-3) is active,
+  ORA $0302                                 ; $1ECA9C | | don't allow pause
+  ORA $0303                                 ; $1ECA9F | | (prevents pausing mid-shot)
+  BMI gameplay_no_pause                           ; $1ECAA2 |/
 code_1ECAA4:
-  LDY $30                                   ; $1ECAA4 |
-  LDA $CD1E,y                               ; $1ECAA6 |
-  BMI gameplay_no_pause                           ; $1ECAA9 |
-  LDA #$02                                  ; $1ECAAB |
-  STA $F5                                   ; $1ECAAD |
-  JSR select_PRG_banks                      ; $1ECAAF |
-  JSR $A003                                 ; $1ECAB2 |
+  LDY $30                                   ; $1ECAA4 |\ check per-state pause permission table
+  LDA $CD1E,y                               ; $1ECAA6 | | bit 7 set = pause not allowed
+  BMI gameplay_no_pause                           ; $1ECAA9 |/
+  LDA #$02                                  ; $1ECAAB |\ switch to bank $02/$03 (pause menu code)
+  STA $F5                                   ; $1ECAAD | |
+  JSR select_PRG_banks                      ; $1ECAAF |/
+  JSR $A003                                 ; $1ECAB2 | call pause menu handler
 gameplay_no_pause:
   LDA $22                                   ; $1ECAB5 |\ switch to stage bank
   STA $F5                                   ; $1ECAB7 | |
   JSR select_PRG_banks                      ; $1ECAB9 |/
   JSR code_1ECD34                           ; $1ECABC | player state dispatch + physics
-  LDA $3D                                   ; $1ECABF |
-  BEQ code_1ECAD7                           ; $1ECAC1 |
-  STA $30                                   ; $1ECAC3 |
-  CMP #$0E                                  ; $1ECAC5 |
-  BNE code_1ECAD3                           ; $1ECAC7 |
-  LDA #$F2                                  ; $1ECAC9 |
-  JSR submit_sound_ID                       ; $1ECACB |
-  LDA #$17                                  ; $1ECACE |
-  JSR submit_sound_ID                       ; $1ECAD0 |
+; --- apply pending hazard state transition (set by tile collision) ---
+  LDA $3D                                   ; $1ECABF |\ $3D = pending state from hazard
+  BEQ code_1ECAD7                           ; $1ECAC1 |/ 0 = no pending state
+  STA $30                                   ; $1ECAC3 | apply: set player state
+  CMP #$0E                                  ; $1ECAC5 |\ state $0E = spike/pit death?
+  BNE code_1ECAD3                           ; $1ECAC7 |/
+  LDA #$F2                                  ; $1ECAC9 |\ play death jingle ($F2 = stop music)
+  JSR submit_sound_ID                       ; $1ECACB | |
+  LDA #$17                                  ; $1ECACE | | play death sound $17
+  JSR submit_sound_ID                       ; $1ECAD0 |/
 code_1ECAD3:
-  LDA #$00                                  ; $1ECAD3 |
-  STA $3D                                   ; $1ECAD5 |
+  LDA #$00                                  ; $1ECAD3 |\ clear pending state
+  STA $3D                                   ; $1ECAD5 |/
 code_1ECAD7:
   JSR update_camera                           ; $1ECAD7 | scroll/camera update
   LDA $FC                                   ; $1ECADA |\ $25 = camera X (coarse)
@@ -2373,70 +2375,74 @@ handle_checkpoint:
   STA $9F                                   ; $1ECC75 |/
   LDX $AAF0,y                               ; $1ECC77 |\ $2B = checkpoint room number
   STX $2B                                   ; $1ECC7A |/
-  LDA $AA40,x                               ; $1ECC7C |
-  PHA                                       ; $1ECC7F |
-  STA $00                                   ; $1ECC80 |
-  AND #$20                                  ; $1ECC82 |
-  STA $2A                                   ; $1ECC84 |
-  BNE code_1ECC8E                           ; $1ECC86 |
-  LDA $00                                   ; $1ECC88 |
-  AND #$C0                                  ; $1ECC8A |
-  STA $2A                                   ; $1ECC8C |
+; --- parse room config bits (same logic as stage_init) ---
+  LDA $AA40,x                               ; $1ECC7C |\ load room config byte
+  PHA                                       ; $1ECC7F | | save for screen count later
+  STA $00                                   ; $1ECC80 |/
+  AND #$20                                  ; $1ECC82 |\ bit 5 = horizontal scroll?
+  STA $2A                                   ; $1ECC84 | | if set, $2A = $20 (h-scroll flags)
+  BNE code_1ECC8E                           ; $1ECC86 |/
+  LDA $00                                   ; $1ECC88 |\ else $2A = bits 7-6 (vertical connection)
+  AND #$C0                                  ; $1ECC8A | |
+  STA $2A                                   ; $1ECC8C |/
 code_1ECC8E:
-  LDX #$01                                  ; $1ECC8E |
-  LDY #$2A                                  ; $1ECC90 |
-  AND #$20                                  ; $1ECC92 |
-  BNE code_1ECC99                           ; $1ECC94 |
-  DEX                                       ; $1ECC96 |
-  LDY #$26                                  ; $1ECC97 |
+  LDX #$01                                  ; $1ECC8E |\ default: H-mirror, viewport height $2A
+  LDY #$2A                                  ; $1ECC90 | |
+  AND #$20                                  ; $1ECC92 | | if h-scroll (bit 5 set): keep defaults
+  BNE code_1ECC99                           ; $1ECC94 | |
+  DEX                                       ; $1ECC96 | | else: V-mirror (X=0), viewport $26
+  LDY #$26                                  ; $1ECC97 |/
 code_1ECC99:
-  STX $A000                                 ; $1ECC99 |
-  STY $52                                   ; $1ECC9C |
-  PLA                                       ; $1ECC9E |
-  AND #$1F                                  ; $1ECC9F |
-  STA $2C                                   ; $1ECCA1 |
-  LDA #$00                                  ; $1ECCA3 |
-  STA $2D                                   ; $1ECCA5 |
-  LDY $22                                   ; $1ECCA7 |
-  LDA $CD0C,y                               ; $1ECCA9 |
-  JSR submit_sound_ID_D9                    ; $1ECCAC |
-  LDA #$01                                  ; $1ECCAF |
-  STA $31                                   ; $1ECCB1 |
-  STA $23                                   ; $1ECCB3 |
-  STA $2E                                   ; $1ECCB5 |
-  DEC $29                                   ; $1ECCB7 |
-  LDA #$1F                                  ; $1ECCB9 |
-  STA $24                                   ; $1ECCBB |
-  LDA #$21                                  ; $1ECCBD |
+  STX $A000                                 ; $1ECC99 | set nametable mirroring (0=V, 1=H)
+  STY $52                                   ; $1ECC9C | $52 = viewport height ($2A or $26)
+  PLA                                       ; $1ECC9E |\ $2C = screen count (lower 5 bits)
+  AND #$1F                                  ; $1ECC9F | |
+  STA $2C                                   ; $1ECCA1 |/
+  LDA #$00                                  ; $1ECCA3 |\ $2D = 0 (scroll progress within room)
+  STA $2D                                   ; $1ECCA5 |/
+  LDY $22                                   ; $1ECCA7 |\ load stage music ID from $CD0C table
+  LDA $CD0C,y                               ; $1ECCA9 | | and start playing it
+  JSR submit_sound_ID_D9                    ; $1ECCAC |/
+  LDA #$01                                  ; $1ECCAF |\
+  STA $31                                   ; $1ECCB1 | | $31 = face right
+  STA $23                                   ; $1ECCB3 | | $23 = column render flag
+  STA $2E                                   ; $1ECCB5 |/ $2E = render dirty flag
+  DEC $29                                   ; $1ECCB7 | $29-- (back up screen sentinel for render)
+  LDA #$1F                                  ; $1ECCB9 |\ $24 = $1F (screen attribute pointer)
+  STA $24                                   ; $1ECCBB |/
+; --- render 33 columns of room tiles (one per frame, yielding to NMI) ---
+  LDA #$21                                  ; $1ECCBD | 33 columns ($21)
 code_1ECCBF:
-  PHA                                       ; $1ECCBF |
-  LDA #$01                                  ; $1ECCC0 |
-  STA $10                                   ; $1ECCC2 |
-  JSR do_render_column                           ; $1ECCC4 |
-  JSR task_yield                           ; $1ECCC7 |
-  PLA                                       ; $1ECCCA |
-  SEC                                       ; $1ECCCB |
-  SBC #$01                                  ; $1ECCCC |
-  BNE code_1ECCBF                           ; $1ECCCE |
-  JSR load_stage                           ; $1ECCD0 |
-  LDA #$00                                  ; $1ECCD3 |
-  STA $18                                   ; $1ECCD5 |
-  JSR task_yield                           ; $1ECCD7 |
-  JSR fade_palette_out                           ; $1ECCDA |
-  LDA #$80                                  ; $1ECCDD |
-  STA $0360                                 ; $1ECCDF |
-  JMP code_1EC9B3                           ; $1ECCE2 |
+  PHA                                       ; $1ECCBF |\ save column counter
+  LDA #$01                                  ; $1ECCC0 | |
+  STA $10                                   ; $1ECCC2 | | $10 = 1 (render one column)
+  JSR do_render_column                           ; $1ECCC4 | | render current column
+  JSR task_yield                           ; $1ECCC7 | | yield (NMI uploads to PPU)
+  PLA                                       ; $1ECCCA | |
+  SEC                                       ; $1ECCCB | | decrement counter
+  SBC #$01                                  ; $1ECCCC | |
+  BNE code_1ECCBF                           ; $1ECCCE |/ loop until all 33 done
+  JSR load_stage                           ; $1ECCD0 | apply CHR/palette for this room
+  LDA #$00                                  ; $1ECCD3 |\ suppress palette upload this frame
+  STA $18                                   ; $1ECCD5 |/
+  JSR task_yield                           ; $1ECCD7 | yield to let NMI run
+  JSR fade_palette_out                           ; $1ECCDA | fade screen to black
+  LDA #$80                                  ; $1ECCDD |\ spawn player at Y=$80 (mid-screen)
+  STA $0360                                 ; $1ECCDF |/
+  JMP code_1EC9B3                           ; $1ECCE2 | → continue stage_init (Gemini scroll, fade-in)
 
-  LDA $98                                   ; $1ECCE5 |
-  AND #$03                                  ; $1ECCE7 |
-  CMP #$01                                  ; $1ECCE9 |
-  BNE code_1ECCF7                           ; $1ECCEB |
-  LDY #$0B                                  ; $1ECCED |
-  LDA #$9C                                  ; $1ECCEF |
+; --- refill_all_ammo: fill all weapon ammo to $9C (full) ---
+; Called when $98 mode indicates refill (e.g. E-Tank usage).
+  LDA $98                                   ; $1ECCE5 |\
+  AND #$03                                  ; $1ECCE7 | | check if mode == 1 (refill)
+  CMP #$01                                  ; $1ECCE9 | |
+  BNE code_1ECCF7                           ; $1ECCEB |/ if not, skip
+  LDY #$0B                                  ; $1ECCED |\ fill $A2-$AD (12 ammo slots)
+  LDA #$9C                                  ; $1ECCEF | | all to $9C = full (28 units)
 code_1ECCF1:
-  STA $00A2,y                               ; $1ECCF1 |
-  DEY                                       ; $1ECCF4 |
-  BPL code_1ECCF1                           ; $1ECCF5 |
+  STA $00A2,y                               ; $1ECCF1 | |
+  DEY                                       ; $1ECCF4 | |
+  BPL code_1ECCF1                           ; $1ECCF5 |/
 code_1ECCF7:
   RTS                                       ; $1ECCF7 |
 
@@ -3095,16 +3101,16 @@ init_weapon:
   LDX $A0                                   ; $1ED135 |\
   LDA weapon_fire_sound,x                   ; $1ED137 | | play weapon sound effect
   JSR submit_sound_ID                       ; $1ED13A |/
-  LDX #$00                                  ; $1ED13D |
-  LDA #$80                                  ; $1ED13F |\ set active
+  LDX #$00                                  ; $1ED13D | X=0 (player slot)
+  LDA #$80                                  ; $1ED13F |\ activate weapon slot
   STA $0300,y                               ; $1ED141 |/
-  LDA $31                                   ; $1ED144 |
-  ROR                                       ; $1ED146 |
-  ROR                                       ; $1ED147 |
-  ROR                                       ; $1ED148 |
-  AND #$40                                  ; $1ED149 |
-  ORA #$90                                  ; $1ED14B |
-  STA $0580,y                               ; $1ED14D |
+  LDA $31                                   ; $1ED144 |\ convert facing ($31: 1=R, 2=L)
+  ROR                                       ; $1ED146 | | to sprite flags bit 6 (H-flip)
+  ROR                                       ; $1ED147 | | $01→ROR³→$00→AND=$00 (right)
+  ROR                                       ; $1ED148 | | $02→ROR³→$40→AND=$40 (left=flip)
+  AND #$40                                  ; $1ED149 | |
+  ORA #$90                                  ; $1ED14B | | bits: $80=drawn, $10=child spawn
+  STA $0580,y                               ; $1ED14D |/
   LDA #$00                                  ; $1ED150 |\
   STA $0400,y                               ; $1ED152 | | default weapon X speed:
   LDA #$04                                  ; $1ED155 | | 4 pixels per frame
@@ -3135,9 +3141,9 @@ init_weapon:
   STA $05C0,y                               ; $1ED197 | | ID's for weapon
   LDA weapon_main_ID,x                      ; $1ED19A | |
   STA $0320,y                               ; $1ED19D |/
-  INC $3B                                   ; $1ED1A0 |
-  LDX #$00                                  ; $1ED1A2 |
-  SEC                                       ; $1ED1A4 |
+  INC $3B                                   ; $1ED1A0 | $3B++ (shot parity counter)
+  LDX #$00                                  ; $1ED1A2 | restore X=0 (player slot)
+  SEC                                       ; $1ED1A4 | carry set = weapon spawned OK
   RTS                                       ; $1ED1A5 |
 
 ; ===========================================================================
@@ -3229,39 +3235,48 @@ init_gemini_laser:
 .ret:
   RTS                                       ; $1ED24C |
 
+; ===========================================================================
+; init_hard_knuckle — weapon $03: Hard Knuckle projectile
+; ===========================================================================
+; Spawns in slot 1. Player state selects OAM from $D293 table:
+;   $30=0(ground)→$AA, $30=1(air)→$AB, $30=2(slide)→$00(skip), $30=3(ladder)→$AD
+; Hard Knuckle uniquely uses slot 1 (like Rush), overrides player OAM,
+; and sets player state to $0B (hard_knuckle_ride) for steering.
 init_hard_knuckle:
-  LDA $0301                                 ; $1ED24D |
-  BMI code_1ED292                           ; $1ED250 |
-  LDY $30                                   ; $1ED252 |
-  CPY #$04                                  ; $1ED254 |
-  BCS code_1ED292                           ; $1ED256 |
-  LDA $D293,y                               ; $1ED258 |
-  BEQ code_1ED292                           ; $1ED25B |
-  JSR init_weapon                           ; $1ED25D |
-  LDY $30                                   ; $1ED260 |
-  LDA $D293,y                               ; $1ED262 |
-  JSR reset_sprite_anim                     ; $1ED265 |
-  CPY #$03                                  ; $1ED268 |
-  BNE code_1ED271                           ; $1ED26A |
-  LDA #$AE                                  ; $1ED26C |
-  STA $05C1                                 ; $1ED26E |
+  LDA $0301                                 ; $1ED24D |\ slot 1 already active?
+  BMI code_1ED292                           ; $1ED250 |/ if so, can't fire
+  LDY $30                                   ; $1ED252 |\ player state >= $04 (reappear etc)?
+  CPY #$04                                  ; $1ED254 | |
+  BCS code_1ED292                           ; $1ED256 |/ can't fire in those states
+  LDA $D293,y                               ; $1ED258 |\ OAM ID for this state ($00 = skip)
+  BEQ code_1ED292                           ; $1ED25B |/ state $02(slide): no Hard Knuckle
+  JSR init_weapon                           ; $1ED25D | spawn weapon entity (sets Y=slot)
+  LDY $30                                   ; $1ED260 |\ reload OAM for player state
+  LDA $D293,y                               ; $1ED262 | | and set player animation to it
+  JSR reset_sprite_anim                     ; $1ED265 |/ (punch/throw pose)
+  CPY #$03                                  ; $1ED268 |\ on ladder ($30=3)?
+  BNE code_1ED271                           ; $1ED26A | |
+  LDA #$AE                                  ; $1ED26C | | override slot 1 OAM to $AE
+  STA $05C1                                 ; $1ED26E |/ (ladder throw variant)
 code_1ED271:
-  LDA #$00                                  ; $1ED271 |
-  STA $0401                                 ; $1ED273 |
-  STA $0421                                 ; $1ED276 |
-  STA $0461                                 ; $1ED279 |
-  LDA #$80                                  ; $1ED27C |
-  STA $0441                                 ; $1ED27E |
-  INC $05E1                                 ; $1ED281 |
-  LDA $30                                   ; $1ED284 |
-  STA $0500                                 ; $1ED286 |
-  LDA #$10                                  ; $1ED289 |
-  STA $0520                                 ; $1ED28B |
-  LDA #$0B                                  ; $1ED28E |
-  STA $30                                   ; $1ED290 |
+  LDA #$00                                  ; $1ED271 |\ zero X/Y speeds for slot 1
+  STA $0401                                 ; $1ED273 | | (Hard Knuckle starts stationary,
+  STA $0421                                 ; $1ED276 | | player steers it with D-pad)
+  STA $0461                                 ; $1ED279 |/
+  LDA #$80                                  ; $1ED27C |\ Y speed sub = $80
+  STA $0441                                 ; $1ED27E |/ (initial Y drift: $00.80 = 0.5 px/f)
+  INC $05E1                                 ; $1ED281 | bump anim frame (force sprite update)
+  LDA $30                                   ; $1ED284 |\ save player state to $0500 (slot 0)
+  STA $0500                                 ; $1ED286 |/ (restore when Hard Knuckle ends)
+  LDA #$10                                  ; $1ED289 |\ slot 1 AI routine = $10
+  STA $0520                                 ; $1ED28B |/ (Hard Knuckle movement handler)
+  LDA #$0B                                  ; $1ED28E |\ set player state $0B = hard_knuckle_ride
+  STA $30                                   ; $1ED290 |/ (D-pad steers the projectile)
 code_1ED292:
   RTS                                       ; $1ED292 |
 
+; Hard Knuckle OAM IDs per player state ($30=0..3)
+; $AA=ground, $AB=air, $00=skip(slide), $AD=ladder
   db $AA, $AB, $00, $AD, $01, $07, $00, $0A ; $1ED293 |
   db $FC, $FF, $04, $00                     ; $1ED29B |
 
@@ -3276,42 +3291,53 @@ init_top_spin:
   LDA #$2C                                  ; $1ED2AF |\ and play the top spin
   JMP submit_sound_ID                       ; $1ED2B1 |/ sound
 
+; ===========================================================================
+; init_search_snake — weapon $06: Search Snake
+; ===========================================================================
+; Spawns snake projectile. X speed = $01.00 (1 px/f), Y speed = $03.44
+; (drops at ~3.27 px/f to find floor). AI routine $13 handles wall-crawling.
 init_search_snake:
-  JSR init_weapon                           ; $1ED2B4 |
-  BCC .ret                                  ; $1ED2B7 |
-  LDA #$44                                  ; $1ED2B9 |
-  STA $0440,y                               ; $1ED2BB |
-  LDA #$03                                  ; $1ED2BE |
-  STA $0460,y                               ; $1ED2C0 |
-  LDA #$00                                  ; $1ED2C3 |
-  STA $0400,y                               ; $1ED2C5 |
-  LDA #$01                                  ; $1ED2C8 |
-  STA $0420,y                               ; $1ED2CA |
-  LDA #$13                                  ; $1ED2CD |
-  STA $0500,y                               ; $1ED2CF |
+  JSR init_weapon                           ; $1ED2B4 |\ spawn weapon; carry set = success
+  BCC .ret                                  ; $1ED2B7 |/ no free slot → return
+  LDA #$44                                  ; $1ED2B9 |\ Y speed sub = $44
+  STA $0440,y                               ; $1ED2BB |/
+  LDA #$03                                  ; $1ED2BE |\ Y speed whole = $03 (drop fast)
+  STA $0460,y                               ; $1ED2C0 |/
+  LDA #$00                                  ; $1ED2C3 |\ X speed sub = $00
+  STA $0400,y                               ; $1ED2C5 |/
+  LDA #$01                                  ; $1ED2C8 |\ X speed whole = $01 (1 px/f forward)
+  STA $0420,y                               ; $1ED2CA |/
+  LDA #$13                                  ; $1ED2CD |\ AI routine = $13 (snake crawl)
+  STA $0500,y                               ; $1ED2CF |/
 .ret:
   RTS                                       ; $1ED2D2 |
 
+; ===========================================================================
+; init_shadow_blade — weapon $0A: Shadow Blade
+; ===========================================================================
+; D-pad direction stored in $04A0 (bits: up=$08, down=$02, right=$01).
+; If no D-pad held, $04A0=0 → blade fires horizontally (facing direction).
+; X speed $04.00 (4 px/f). Copies player position to blade (spawns at player).
 init_shadow_blade:
-  JSR init_weapon                           ; $1ED2D3 |
-  BCC code_1ED302                           ; $1ED2D6 |
-  LDA $16                                   ; $1ED2D8 |
-  AND #$0B                                  ; $1ED2DA |
-  BEQ code_1ED2E1                           ; $1ED2DC |
-  STA $04A0,y                               ; $1ED2DE |
+  JSR init_weapon                           ; $1ED2D3 |\ spawn weapon; carry set = success
+  BCC code_1ED302                           ; $1ED2D6 |/ no free slot → return
+  LDA $16                                   ; $1ED2D8 |\ read D-pad held bits
+  AND #$0B                                  ; $1ED2DA | | mask Up($08)+Down($02)+Right($01)
+  BEQ code_1ED2E1                           ; $1ED2DC | | no direction → skip (fire horizontal)
+  STA $04A0,y                               ; $1ED2DE |/ store throw direction for AI
 code_1ED2E1:
-  LDA #$00                                  ; $1ED2E1 |
-  STA $0440,y                               ; $1ED2E3 |
-  LDA #$04                                  ; $1ED2E6 |
-  STA $0460,y                               ; $1ED2E8 |
-  LDA #$14                                  ; $1ED2EB |
-  STA $0500,y                               ; $1ED2ED |
-  LDA $0360,x                               ; $1ED2F0 |
-  STA $0360,y                               ; $1ED2F3 |
-  LDA $0380,x                               ; $1ED2F6 |
-  STA $0380,y                               ; $1ED2F9 |
-  LDA $03C0,x                               ; $1ED2FC |
-  STA $03C0,y                               ; $1ED2FF |
+  LDA #$00                                  ; $1ED2E1 |\ Y speed sub = $00
+  STA $0440,y                               ; $1ED2E3 |/
+  LDA #$04                                  ; $1ED2E6 |\ X speed whole = $04 (4 px/f)
+  STA $0460,y                               ; $1ED2E8 |/
+  LDA #$14                                  ; $1ED2EB |\ AI routine = $14 (shadow blade)
+  STA $0500,y                               ; $1ED2ED |/
+  LDA $0360,x                               ; $1ED2F0 |\ copy player X position to blade
+  STA $0360,y                               ; $1ED2F3 |/
+  LDA $0380,x                               ; $1ED2F6 |\ copy player X screen to blade
+  STA $0380,y                               ; $1ED2F9 |/
+  LDA $03C0,x                               ; $1ED2FC |\ copy player Y position to blade
+  STA $03C0,y                               ; $1ED2FF |/
 code_1ED302:
   RTS                                       ; $1ED302 |
 
@@ -3595,13 +3621,14 @@ code_1ED471:                                              ; slide_jump
   STA $0420                                 ; $1ED478 |/
   JMP player_on_ground.jump                 ; $1ED47B |  → jump (uses slide_jump vel $06.EE)
 
+; --- check ladder/down-entry from ground or slide ---
 code_1ED47E:
-  LDA $03E0                                 ; $1ED47E |
-  BNE code_1ED4C7                           ; $1ED481 |
+  LDA $03E0                                 ; $1ED47E |\ if Y screen != 0 (off main screen),
+  BNE code_1ED4C7                           ; $1ED481 |/ skip ladder check
   LDA $16                                   ; $1ED483 |\ pressing Up?
   AND #$08                                  ; $1ED485 | | (Up = bit 3)
-  BEQ code_1ED4C8                           ; $1ED487 |/
-  PHP                                       ; $1ED489 |
+  BEQ code_1ED4C8                           ; $1ED487 |/ no → check Down instead
+  PHP                                       ; $1ED489 | save flags (carry = came from slide?)
 check_ladder_entry:
   LDY #$04                                  ; $1ED48A |
   JSR check_tile_collision                           ; $1ED48C |
@@ -3615,49 +3642,52 @@ check_ladder_entry:
   BEQ code_1ED4A3                           ; $1ED49D | |
   CMP #$40                                  ; $1ED49F | |
   BNE code_1ED4C6                           ; $1ED4A1 |/
+; --- enter ladder (from Up press) ---
 code_1ED4A3:
-  PLP                                       ; $1ED4A3 |
-  LDA $12                                   ; $1ED4A4 |
-  AND #$F0                                  ; $1ED4A6 |
-  ORA #$08                                  ; $1ED4A8 |
-  STA $0360                                 ; $1ED4AA |
-  LDA #$0A                                  ; $1ED4AD |
+  PLP                                       ; $1ED4A3 | restore flags
+  LDA $12                                   ; $1ED4A4 |\ center player X on ladder tile
+  AND #$F0                                  ; $1ED4A6 | | snap to 16-pixel grid
+  ORA #$08                                  ; $1ED4A8 | | then offset +8 (center of tile)
+  STA $0360                                 ; $1ED4AA |/
+  LDA #$0A                                  ; $1ED4AD | OAM $0A = ladder climb anim
+; --- enter_ladder_common: set state $03 and reset Y speed ---
 code_1ED4AF:
-  JSR reset_sprite_anim                     ; $1ED4AF |
-  LDA #$03                                  ; $1ED4B2 |
-  STA $30                                   ; $1ED4B4 |
-  LDA #$4C                                  ; $1ED4B6 |
-  STA $0440                                 ; $1ED4B8 |
-  LDA #$01                                  ; $1ED4BB |
-  STA $0460                                 ; $1ED4BD |
-  LDA #$00                                  ; $1ED4C0 |
-  STA $32                                   ; $1ED4C2 |
-  CLC                                       ; $1ED4C4 |
+  JSR reset_sprite_anim                     ; $1ED4AF | set OAM animation (A = OAM ID)
+  LDA #$03                                  ; $1ED4B2 |\ player state = $03 (on ladder)
+  STA $30                                   ; $1ED4B4 |/
+  LDA #$4C                                  ; $1ED4B6 |\ Y speed = $01.4C (climb speed)
+  STA $0440                                 ; $1ED4B8 | | (same as walk speed)
+  LDA #$01                                  ; $1ED4BB | |
+  STA $0460                                 ; $1ED4BD |/
+  LDA #$00                                  ; $1ED4C0 |\ $32 = 0 (clear walk/shoot sub-state)
+  STA $32                                   ; $1ED4C2 |/
+  CLC                                       ; $1ED4C4 | carry clear = entered ladder
   RTS                                       ; $1ED4C5 |
 
 code_1ED4C6:
-  PLP                                       ; $1ED4C6 |
+  PLP                                       ; $1ED4C6 | no ladder found — restore flags
 code_1ED4C7:
   RTS                                       ; $1ED4C7 |
 
+; --- check Down+ladder entry (drop through ladder top) ---
 code_1ED4C8:
-  LDA $16                                   ; $1ED4C8 |
-  AND #$04                                  ; $1ED4CA |
-  BEQ code_1ED4C7                           ; $1ED4CC |
-  PHP                                       ; $1ED4CE |
-  LDA $43                                   ; $1ED4CF |
-  CMP #$40                                  ; $1ED4D1 |
-  BNE check_ladder_entry                           ; $1ED4D3 |
-  PLP                                       ; $1ED4D5 |
-  LDA $0360                                 ; $1ED4D6 |
-  AND #$F0                                  ; $1ED4D9 |
-  ORA #$08                                  ; $1ED4DB |
-  STA $0360                                 ; $1ED4DD |
-  LDA $11                                   ; $1ED4E0 |
-  AND #$F0                                  ; $1ED4E2 |
-  STA $03C0                                 ; $1ED4E4 |
-  LDA #$14                                  ; $1ED4E7 |
-  BNE code_1ED4AF                           ; $1ED4E9 |
+  LDA $16                                   ; $1ED4C8 |\ pressing Down?
+  AND #$04                                  ; $1ED4CA | | (Down = bit 2)
+  BEQ code_1ED4C7                           ; $1ED4CC |/ no → return
+  PHP                                       ; $1ED4CE | save flags
+  LDA $43                                   ; $1ED4CF |\ foot tile = $40 (ladder top)?
+  CMP #$40                                  ; $1ED4D1 | | if not, fall through to normal
+  BNE check_ladder_entry                           ; $1ED4D3 |/ ladder check (check both feet)
+  PLP                                       ; $1ED4D5 | ladder top confirmed
+  LDA $0360                                 ; $1ED4D6 |\ center X on ladder (AND $F0 ORA $08)
+  AND #$F0                                  ; $1ED4D9 | |
+  ORA #$08                                  ; $1ED4DB | |
+  STA $0360                                 ; $1ED4DD |/
+  LDA $11                                   ; $1ED4E0 |\ snap Y to tile boundary
+  AND #$F0                                  ; $1ED4E2 | | (top of ladder tile)
+  STA $03C0                                 ; $1ED4E4 |/ player Y = aligned
+  LDA #$14                                  ; $1ED4E7 |\ OAM $14 = ladder dismount (going down)
+  BNE code_1ED4AF                           ; $1ED4E9 |/ → enter_ladder_common
 
 ; ===========================================================================
 ; player state $03: on ladder — climb up/down, fire, jump off
@@ -5205,48 +5235,57 @@ weapon_framerate:
 ; player state $13: Proto Man exit beam — Wily gate scene after all Doc Robots [confirmed]
 ; Triggered only by Proto Man routine $53 (bank18 scripted spawn, $60=$12).
 ; Player beams in with gravity, lands, then rises off-screen.
+; Two phases:
+;   Phase 1 (OAM != $13): Fall with gravity until landing. On landing, switch
+;   to teleport OAM $13, increment $05A0, clear Y speed.
+;   Phase 2 (OAM == $13): Rise upward (move_sprite_up). Accelerate by $99
+;   each frame. When Y screen wraps ($03E0 != 0), player has left — trigger
+;   stage clear ($74=$80), mark all Doc Robots beaten ($60=$FF), refill ammo.
 player_teleport_beam:
-  LDA $05C0                                 ; $1EDF33 |
-  CMP #$13                                  ; $1EDF36 |
-  BEQ code_1EDF51                           ; $1EDF38 |
-  LDY #$00                                  ; $1EDF3A |
-  JSR move_vertical_gravity                           ; $1EDF3C |
-  BCC code_1EDF89                           ; $1EDF3F |
-  LDA #$13                                  ; $1EDF41 |
-  JSR reset_sprite_anim                     ; $1EDF43 |
-  INC $05A0                                 ; $1EDF46 |
-  LDA #$00                                  ; $1EDF49 |
-  STA $0440                                 ; $1EDF4B |
-  STA $0460                                 ; $1EDF4E |
+  LDA $05C0                                 ; $1EDF33 |\ already in teleport OAM $13?
+  CMP #$13                                  ; $1EDF36 | |
+  BEQ code_1EDF51                           ; $1EDF38 |/ yes → phase 2 (rising)
+; --- phase 1: falling with gravity ---
+  LDY #$00                                  ; $1EDF3A |\ move down with gravity (slot 0)
+  JSR move_vertical_gravity                           ; $1EDF3C | | carry set = landed
+  BCC code_1EDF89                           ; $1EDF3F |/ still falling → return
+  LDA #$13                                  ; $1EDF41 |\ landed: set teleport beam OAM
+  JSR reset_sprite_anim                     ; $1EDF43 |/
+  INC $05A0                                 ; $1EDF46 | $05A0 = 1 (landing timer, counts down in anim)
+  LDA #$00                                  ; $1EDF49 |\ clear Y speed (stopped on ground)
+  STA $0440                                 ; $1EDF4B | |
+  STA $0460                                 ; $1EDF4E |/
+; --- phase 2: rising off-screen ---
 code_1EDF51:
-  LDA $05A0                                 ; $1EDF51 |
-  BNE code_1EDF89                           ; $1EDF54 |
-  STA $05E0                                 ; $1EDF56 |
-  JSR move_sprite_up                        ; $1EDF59 |
-  LDA $03E0                                 ; $1EDF5C |
-  BNE code_1EDF73                           ; $1EDF5F |
-  LDA $0440                                 ; $1EDF61 |
-  CLC                                       ; $1EDF64 |
-  ADC $99                                   ; $1EDF65 |
-  STA $0440                                 ; $1EDF67 |
-  LDA $0460                                 ; $1EDF6A |
-  ADC #$00                                  ; $1EDF6D |
-  STA $0460                                 ; $1EDF6F |
+  LDA $05A0                                 ; $1EDF51 |\ $05A0 nonzero = still in landing delay
+  BNE code_1EDF89                           ; $1EDF54 |/ wait for anim to clear it → return
+  STA $05E0                                 ; $1EDF56 | reset anim frame counter
+  JSR move_sprite_up                        ; $1EDF59 | move player upward by Y speed
+  LDA $03E0                                 ; $1EDF5C |\ Y screen != 0 → off-screen
+  BNE code_1EDF73                           ; $1EDF5F |/ → trigger ending
+  LDA $0440                                 ; $1EDF61 |\ accelerate: Y speed += $99 (sub)
+  CLC                                       ; $1EDF64 | | (gradual speed increase each frame)
+  ADC $99                                   ; $1EDF65 | |
+  STA $0440                                 ; $1EDF67 | |
+  LDA $0460                                 ; $1EDF6A | |
+  ADC #$00                                  ; $1EDF6D | |
+  STA $0460                                 ; $1EDF6F |/
   RTS                                       ; $1EDF72 |
 
+; --- player has risen off-screen: trigger Wily gate ending ---
 code_1EDF73:
-  LDA #$00                                  ; $1EDF73 |
-  STA $30                                   ; $1EDF75 |
-  LDA #$80                                  ; $1EDF77 |
-  STA $74                                   ; $1EDF79 |
-  LDA #$FF                                  ; $1EDF7B |
-  STA $60                                   ; $1EDF7D |
-  LDY #$0B                                  ; $1EDF7F |
-  LDA #$9C                                  ; $1EDF81 |
+  LDA #$00                                  ; $1EDF73 |\ reset player state
+  STA $30                                   ; $1EDF75 |/
+  LDA #$80                                  ; $1EDF77 |\ $74 = $80 → trigger stage clear path
+  STA $74                                   ; $1EDF79 |/
+  LDA #$FF                                  ; $1EDF7B |\ $60 = $FF → all Doc Robots beaten
+  STA $60                                   ; $1EDF7D |/
+  LDY #$0B                                  ; $1EDF7F |\ fill all 12 ammo slots to $9C (full)
+  LDA #$9C                                  ; $1EDF81 | | (reward for completing Doc Robot stages)
 code_1EDF83:
-  STA $00A2,y                               ; $1EDF83 |
-  DEY                                       ; $1EDF86 |
-  BPL code_1EDF83                           ; $1EDF87 |
+  STA $00A2,y                               ; $1EDF83 | |
+  DEY                                       ; $1EDF86 | |
+  BPL code_1EDF83                           ; $1EDF87 |/
 code_1EDF89:
   RTS                                       ; $1EDF89 |
 
@@ -6016,7 +6055,7 @@ check_room_link:
   STA $0380                                 ; $1FE457 |/ $0380 = player X screen
   LDA #$00                                  ; $1FE45A |\ $A000 = 0 (MMC3 bank config)
   STA $A000                                 ; $1FE45C |/
-  LDA #$26                                  ; $1FE45F |\ $52 = $26 (timer/delay?)
+  LDA #$26                                  ; $1FE45F |\ $52 = $26 (viewport height for V-mirror)
   STA $52                                   ; $1FE461 |/
   SEC                                       ; $1FE463 | C=1 → link found
   RTS                                       ; $1FE464 |
@@ -8185,11 +8224,11 @@ draw_energy_bars:
   LDX #$00                                  ; $1FF29D |\ forward: bar 0, 1, 2
   STX $10                                   ; $1FF29F |/
 .bars_fwd:
-  JSR .draw_one_bar                         ; $1FF2A1 |
-  INC $10                                   ; $1FF2A4 |
-  LDX $10                                   ; $1FF2A6 |
-  CPX #$03                                  ; $1FF2A8 |
-  BNE .bars_fwd                             ; $1FF2AA |
+  JSR .draw_one_bar                         ; $1FF2A1 | draw bar[$10]
+  INC $10                                   ; $1FF2A4 |\ next bar index
+  LDX $10                                   ; $1FF2A6 | |
+  CPX #$03                                  ; $1FF2A8 | | all 3 bars drawn?
+  BNE .bars_fwd                             ; $1FF2AA |/ no → loop
   RTS                                       ; $1FF2AC |
 
 .bars_reverse:
