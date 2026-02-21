@@ -1,5 +1,9 @@
 # Mega Man 3 (NES) Disassembly — Annotated Fork
 
+> **This project has been superseded.** Active development has moved to a [ca65-based disassembly](https://github.com/plasticsmoke/megaman3-disassembly-ca65) which produces a byte-perfect ROM using the standard ca65/ld65 toolchain. All annotations from this xkas version are being transferred there. This repository is kept for reference but is no longer maintained.
+
+---
+
 Fork of [refreshing-lemonade/megaman3-disassembly](https://github.com/refreshing-lemonade/megaman3-disassembly) with detailed annotations, verified labels, and cross-references to the Mega Man 4 engine.
 
 ## What This Fork Adds
