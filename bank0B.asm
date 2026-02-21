@@ -5,6 +5,8 @@
 ; palette fading, entity table setup, Mega Man landing animation,
 ; sound init, and state machine for the intro sequence.
 ; Also serves as Doc Robot Shadow Man stage data ($22=$0B) at $A000-$BFFF.
+;
+; Annotation: light — all labels auto-generated, intro sequence logic bare
 ; =============================================================================
 bank $0B
 org $8000

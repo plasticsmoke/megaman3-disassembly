@@ -5,6 +5,8 @@
 ; pointer table lookups for frame data, frame transfer, increment/loop.
 ; Called via trampoline at $1FFDB2 (bank $0E entry at $A003).
 ; Also serves as stage data for stage $16 (special) via stage_to_bank.
+;
+; Annotation: light — all labels auto-generated, frame management logic bare
 ; =============================================================================
 bank $0E
 org $A000

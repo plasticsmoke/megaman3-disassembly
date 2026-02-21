@@ -6,6 +6,8 @@
 ; processing, weapon behavior updates, and per-frame game logic that runs
 ; after the main entity AI loop. Also serves as Doc Robot Gemini stage
 ; data bank ($22=$09) when mapped to $A000-$BFFF.
+;
+; Annotation: light — all labels auto-generated, per-frame subsystem logic bare
 ; =============================================================================
 bank $09
 org $8000

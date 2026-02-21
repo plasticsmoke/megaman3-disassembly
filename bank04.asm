@@ -5,6 +5,8 @@
 ; that mimic MM2 bosses. Dispatched from bank1C_1D for routine indices $A0-$AF.
 ; Entry points: main_doc_flash_j, main_doc_wood_j, main_doc_crash_j,
 ; main_doc_metal_j. Also doubles as Top Man stage data ($22=$04).
+;
+; Annotation: light — entry trampolines named, AI internals bare
 ; =============================================================================
 bank $04
 org $A000

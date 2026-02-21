@@ -7,6 +7,8 @@
 ; Note: ensure_stage_bank skips bank switch when $F5 is already $13,
 ; suggesting this bank may remain mapped as a default in some contexts.
 ; Standard stage data layout (see bank08.asm header for format details).
+;
+; Annotation: none — pure stage data
 ; =============================================================================
 bank $13
 org $A000

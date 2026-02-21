@@ -5,6 +5,8 @@
 ; for routine indices $D0-$DF. Entry points: main_hard_man_j, main_spark_man_j,
 ; main_snake_man_j, main_gemini_man_j. Also doubles as Shadow Man stage
 ; data ($22=$07).
+;
+; Annotation: light — entry trampolines named, AI internals mostly bare
 ; =============================================================================
 bank $07
 org $A000

@@ -7,6 +7,8 @@
 ;   $A030+:      sprite palette table (8 bytes per param: SP2 + SP3)
 ;   $A200+:      sprite CHR bank table (2 bytes per param: $EC, $ED)
 ; Also doubles as Magnet Man stage data ($22=$01) for $AA00+ region.
+;
+; Annotation: partial — entry point named, CHR/palette tables explained
 ; =============================================================================
 bank $01
 org $A000

@@ -11,6 +11,8 @@
 ; Contains music sequence data, sound effect definitions, instrument
 ; parameters, and note/frequency tables used by the NES APU driver.
 ; Called every NMI frame via play_sounds → bank $16/$17 swap.
+;
+; Annotation: none — pure music/SFX data
 ; =============================================================================
 bank $17
 org $A000

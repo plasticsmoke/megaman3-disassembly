@@ -11,6 +11,8 @@
 ;
 ; Companion bank: $19 (default sprite offsets, used when bit 7 is clear).
 ; The two banks together cover all entity sprite position layouts.
+;
+; Annotation: none — pure offset data, header describes format
 ; =============================================================================
 bank $14
 org $A000

@@ -6,6 +6,8 @@
 ; main_top_man_j, main_shadow_man_j. Each boss has a multi-state AI with
 ; attack patterns, movement, and vulnerability windows.
 ; Also doubles as Spark Man stage data ($22=$06).
+;
+; Annotation: partial — AI state labels named for all 4 bosses, 81 auto labels remain
 ; =============================================================================
 bank $06
 org $A000

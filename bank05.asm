@@ -5,6 +5,8 @@
 ; that mimic MM2 bosses. Dispatched from bank1C_1D for routine indices $B0-$BF.
 ; Entry points: main_doc_bubble_j, main_doc_heat_j, main_doc_quick_j,
 ; main_doc_air_j. Also doubles as Snake Man stage data ($22=$05).
+;
+; Annotation: light — entry trampolines named, AI internals bare
 ; =============================================================================
 bank $05
 org $A000

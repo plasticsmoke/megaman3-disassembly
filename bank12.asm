@@ -6,6 +6,8 @@
 ; Known bosses: main_yellow_devil, main_wily_machine_A, main_wily_machine_B,
 ; main_gamma_B, main_gamma_F.
 ; Also serves as stage data for stage $12 (special/ending) via stage_to_bank.
+;
+; Annotation: partial — all 11 boss/entity entry points named, 309 auto labels remain
 ; =============================================================================
 bank $12
 org $A000

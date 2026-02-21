@@ -25,6 +25,8 @@
 ;   Contains screen layouts, enemy spawn lists, metatile columns,
 ;   CHR definitions, and collision table ($BF00) for the Doc Robot
 ;   version of Spark Man's stage (featuring Metal Man & Quick Man).
+;
+; Annotation: partial — all 9 damage tables named, no per-entry annotations
 ; =============================================================================
 bank $0A
 org $A000

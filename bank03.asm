@@ -1,3 +1,11 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $03 — STAGE TRANSITION + HARD MAN STAGE DATA
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains stage transition animation (boss name
+; reveal, horizontal scroll entry). Also doubles as Hard Man stage data ($22=$03).
+;
+; Annotation: partial — main flow well documented, 66 auto labels in branches
+; =============================================================================
 bank $03
 org $A000
 

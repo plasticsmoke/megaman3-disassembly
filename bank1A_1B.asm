@@ -18,6 +18,8 @@
 ; position offsets from banks $14/$19.
 ;
 ; Bank $15 is the weapon-specific variant (loaded when $5A override set).
+;
+; Annotation: partial — check_new_enemies/spawn_enemy named, format documented
 ; =============================================================================
 
 bank $1A

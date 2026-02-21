@@ -12,6 +12,8 @@
 ;   $AF00+:      metatile column definitions (64 bytes/column)
 ;   $B700+:      metatile CHR definitions (4 bytes/metatile: 2x2 tiles)
 ;   $BF00:       collision attribute table (upper nibble = collision type)
+;
+; Annotation: none — pure stage data, header describes format
 ; =============================================================================
 bank $08
 org $A000

@@ -17,6 +17,8 @@
 ; $AA00+ region: may contain additional data, but this bank is NOT used
 ; as a stage layout bank (stage banks are $00-$0F per stage_to_bank table,
 ; but bank $00 doubles as Needle Man's stage AND global enemy data).
+;
+; Annotation: partial — all data tables named, no per-entry annotations
 ; =============================================================================
 bank $00
 org $A000

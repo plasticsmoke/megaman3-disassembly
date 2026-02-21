@@ -4,6 +4,8 @@
 ; Mapped to $A000-$BFFF. Contains entity spawn initialization for slots
 ; $10+, collision flag setup, and projectile behavior routing.
 ; Also serves as Wily Fortress 4 stage data ($22=$0F).
+;
+; Annotation: light — all labels auto-generated, entity spawn routing bare
 ; =============================================================================
 bank $0F
 org $A000

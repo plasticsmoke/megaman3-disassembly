@@ -12,6 +12,8 @@
 ;   byte 2+ = sprite definition IDs per frame
 ;
 ; Companion banks: $1A (entity OAM IDs $00-$7F), $1B (OAM IDs $80-$FF).
+;
+; Annotation: none — pure animation sequence data, header describes format
 ; =============================================================================
 bank $15
 org $8000

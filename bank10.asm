@@ -6,6 +6,8 @@
 ; table setup, music selection) and boss post-defeat sequencing.
 ; Entry points: $8000 (stage setup), $8003 (post-defeat).
 ; Also serves as stage data for stage $14 via stage_to_bank.
+;
+; Annotation: light — all labels auto-generated, stage setup logic bare
 ; =============================================================================
 bank $10
 org $8000

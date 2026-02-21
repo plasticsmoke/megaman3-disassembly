@@ -10,6 +10,8 @@
 ; Pointer table at $BE00/$BF00 indexes into this data per sprite def.
 ;
 ; Companion bank: $14 (alternate sprite offsets, used when bit 7 is set).
+;
+; Annotation: none — pure offset data, header describes format
 ; =============================================================================
 bank $19
 org $A000

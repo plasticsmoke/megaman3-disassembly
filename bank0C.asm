@@ -4,6 +4,8 @@
 ; Mapped to $8000-$9FFF. Contains game over screen rendering, palette setup,
 ; OAM/nametable filling, and results display logic.
 ; Also serves as Wily Fortress 1 stage data ($22=$0C) at $A000-$BFFF.
+;
+; Annotation: light — all labels auto-generated, game over logic bare
 ; =============================================================================
 bank $0C
 org $8000

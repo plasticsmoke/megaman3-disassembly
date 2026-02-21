@@ -36,6 +36,8 @@
 ;   process_sprites ($1C800C) → code_3A8014 (24 slots, $18 stride in MM4)
 ;   check_player_hit ($1C8097) → code_3A81CC
 ;   check_weapon_hit ($1C8102) → code_3FF95D
+;
+; Annotation: partial — all 75+ entity entry points named, 662 auto labels remain
 ; =============================================================================
 
 bank $1C

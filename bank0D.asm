@@ -5,6 +5,8 @@
 ; table lookups, animation frame data transfer to OAM buffer ($0200+).
 ; Also serves as Wily Fortress 2/3/5 stage data — shared by stages $0D,
 ; $0E, $10 via stage_to_bank table (all map to bank $0D).
+;
+; Annotation: light — all labels auto-generated, animation dispatch bare
 ; =============================================================================
 bank $0D
 org $A000

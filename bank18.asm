@@ -1,3 +1,12 @@
+; =============================================================================
+; MEGA MAN 3 (U) — BANK $18 — STAGE SELECT + PROTO MAN SCENES
+; =============================================================================
+; Mapped to $A000-$BFFF. Contains stage select screen logic (grid layout,
+; cursor movement, portrait rendering, palette flash), robot master intro
+; transitions, Proto Man encounter scenes, and Wily gate sequences.
+;
+; Annotation: heavy — stage select thoroughly covered, Proto Man scenes documented
+; =============================================================================
 bank $18
 org $A000
 

@@ -36,6 +36,8 @@
 ; direct routine-index dispatch (vs page-based AI state machine),
 ; 16 weapon slots (vs 8), Top Spin mechanic, no 16-bit X coordinates.
 ;
+; Annotation: COMPLETE — all code blocks fully annotated
+;
 ; =============================================================================
 ; KEY MEMORY MAP
 ; =============================================================================

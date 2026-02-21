@@ -11,6 +11,8 @@
 ;   jump_local_ptr — inline pointer table dispatch (pulls JSR return addr)
 ;   read_ptr — cross-bank byte read ($16/$17 for $8000-$BFFF, temp-swaps
 ;              $18 for $C000+ addresses)
+;
+; Annotation: partial — 3 key functions documented, driver internals bare
 ; =============================================================================
 bank $16
 org $8000
