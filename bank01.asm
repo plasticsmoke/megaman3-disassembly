@@ -1,42 +1,56 @@
 ; =============================================================================
-; MEGA MAN 3 (U) — BANK $01 — MAGNET MAN STAGE DATA + SPRITE INIT
+; MEGA MAN 3 (U) — BANK $01 — CHR/PALETTE INIT + MAGNET MAN STAGE DATA
 ; =============================================================================
-; Mapped to $A000-$BFFF. Stage data bank for Magnet Man ($22=$01).
-; Contains stage initialization code (palette setup, OAM buffer init),
-; palette data tables ($A030+: NES color values per stage), and standard
-; stage layout data ($AA00+: screen grids, enemy placements, metatiles,
-; collision table at $BF00).
+; Mapped to $A000-$BFFF. Contains the shared CHR/palette initialization
+; routine called by load_room (bank1E_1F), plus data tables:
+;   $A000:       set_room_chr_and_palette — sets $EC/$ED and SP2-SP3
+;   $A030+:      sprite palette table (8 bytes per param: SP2 + SP3)
+;   $A200+:      sprite CHR bank table (2 bytes per param: $EC, $ED)
+; Also doubles as Magnet Man stage data ($22=$01) for $AA00+ region.
 ; =============================================================================
 bank $01
 org $A000
 
-  ASL                                       ; $01A000 |
-  PHA                                       ; $01A001 |
-  TAX                                       ; $01A002 |
-  LDA $A200,x                               ; $01A003 |
-  STA $EC                                   ; $01A006 |
-  LDA $A201,x                               ; $01A008 |
-  STA $ED                                   ; $01A00B |
-  PLA                                       ; $01A00D |
-  ASL                                       ; $01A00E |
-  ASL                                       ; $01A00F |
-  TAY                                       ; $01A010 |
-  LDA #$00                                  ; $01A011 |
-  ADC #$A0                                  ; $01A013 |
-  STA $01                                   ; $01A015 |
-  LDA #$30                                  ; $01A017 |
-  STA $00                                   ; $01A019 |
+; ---------------------------------------------------------------------------
+; set_room_chr_and_palette — configure sprite CHR banks and palettes
+; ---------------------------------------------------------------------------
+; Called from load_room (bank1E_1F) with A = CHR/palette param from $AA60.
+; The param indexes two tables:
+;   $A200[param*2]:   $EC/$ED sprite CHR bank pages (tiles $80-$FF)
+;   $A030[param*8]:   SP2/SP3 sprite palettes (8 NES color bytes)
+;
+; Params $00-$11 = stage defaults (Needle..Wily6), $12+ = room variants.
+; Each room in a stage can select any param, allowing different enemy
+; tilesets and palettes per room within the same stage.
+; ---------------------------------------------------------------------------
+set_room_chr_and_palette:
+  ASL                                       ; $01A000 |\ param * 2 → index into $A200
+  PHA                                       ; $01A001 | | (save param*2 for palette calc)
+  TAX                                       ; $01A002 |/
+  LDA $A200,x                               ; $01A003 |\ $EC = sprite CHR bank for $1800-$1BFF
+  STA $EC                                   ; $01A006 |/ (tiles $80-$BF)
+  LDA $A201,x                               ; $01A008 |\ $ED = sprite CHR bank for $1C00-$1FFF
+  STA $ED                                   ; $01A00B |/ (tiles $C0-$FF)
+  PLA                                       ; $01A00D |\ param*2 → param*4 → param*8
+  ASL                                       ; $01A00E | | for palette table offset
+  ASL                                       ; $01A00F |/
+  TAY                                       ; $01A010 |  Y = (param*8) & $FF
+  LDA #$00                                  ; $01A011 |\ high byte = $A0 + carry from ASL
+  ADC #$A0                                  ; $01A013 | | ($A0 for param $00-$1F,
+  STA $01                                   ; $01A015 |/  $A1 for param $20-$3F)
+  LDA #$30                                  ; $01A017 |\ low byte = $30
+  STA $00                                   ; $01A019 |/ → pointer = $A030 + (param*8 overflow)
   LDX #$00                                  ; $01A01B |
-code_01A01D:
-  LDA ($00),y                               ; $01A01D |
-  STA $0618,x                               ; $01A01F |
-  STA $0638,x                               ; $01A022 |
-  INY                                       ; $01A025 |
-  INX                                       ; $01A026 |
-  CPX #$08                                  ; $01A027 |
-  BNE code_01A01D                           ; $01A029 |
-  LDX #$FF                                  ; $01A02B |
-  STX $18                                   ; $01A02D |
+.copy_palettes:
+  LDA ($00),y                               ; $01A01D |\ copy 8 palette bytes (SP2 + SP3):
+  STA $0618,x                               ; $01A01F | | $0618-$061F = active SP2-SP3
+  STA $0638,x                               ; $01A022 | | $0638-$063F = working copy
+  INY                                       ; $01A025 | |
+  INX                                       ; $01A026 | |
+  CPX #$08                                  ; $01A027 | |
+  BNE .copy_palettes                        ; $01A029 |/
+  LDX #$FF                                  ; $01A02B |\ $18 = $FF → trigger palette DMA
+  STX $18                                   ; $01A02D |/ (NMI will copy to PPU)
   RTS                                       ; $01A02F |
 
   db $0F, $0F, $30, $27, $0F, $0F, $30, $15 ; $01A030 |

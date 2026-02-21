@@ -663,7 +663,7 @@ stage_select_init:
   LDA #$00                                  ; $1890FA |
   STA $70                                   ; $1890FC | clear NMI sync flag
   LDA $9C63,y                               ; $1890FE | load screen scroll/setup param
-  JSR code_1FE8B4                           ; $189101 |
+  JSR metatile_column_ptr_by_id                           ; $189101 |
   LDA #$04                                  ; $189104 |
   STA $97                                   ; $189106 |
   JSR prepare_oam_buffer                           ; $189108 | clear unused OAM sprites
@@ -735,7 +735,7 @@ code_189164:
   ASL                                       ; $18918B |
   STA $10                                   ; $18918C |
   LDA #$01                                  ; $18918E |
-  JSR code_1FE8B4                           ; $189190 |
+  JSR metatile_column_ptr_by_id                           ; $189190 |
   LDA #$00                                  ; $189193 |
   STA $70                                   ; $189195 |
   STA $EE                                   ; $189197 |
@@ -819,7 +819,7 @@ code_189216:
   STA $70                                   ; $18922D |
   STA $28                                   ; $18922F |
   LDA #$04                                  ; $189231 |
-  JSR code_1FE8B4                           ; $189233 |
+  JSR metatile_column_ptr_by_id                           ; $189233 |
 code_189236:
   LDA #$00                                  ; $189236 |
   STA $EE                                   ; $189238 |
@@ -1078,10 +1078,10 @@ stage_select_confirm:
   STA $10                                   ; $189352 |/
 
 ; --- Set up metatile pointer and fill nametable ---
-; code_1FE8B4 computes: ($20/$21) = $AF00 + (A << 6)
+; metatile_column_ptr_by_id computes: ($20/$21) = $AF00 + (A << 6)
 ; A=$03 → column 3 of bank $13 level data → pointer $AFC0
   LDA #$03                                  ; $189354 |\ set metatile column pointer
-  JSR code_1FE8B4                           ; $189356 |/ ($20/$21) → $AFC0 in bank $13
+  JSR metatile_column_ptr_by_id                           ; $189356 |/ ($20/$21) → $AFC0 in bank $13
   LDA #$00                                  ; $189359 |\ $70 = nametable fill progress (0-63)
   STA $70                                   ; $18935B |/ starts at 0
   STA $EE                                   ; $18935D | $EE = NMI skip flag (0=allow NMI)
@@ -1262,13 +1262,13 @@ robot_master_intro:
 ; Fill nametable 0 with boss intro layout from bank $13.
 ; Temporarily set $22 = $14 so metatile pointer references the correct
 ; level section in bank $13 (stage $14 = the boss intro screen layout).
-; code_1FE8B4 with A=$07 → metatile column 7 → pointer $B0C0.
+; metatile_column_ptr_by_id with A=$07 → metatile column 7 → pointer $B0C0.
   LDA $22                                   ; $18943D |\ save real stage number
   PHA                                       ; $18943F |/
   LDA #$14                                  ; $189440 |\ $22 = $14 (boss intro layout ID)
   STA $22                                   ; $189442 |/
   LDA #$07                                  ; $189444 |\ metatile column 7
-  JSR code_1FE8B4                           ; $189446 |/ pointer → $B0C0 in bank $13
+  JSR metatile_column_ptr_by_id                           ; $189446 |/ pointer → $B0C0 in bank $13
 .fill_intro_screen:
   LDA #$00                                  ; $189449 |\ $10 = 0 → write to nametable $2000
   STA $10                                   ; $18944B |/
@@ -1499,7 +1499,7 @@ code_18958A:
   STA $F5                                   ; $1895A1 |
   JSR select_PRG_banks                      ; $1895A3 |
   LDA #$01                                  ; $1895A6 |
-  JSR code_1FE8B4                           ; $1895A8 |
+  JSR metatile_column_ptr_by_id                           ; $1895A8 |
   LDA #$00                                  ; $1895AB |
   STA $70                                   ; $1895AD |
 code_1895AF:
@@ -1521,7 +1521,7 @@ code_1895AF:
   JSR write_ppu_data_from_bank03                           ; $1895D2 |
   JSR task_yield                           ; $1895D5 |
   LDA #$04                                  ; $1895D8 |
-  JSR code_1FE8B4                           ; $1895DA |
+  JSR metatile_column_ptr_by_id                           ; $1895DA |
   LDA #$00                                  ; $1895DD |
   STA $70                                   ; $1895DF |
 code_1895E1:
@@ -1620,7 +1620,7 @@ code_18968C:
   LDA #$01                                  ; $1896A3 |
   STA $FD                                   ; $1896A5 |
   LDA #$02                                  ; $1896A7 |
-  JSR code_1FE8B4                           ; $1896A9 |
+  JSR metatile_column_ptr_by_id                           ; $1896A9 |
 code_1896AC:
   LDA #$04                                  ; $1896AC |
   STA $10                                   ; $1896AE |
@@ -1872,7 +1872,7 @@ code_18985D:
   LDA #$00                                  ; $189876 |
   STA $FA                                   ; $189878 |
   LDA #$02                                  ; $18987A |
-  JSR code_1FE8B4                           ; $18987C |
+  JSR metatile_column_ptr_by_id                           ; $18987C |
 code_18987F:
   LDA #$04                                  ; $18987F |
   STA $10                                   ; $189881 |

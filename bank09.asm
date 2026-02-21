@@ -363,7 +363,7 @@ code_098309:
   STA $F5                                   ; $098318 |
   JSR select_PRG_banks                      ; $09831A |
   LDA #$1F                                  ; $09831D |
-  JSR code_1FE8B4                           ; $09831F |
+  JSR metatile_column_ptr_by_id                           ; $09831F |
   LDA #$08                                  ; $098322 |
   STA $10                                   ; $098324 |
   JSR fill_nametable_progressive                           ; $098326 |

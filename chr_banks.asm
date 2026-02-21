@@ -1,4 +1,11 @@
-; CHR banks
+; =============================================================================
+; CHR ROM — Pattern Table Graphics (banks $20-$2F, 128 KB)
+; =============================================================================
+; All sprite and background tile graphics for the PPU. 16 banks × 8 KB each.
+; NES 2bpp planar format: 16 bytes per 8×8 tile, 256 tiles per 4 KB half-bank.
+; The MMC3 mapper swaps these into PPU pattern table space ($0000-$1FFF) to
+; control which graphics are visible. No code — pure pixel data.
+; =============================================================================
 
 bank $20
 org $8000

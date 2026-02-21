@@ -34,7 +34,7 @@ org $8000
   LDA #$16                                  ; $0B802F |
   STA $22                                   ; $0B8031 |
   LDA #$02                                  ; $0B8033 |
-  JSR code_1FE8B4                           ; $0B8035 |
+  JSR metatile_column_ptr_by_id                           ; $0B8035 |
 code_0B8038:
   LDA #$00                                  ; $0B8038 |
   STA $10                                   ; $0B803A |
@@ -227,7 +227,7 @@ code_0B81B0:
   STA $F5                                   ; $0B81CC |
   JSR select_PRG_banks                      ; $0B81CE |
   LDA #$08                                  ; $0B81D1 |
-  JSR code_1FE8B4                           ; $0B81D3 |
+  JSR metatile_column_ptr_by_id                           ; $0B81D3 |
 code_0B81D6:
   LDA #$00                                  ; $0B81D6 |
   STA $10                                   ; $0B81D8 |
@@ -530,7 +530,7 @@ code_0B8439:
   STA $F5                                   ; $0B845C |
   JSR select_PRG_banks                      ; $0B845E |
   LDA #$00                                  ; $0B8461 |
-  JSR code_1FE8B4                           ; $0B8463 |
+  JSR metatile_column_ptr_by_id                           ; $0B8463 |
 code_0B8466:
   LDA #$00                                  ; $0B8466 |
   STA $10                                   ; $0B8468 |

@@ -65,7 +65,7 @@ code_0C804A:
   LDA #$16                                  ; $0C807B |
   STA $22                                   ; $0C807D |
   LDA #$02                                  ; $0C807F |
-  JSR code_1FE8B4                           ; $0C8081 |
+  JSR metatile_column_ptr_by_id                           ; $0C8081 |
 code_0C8084:
   LDA #$00                                  ; $0C8084 |
   STA $10                                   ; $0C8086 |
@@ -251,7 +251,7 @@ code_0C81FC:
   LDA #$14                                  ; $0C820A |
   STA $22                                   ; $0C820C |
   LDA #$00                                  ; $0C820E |
-  JSR code_1FE8B4                           ; $0C8210 |
+  JSR metatile_column_ptr_by_id                           ; $0C8210 |
 code_0C8213:
   LDA #$04                                  ; $0C8213 |
   STA $10                                   ; $0C8215 |
@@ -260,7 +260,7 @@ code_0C8213:
   LDA $70                                   ; $0C821D |
   BNE code_0C8213                           ; $0C821F |
   LDA #$01                                  ; $0C8221 |
-  JSR code_1FE8B4                           ; $0C8223 |
+  JSR metatile_column_ptr_by_id                           ; $0C8223 |
 code_0C8226:
   LDA #$00                                  ; $0C8226 |
   STA $10                                   ; $0C8228 |
@@ -452,7 +452,7 @@ code_0C839F:
   STA $EE                                   ; $0C83A6 |
   STA $F8                                   ; $0C83A8 |
   LDA #$06                                  ; $0C83AA |
-  JSR code_1FE8B4                           ; $0C83AC |
+  JSR metatile_column_ptr_by_id                           ; $0C83AC |
 code_0C83AF:
   LDA #$08                                  ; $0C83AF |
   STA $10                                   ; $0C83B1 |
@@ -559,7 +559,7 @@ code_0C8466:
   STA $22                                   ; $0C8490 |
   JSR select_PRG_banks                      ; $0C8492 |
   LDA #$03                                  ; $0C8495 |
-  JSR code_1FE8B4                           ; $0C8497 |
+  JSR metatile_column_ptr_by_id                           ; $0C8497 |
   LDA #$00                                  ; $0C849A |
   STA $70                                   ; $0C849C |
 code_0C849E:
